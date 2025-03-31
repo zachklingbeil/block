@@ -2,7 +2,7 @@ module github.com/zachklingbeil/block
 
 go 1.24.1
 
-require github.com/zachklingbeil/factory v1.0.2
+require github.com/zachklingbeil/factory v1.0.9
 
 require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
@@ -14,7 +14,7 @@ require (
 	github.com/deckarep/golang-set/v2 v2.8.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
 	github.com/ethereum/c-kzg-4844 v1.0.3 // indirect
-	github.com/ethereum/go-ethereum v1.15.6 // indirect
+	github.com/ethereum/go-ethereum v1.15.7 // indirect
 	github.com/ethereum/go-verkle v0.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
