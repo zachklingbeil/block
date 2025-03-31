@@ -2,7 +2,7 @@ module github.com/zachklingbeil/block
 
 go 1.24.1
 
-require github.com/zachklingbeil/factory v1.0.0
+require github.com/zachklingbeil/factory v1.0.2
 
 require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect

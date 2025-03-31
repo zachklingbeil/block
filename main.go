@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 
-	"github.com/zachklingbeil/block/ethereum"
 	"github.com/zachklingbeil/block/loopring"
 	"github.com/zachklingbeil/factory"
 )
@@ -15,6 +14,8 @@ func main() {
 	}
 
 	loopring := loopring.NewLoopring(factory)
-	ethereum := ethereum.NewEthereum(factory)
-	log.Println("Loopring and Ethereum initialized successfully:", loopring, ethereum)
+	loopring.CurrentBlock()
+	loopring.GetBlock(10000)
+	loopring.GetBlock(10001)
+	loopring.GetBlock(10002)
 }

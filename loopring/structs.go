@@ -1,39 +1,33 @@
 package loopring
 
-type Main struct {
-	BlockID      int64         `json:"blockId"`
-	BlockSize    int64         `json:"blockSize"`
-	Exchange     string        `json:"exchange"`
+type Block struct {
+	Number       int64         `json:"blockId"`
+	Size         int64         `json:"blockSize"`
 	TxHash       string        `json:"txHash"`
-	Status       string        `json:"status"`
-	CreatedAt    int64         `json:"createdAt"`
+	Created      int64         `json:"createdAt"`
 	Transactions []Transaction `json:"transactions"`
 }
 
 type Transaction struct {
-	TxType           TxType  `json:"txType"`
-	AccountID        int64   `json:"accountId"`
-	Token            Token   `json:"token"`
-	ToToken          ToToken `json:"toToken"`
-	Fee              Fee     `json:"fee"`
-	ValidUntil       int64   `json:"validUntil"`
-	ToAccountID      int64   `json:"toAccountId"`
-	ToAccountAddress string  `json:"toAccountAddress"`
-	StorageID        int64   `json:"storageId"`
-}
-
-type Fee struct {
-	TokenID int64  `json:"tokenId"`
-	Amount  string `json:"amount"`
-}
-
-type ToToken struct {
+	TxType     TxType `json:"txType"`
+	Token      Token  `json:"token"`
+	ToToken    Token  `json:"toToken"`
+	Fee        Fee    `json:"fee"`
+	FromID     int64  `json:"accountId"`
+	ToID       int64  `json:"toAccountId"`
+	ToAddress  string `json:"toAccountAddress"`
+	ValidUntil int64  `json:"validUntil"`
 }
 
 type Token struct {
-	TokenID int64  `json:"tokenId"`
+	ID      int64  `json:"tokenId"`
 	NftData string `json:"nftData"`
 	Amount  string `json:"amount"`
+}
+
+type Fee struct {
+	ID     int64  `json:"tokenId"`
+	Amount string `json:"amount"`
 }
 
 type TxType string

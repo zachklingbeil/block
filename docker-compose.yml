@@ -1,0 +1,15 @@
+services:
+    block:
+        container_name: block
+        image: docker.timefactory.io/block
+        volumes:
+            - ethereum:/root/.ethereum
+        user: '0:0'
+        networks:
+            - timefactory
+networks:
+    timefactory:
+        external: true
+volumes:
+    ethereum:
+        external: true
