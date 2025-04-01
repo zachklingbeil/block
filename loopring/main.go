@@ -87,20 +87,39 @@ func (l *Loopring) CurrentBlock() (int64, error) {
 	return block.Number, nil
 }
 
-// FetchBlocks fetches blocks sequentially from 0 to the current block and stores them in the database.
+// FetchBlocks fetches blocks sequentially from the last fetched block to the current block and stores them in the database.
 func (l *Loopring) FetchBlocks() error {
+	// Get the current block number
 	currentBlock, err := l.CurrentBlock()
 	if err != nil {
 		return fmt.Errorf("failed to fetch the current block number: %w", err)
 	}
 
+	// Get the highest block ID from the database
+	blockHeight, err := l.ContinueFetch()
+	if err != nil {
+		return fmt.Errorf("failed to fetch the highest block ID: %w", err)
+	}
+
 	// Fetch and store each block sequentially
-	for i := int64(1); i <= currentBlock; i++ {
+	for i := blockHeight + 1; i <= currentBlock; i++ {
 		if err := l.GetBlock(int(i)); err != nil {
 			fmt.Printf("Failed to fetch block %d: %v\n", i, err)
 			continue
 		}
 	}
+
 	fmt.Println("Finished fetching all blocks.")
 	return nil
+}
+
+// GetHighestBlockID retrieves the highest block_id from the database.
+func (l *Loopring) ContinueFetch() (int64, error) {
+	query := `SELECT COALESCE(MAX(block_id), 0) FROM blocks`
+
+	var blockHeight int64
+	if err := l.Db.QueryRow(query).Scan(&blockHeight); err != nil {
+		return 0, fmt.Errorf("failed to fetch the highest block_id from the database: %w", err)
+	}
+	return blockHeight, nil
 }
