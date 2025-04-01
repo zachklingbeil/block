@@ -10,9 +10,30 @@ import (
 
 type Loopring struct {
 	Factory *factory.Factory
-	Map     map[int64][]*Transaction
+	Map     map[int64]*Block
 	Db      *sql.DB
 }
+
+type Block struct {
+	Created      int64         `json:"createdAt"`
+	Number       int64         `json:"blockId"`
+	Size         int64         `json:"blockSize"`
+	TxHash       string        `json:"txHash"`
+	Transactions []Transaction `json:"transactions"`
+}
+
+type Transaction struct {
+	TxType    TxType `json:"txType"`
+	From      int64  `json:"accountId"`
+	To        int64  `json:"toAccountId"`
+	ToAddress string `json:"toAccountAddress"`
+}
+
+type TxType string
+
+const (
+	Transfer TxType = "Transfer, Deposit, Withdraw"
+)
 
 func NewLoopring(factory *factory.Factory) (*Loopring, error) {
 	db, err := factory.Db.Connect("loopring")
@@ -20,44 +41,18 @@ func NewLoopring(factory *factory.Factory) (*Loopring, error) {
 		return nil, fmt.Errorf("failed to connect to the Loopring database: %w", err)
 	}
 
-	return &Loopring{
+	loopring := &Loopring{
 		Factory: factory,
-		Map:     make(map[int64][]*Transaction),
+		Map:     make(map[int64]*Block),
 		Db:      db,
-	}, nil
-}
-
-// Helper function to update the map with transactions for a given block number.
-func (l *Loopring) Write(blockNumber int64, transactions []*Transaction) {
-	l.Factory.Mu.Lock()
-	defer l.Factory.Mu.Unlock()
-	l.Map[blockNumber] = transactions
-}
-
-// Helper function to read transactions from the map for a given block number.
-func (l *Loopring) Read(blockNumber int64) ([]*Transaction, bool) {
-	l.Factory.Mu.Lock()
-	defer l.Factory.Mu.Unlock()
-	transactions, exists := l.Map[blockNumber]
-	return transactions, exists
-}
-
-// CurrentBlock fetches the latest block Number from the Loopring API.
-func (l *Loopring) CurrentBlock() (int64, error) {
-	response, err := l.Factory.Json.In("https://api3.loopring.io/api/v3/block/getBlock", "")
-	if err != nil {
-		return 0, fmt.Errorf("failed to fetch the latest block data: %w", err)
 	}
 
-	var block Block
-	if err := json.Unmarshal(response, &block); err != nil {
-		return 0, fmt.Errorf("failed to parse block data: %w", err)
+	if err := loopring.CreateTable(); err != nil {
+		return nil, fmt.Errorf("failed to create blocks table: %w", err)
 	}
-	l.Factory.Json.Print(block.Number)
-	return block.Number, nil
+	return loopring, nil
 }
 
-// GetBlock fetches block data from the Loopring API and updates the map with transactions.
 func (l *Loopring) GetBlock(number int) error {
 	url := fmt.Sprintf("https://api3.loopring.io/api/v3/block/getBlock?id=%d", number)
 	response, err := l.Factory.Json.In(url, "")
@@ -70,15 +65,48 @@ func (l *Loopring) GetBlock(number int) error {
 		return fmt.Errorf("failed to parse block data for block number %d: %w", number, err)
 	}
 
-	transactions := make([]*Transaction, len(block.Transactions))
-	for i, tx := range block.Transactions {
-		transactions[i] = &tx
+	if err := l.InsertBlock(&block); err != nil {
+		return fmt.Errorf("failed to insert block into database: %w", err)
 	}
 
-	// Use the helper function to update the map
-	l.Write(int64(number), transactions)
+	return nil
+}
 
-	// Print the block size
-	l.Factory.Json.Print(block.Size)
+func (l *Loopring) InsertBlock(block *Block) error {
+	query := `
+        INSERT INTO blocks (created, block_id, block_size, tx_hash, transactions)
+        VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (created) DO NOTHING
+    `
+
+	transactionsJSON, err := json.Marshal(block.Transactions)
+	if err != nil {
+		return fmt.Errorf("failed to marshal transactions: %w", err)
+	}
+
+	_, err = l.Db.Exec(query, block.Created, block.Number, block.Size, block.TxHash, transactionsJSON)
+	if err != nil {
+		return fmt.Errorf("failed to insert block into database: %w", err)
+	}
+
+	return nil
+}
+
+func (l *Loopring) CreateTable() error {
+	query := `
+    CREATE TABLE IF NOT EXISTS blocks (
+        created BIGINT PRIMARY KEY,
+        block_id BIGINT NOT NULL,
+        block_size BIGINT NOT NULL,
+        tx_hash TEXT NOT NULL,
+        transactions JSONB NOT NULL
+    );
+    `
+
+	_, err := l.Db.Exec(query)
+	if err != nil {
+		return fmt.Errorf("failed to create blocks table: %w", err)
+	}
+
 	return nil
 }

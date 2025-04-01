@@ -20,6 +20,8 @@ func main() {
 	}
 
 	ethereum.NewEthereum(factory)
+
+	loopring.CreateTable()
 	loopring.CurrentBlock()
 	loopring.GetBlock(10000)
 	loopring.GetBlock(10001)
