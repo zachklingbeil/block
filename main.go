@@ -21,4 +21,5 @@ func main() {
 
 	ethereum.NewEthereum(factory)
 	loopring.FetchBlocks()
+	loopring.EnsureTransactions()
 }
