@@ -1,67 +1,47 @@
 package loopring
 
-import (
-	"encoding/json"
-	"fmt"
-)
+// // Helper function to read transactions from the map for a given block number.
+// func (l *Loopring) Read(blockNumber int64) (*Block, bool) {
+// 	l.Factory.Mu.Lock()
+// 	defer l.Factory.Mu.Unlock()
+// 	block, exists := l.Map[blockNumber]
+// 	if !exists {
+// 		return nil, false
+// 	}
+// 	return block, true
+// }
 
-// CurrentBlock fetches the latest block Number from the Loopring API.
-func (l *Loopring) CurrentBlock() (int64, error) {
-	response, err := l.Factory.Json.In("https://api3.loopring.io/api/v3/block/getBlock", "")
-	if err != nil {
-		return 0, fmt.Errorf("failed to fetch the latest block data: %w", err)
-	}
+// // Helper function to update the map with transactions for a given block number.
+// func (l *Loopring) Write(block *Block) {
+// 	l.Factory.Mu.Lock()
+// 	defer l.Factory.Mu.Unlock()
+// 	l.Map[block.Number] = block
+// }
 
-	var block Block
-	if err := json.Unmarshal(response, &block); err != nil {
-		return 0, fmt.Errorf("failed to parse block data: %w", err)
-	}
-	l.Factory.Json.Print(block.Number)
-	return block.Number, nil
-}
+// func (l *Loopring) LoadBlocks() error {
+// 	query := `SELECT created, block_id, block_size, tx_hash, transactions FROM blocks`
 
-// Helper function to read transactions from the map for a given block number.
-func (l *Loopring) Read(blockNumber int64) (*Block, bool) {
-	l.Factory.Mu.Lock()
-	defer l.Factory.Mu.Unlock()
-	block, exists := l.Map[blockNumber]
-	if !exists {
-		return nil, false
-	}
-	return block, true
-}
+// 	rows, err := l.Db.Query(query)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to query blocks from database: %w", err)
+// 	}
+// 	defer rows.Close()
 
-// Helper function to update the map with transactions for a given block number.
-func (l *Loopring) Write(block *Block) {
-	l.Factory.Mu.Lock()
-	defer l.Factory.Mu.Unlock()
-	l.Map[block.Number] = block
-}
+// 	for rows.Next() {
+// 		var block Block
+// 		var transactionsJSON []byte
 
-func (l *Loopring) LoadBlocks() error {
-	query := `SELECT created, block_id, block_size, tx_hash, transactions FROM blocks`
+// 		if err := rows.Scan(&block.Created, &block.Number, &block.Size, &block.TxHash, &transactionsJSON); err != nil {
+// 			return fmt.Errorf("failed to scan block row: %w", err)
+// 		}
 
-	rows, err := l.Db.Query(query)
-	if err != nil {
-		return fmt.Errorf("failed to query blocks from database: %w", err)
-	}
-	defer rows.Close()
+// 		if err := json.Unmarshal(transactionsJSON, &block.Transactions); err != nil {
+// 			return fmt.Errorf("failed to unmarshal transactions: %w", err)
+// 		}
 
-	for rows.Next() {
-		var block Block
-		var transactionsJSON []byte
+// 		// Write to the in-memory map
+// 		l.Write(&block)
+// 	}
 
-		if err := rows.Scan(&block.Created, &block.Number, &block.Size, &block.TxHash, &transactionsJSON); err != nil {
-			return fmt.Errorf("failed to scan block row: %w", err)
-		}
-
-		if err := json.Unmarshal(transactionsJSON, &block.Transactions); err != nil {
-			return fmt.Errorf("failed to unmarshal transactions: %w", err)
-		}
-
-		// Write to the in-memory map
-		l.Write(&block)
-	}
-
-	return nil
-}
+// 	return nil
+// }

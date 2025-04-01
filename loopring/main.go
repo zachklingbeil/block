@@ -10,7 +10,6 @@ import (
 
 type Loopring struct {
 	Factory *factory.Factory
-	Map     map[int64]*Block
 	Db      *sql.DB
 }
 
@@ -35,6 +34,7 @@ const (
 	Transfer TxType = "Transfer, Deposit, Withdraw"
 )
 
+// NewLoopring initializes a new Loopring instance and ensures the database table exists.
 func NewLoopring(factory *factory.Factory) (*Loopring, error) {
 	db, err := factory.Db.Connect("loopring")
 	if err != nil {
@@ -43,7 +43,6 @@ func NewLoopring(factory *factory.Factory) (*Loopring, error) {
 
 	loopring := &Loopring{
 		Factory: factory,
-		Map:     make(map[int64]*Block),
 		Db:      db,
 	}
 
@@ -53,6 +52,7 @@ func NewLoopring(factory *factory.Factory) (*Loopring, error) {
 	return loopring, nil
 }
 
+// GetBlock fetches a block from the Loopring API and inserts it into the database.
 func (l *Loopring) GetBlock(number int) error {
 	url := fmt.Sprintf("https://api3.loopring.io/api/v3/block/getBlock?id=%d", number)
 	response, err := l.Factory.Json.In(url, "")
@@ -65,6 +65,7 @@ func (l *Loopring) GetBlock(number int) error {
 		return fmt.Errorf("failed to parse block data for block number %d: %w", number, err)
 	}
 
+	// Insert the block into the database
 	if err := l.InsertBlock(&block); err != nil {
 		return fmt.Errorf("failed to insert block into database: %w", err)
 	}
@@ -72,41 +73,34 @@ func (l *Loopring) GetBlock(number int) error {
 	return nil
 }
 
-func (l *Loopring) InsertBlock(block *Block) error {
-	query := `
-        INSERT INTO blocks (created, block_id, block_size, tx_hash, transactions)
-        VALUES ($1, $2, $3, $4, $5)
-        ON CONFLICT (created) DO NOTHING
-    `
-
-	transactionsJSON, err := json.Marshal(block.Transactions)
+// CurrentBlock fetches the latest block Number from the Loopring API.
+func (l *Loopring) CurrentBlock() (int64, error) {
+	response, err := l.Factory.Json.In("https://api3.loopring.io/api/v3/block/getBlock", "")
 	if err != nil {
-		return fmt.Errorf("failed to marshal transactions: %w", err)
+		return 0, fmt.Errorf("failed to fetch the latest block data: %w", err)
 	}
 
-	_, err = l.Db.Exec(query, block.Created, block.Number, block.Size, block.TxHash, transactionsJSON)
-	if err != nil {
-		return fmt.Errorf("failed to insert block into database: %w", err)
+	var block Block
+	if err := json.Unmarshal(response, &block); err != nil {
+		return 0, fmt.Errorf("failed to parse block data: %w", err)
 	}
-
-	return nil
+	return block.Number, nil
 }
 
-func (l *Loopring) CreateTable() error {
-	query := `
-    CREATE TABLE IF NOT EXISTS blocks (
-        created BIGINT PRIMARY KEY,
-        block_id BIGINT NOT NULL,
-        block_size BIGINT NOT NULL,
-        tx_hash TEXT NOT NULL,
-        transactions JSONB NOT NULL
-    );
-    `
-
-	_, err := l.Db.Exec(query)
+// FetchBlocks fetches blocks sequentially from 0 to the current block and stores them in the database.
+func (l *Loopring) FetchBlocks() error {
+	currentBlock, err := l.CurrentBlock()
 	if err != nil {
-		return fmt.Errorf("failed to create blocks table: %w", err)
+		return fmt.Errorf("failed to fetch the current block number: %w", err)
 	}
 
+	// Fetch and store each block sequentially
+	for i := int64(1); i <= currentBlock; i++ {
+		if err := l.GetBlock(int(i)); err != nil {
+			fmt.Printf("Failed to fetch block %d: %v\n", i, err)
+			continue
+		}
+	}
+	fmt.Println("Finished fetching all blocks.")
 	return nil
 }
