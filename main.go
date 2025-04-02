@@ -3,8 +3,7 @@ package main
 import (
 	"log"
 
-	"github.com/zachklingbeil/block/ethereum"
-	"github.com/zachklingbeil/block/loopring"
+	input "github.com/zachklingbeil/block/in"
 	"github.com/zachklingbeil/factory"
 )
 
@@ -13,13 +12,5 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error creating factory: %v", err)
 	}
-
-	loopring, err := loopring.NewLoopring(factory)
-	if err != nil {
-		log.Fatalf("Error creating Loopring instance: %v", err)
-	}
-
-	ethereum.NewEthereum(factory)
-	loopring.FetchBlocks()
-	loopring.EnsureTransactions()
+	input.NewInput(factory)
 }
