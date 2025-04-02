@@ -9,30 +9,6 @@ import (
 	"github.com/wealdtech/go-ens/v3"
 )
 
-// func (p *Peers) HelloUniverse(address string) {
-// 	var peer *Peer
-
-// 	if strings.HasPrefix(address, "0x") {
-// 		peer = p.FetchENS(address)
-// 	} else {
-// 		peer = p.FetchAddress(address)
-// 	}
-
-// 	if peer != nil {
-// 		p.Factory.Json.In(p.FormatAddress(peer.Address), peer)
-// 	}
-
-// 	peer = p.FetchLoopringENS(address)
-// 	if peer != nil {
-// 		p.Factory.Json.In(peer.LoopringENS, peer)
-// 	}
-
-// 	peer = p.FetchLoopringID(address)
-// 	if peer != nil {
-// 		p.Factory.Json.In(peer.LoopringID, peer)
-// 	}
-// }
-
 func (p *Peers) FormatAddress(address string) string {
 	if strings.HasPrefix(address, "0x") {
 		return "0x" + strings.ToUpper(address[2:])
