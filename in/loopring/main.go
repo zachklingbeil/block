@@ -10,7 +10,6 @@ import (
 type Loopring struct {
 	Factory *factory.Factory
 	Db      *sql.DB
-	Blocks  []Block
 }
 
 func NewLoopring(factory *factory.Factory) (*Loopring, error) {
