@@ -27,7 +27,7 @@ func (l *Loopring) CreateTable() error {
 // InsertBlock inserts a block into the database.
 func (l *Loopring) InsertBlock(block *Block) error {
 	query := `
-        INSERT INTO blocks ( block_id, block_size, created, tx_hash, transactions)
+        INSERT INTO blocks (block_id, block_size, created, tx_hash, transactions)
         VALUES ($1, $2, $3, $4, $5)
         ON CONFLICT (created) DO NOTHING
     `
@@ -40,13 +40,16 @@ func (l *Loopring) InsertBlock(block *Block) error {
 	if _, err := l.Db.Exec(query, block.Number, block.Size, block.Created, block.TxHash, transactions); err != nil {
 		return fmt.Errorf("failed to insert block into database: %w", err)
 	}
-
 	l.Factory.Json.Print(block.Number)
 	return nil
 }
 
-func (l *Loopring) LoadBlocks() error {
-	query := `SELECT created, block_id, transactions FROM blocks`
+// DiskToMem loads all blocks from the database into the Loopring struct's Blocks field.
+func (l *Loopring) DiskToMem() error {
+	query := `
+        SELECT block_id, block_size, created, tx_hash, transactions
+        FROM blocks
+    `
 
 	rows, err := l.Db.Query(query)
 	if err != nil {
@@ -54,19 +57,30 @@ func (l *Loopring) LoadBlocks() error {
 	}
 	defer rows.Close()
 
+	var blocks []Block
 	for rows.Next() {
 		var block Block
 		var transactionsJSON []byte
 
-		if err := rows.Scan(&block.Number, &transactionsJSON); err != nil {
-			return fmt.Errorf("failed to scan block row: %w", err)
+		// Scan block data
+		if err := rows.Scan(&block.Number, &block.Size, &block.Created, &block.TxHash, &transactionsJSON); err != nil {
+			return fmt.Errorf("failed to scan block data: %w", err)
 		}
 
+		// Unmarshal transactions
 		if err := json.Unmarshal(transactionsJSON, &block.Transactions); err != nil {
 			return fmt.Errorf("failed to unmarshal transactions: %w", err)
 		}
 
+		blocks = append(blocks, block)
 	}
+
+	// Check for errors during iteration
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("error iterating over rows: %w", err)
+	}
+
+	l.Blocks = blocks
 	return nil
 }
 

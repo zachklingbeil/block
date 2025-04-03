@@ -10,6 +10,7 @@ import (
 type Loopring struct {
 	Factory *factory.Factory
 	Db      *sql.DB
+	Blocks  []Block
 }
 
 // NewLoopring initializes a new Loopring instance and ensures the database table exists.
@@ -29,21 +30,3 @@ func NewLoopring(factory *factory.Factory) (*Loopring, error) {
 	}
 	return loopring, nil
 }
-
-// // Helper function to read transactions from the map for a given block number.
-// func (l *Loopring) Read(blockNumber int64) (*Block, bool) {
-// 	l.Factory.Mu.Lock()
-// 	defer l.Factory.Mu.Unlock()
-// 	block, exists := l.Map[blockNumber]
-// 	if !exists {
-// 		return nil, false
-// 	}
-// 	return block, true
-// }
-
-// // Helper function to update the map with transactions for a given block number.
-// func (l *Loopring) Write(block *Block) {
-// 	l.Factory.Mu.Lock()
-// 	defer l.Factory.Mu.Unlock()
-// 	l.Map[block.Number] = block
-// }
