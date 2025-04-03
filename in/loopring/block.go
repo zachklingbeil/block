@@ -76,9 +76,10 @@ func (l *Loopring) GetBlock(number int) error {
 	return nil
 }
 
-// PeerMap extracts a map of account IDs to their corresponding addresses.
-func (l *Loopring) PeerMap() map[int64]string {
+// PeerMap extracts a map of account IDs to their corresponding addresses and identifies IDs without addresses.
+func (l *Loopring) PeerMap() (map[int64]string, []int64) {
 	peerMap := make(map[int64]string)
+	missingAddresses := []int64{}
 
 	// Iterate over all blocks and transactions
 	for _, block := range l.Blocks {
@@ -94,6 +95,13 @@ func (l *Loopring) PeerMap() map[int64]string {
 		}
 	}
 
+	// Identify account IDs without addresses
+	for accountID, address := range peerMap {
+		if address == "" {
+			missingAddresses = append(missingAddresses, accountID)
+		}
+	}
+
 	// Calculate the number of unique addresses
 	uniqueAddresses := make(map[string]struct{})
 	for _, address := range peerMap {
@@ -103,7 +111,7 @@ func (l *Loopring) PeerMap() map[int64]string {
 	// Print the size of the address map and unique counts
 	fmt.Printf("Number of unique accounts: %d\n", len(peerMap))
 	fmt.Printf("Number of unique addresses: %d\n", len(uniqueAddresses))
-	return peerMap
+	return peerMap, missingAddresses
 }
 
 // PeerTable creates the addresses table if it doesn't already exist.
@@ -162,19 +170,59 @@ func (l *Loopring) MapToTable(addressMap map[int64]string) error {
 	return nil
 }
 
-// GetPeers orchestrates loading blocks into memory and finding peers.
 func (l *Loopring) GetPeers() error {
 	// Step 1: Load all blocks from the database into memory
 	if err := l.DiskToMem(); err != nil {
 		return fmt.Errorf("failed to load database: %w", err)
 	}
 
-	// Step 2: Extract the account-to-address map
-	peerMap := l.PeerMap()
+	// Step 2: Extract the account-to-address map and missing addresses
+	peerMap, missingAddresses := l.PeerMap()
 
-	// Step 3: Store the address map in the database
+	// Step 3: Store the initial address map in the database
 	if err := l.MapToTable(peerMap); err != nil {
 		return fmt.Errorf("failed to store address map: %w", err)
+	}
+
+	// Step 4: Fetch and update missing addresses
+	if len(missingAddresses) > 0 {
+		if err := l.FetchMissingAddresses(peerMap, missingAddresses); err != nil {
+			return fmt.Errorf("failed to fetch missing addresses: %w", err)
+		}
+
+		// Step 5: Store the updated address map in the database
+		if err := l.MapToTable(peerMap); err != nil {
+			return fmt.Errorf("failed to update address map: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// FetchMissingAddresses fetches addresses for account IDs that do not have addresses in the PeerMap.
+func (l *Loopring) FetchMissingAddresses(peerMap map[int64]string, missingAccounts []int64) error {
+	totalAccounts := len(missingAccounts)
+
+	for i, accountID := range missingAccounts {
+		// Print progress using l.Factory.Json.Print
+		l.Factory.Json.Print(fmt.Sprintf("%d/%d", i+1, totalAccounts))
+
+		url := fmt.Sprintf("https://api3.loopring.io/api/v3/account?accountId=%d", accountID)
+		response, err := l.Factory.Json.In(url, "")
+		if err != nil {
+			fmt.Printf("Failed to fetch address for account ID %d: %v\n", accountID, err)
+			continue
+		}
+
+		var accountData struct {
+			Owner string `json:"owner"`
+		}
+		if err := json.Unmarshal(response, &accountData); err != nil {
+			fmt.Printf("Failed to parse address for account ID %d: %v\n", accountID, err)
+			continue
+		}
+		// Update the PeerMap with the fetched address
+		peerMap[accountID] = accountData.Owner
 	}
 	return nil
 }
