@@ -13,7 +13,7 @@ type Ethereum struct {
 }
 
 func NewEthereum(factory *factory.Factory) (*Ethereum, error) {
-	db, err := factory.Db.Connect("ethereum")
+	db, err := factory.Db.Connect("block")
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to the Loopring database: %w", err)
 	}

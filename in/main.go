@@ -30,7 +30,5 @@ func NewInput(factory *factory.Factory) *Input {
 		Factory:  factory,
 	}
 	loopring.FetchBlocks()
-	loopring.EnsureTransactions()
-	loopring.GetPeers()
 	return io
 }

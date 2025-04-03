@@ -13,9 +13,8 @@ type Loopring struct {
 	Blocks  []Block
 }
 
-// NewLoopring initializes a new Loopring instance and ensures the database table exists.
 func NewLoopring(factory *factory.Factory) (*Loopring, error) {
-	db, err := factory.Db.Connect("loopring")
+	db, err := factory.Db.Connect("block")
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to the Loopring database: %w", err)
 	}
@@ -30,3 +29,24 @@ func NewLoopring(factory *factory.Factory) (*Loopring, error) {
 	}
 	return loopring, nil
 }
+
+type Block struct {
+	Created      int64         `json:"createdAt"`
+	Number       int64         `json:"blockId"`
+	Size         int64         `json:"blockSize"`
+	TxHash       string        `json:"txHash"`
+	Transactions []Transaction `json:"transactions"`
+}
+
+type Transaction struct {
+	TxType    TxType `json:"txType"`
+	From      int64  `json:"accountId"`
+	To        int64  `json:"toAccountId"`
+	ToAddress string `json:"toAccountAddress"`
+}
+
+type TxType string
+
+const (
+	Transfer TxType = "Transfer, Deposit, Withdraw"
+)
