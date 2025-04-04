@@ -24,12 +24,6 @@ type Peer struct {
 }
 
 func NewPeers(factory *factory.Factory) (*Peers, error) {
-<<<<<<< HEAD
-	return &Peers{
-		Factory:        factory,
-		LoopringApiKey: os.Getenv("LOOPRING_API_KEY"),
-	}, nil
-=======
 	peers := &Peers{
 		Factory:        factory,
 		LoopringApiKey: os.Getenv("LOOPRING_API_KEY"),
@@ -53,7 +47,6 @@ func (p *Peers) PeerTable() error {
 		return fmt.Errorf("failed to create addresses table: %w", err)
 	}
 	return nil
->>>>>>> simple
 }
 
 func (p *Peers) FormatAddress(address string) string {
