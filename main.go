@@ -3,7 +3,8 @@ package main
 import (
 	"log"
 
-	input "github.com/zachklingbeil/block/in"
+	"github.com/zachklingbeil/block/fx"
+	"github.com/zachklingbeil/block/loopring"
 	"github.com/zachklingbeil/factory"
 )
 
@@ -12,5 +13,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error creating factory: %v", err)
 	}
-	input.NewInput(factory)
+
+	peers, err := fx.HelloUniverse(factory)
+	if err != nil {
+		log.Fatalf("Error creating peers: %v", err)
+	}
+	loopring.NewLoopring(factory, peers)
 }

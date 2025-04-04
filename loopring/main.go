@@ -1,27 +1,28 @@
 package loopring
 
 import (
-	"fmt"
+	"log"
 
+	"github.com/zachklingbeil/block/fx"
 	"github.com/zachklingbeil/factory"
 )
 
 type Loopring struct {
 	Factory *factory.Factory
+	Peers   *fx.Peers
 }
 
-func NewLoopring(factory *factory.Factory) (*Loopring, error) {
+func NewLoopring(factory *factory.Factory, peers *fx.Peers) (*Loopring, error) {
 	loopring := &Loopring{
 		Factory: factory,
+		Peers:   peers,
 	}
-
-	if err := loopring.CreateTable(); err != nil {
-		return nil, fmt.Errorf("failed to create blocks table: %w", err)
-	}
+	loopring.Tables()
+	loopring.FetchBlocks()
 	return loopring, nil
 }
 
-func (l *Loopring) CreateTable() error {
+func (l *Loopring) Tables() {
 	query := `
         CREATE TABLE IF NOT EXISTS loopring (
             block_id BIGINT PRIMARY KEY,
@@ -38,10 +39,7 @@ func (l *Loopring) CreateTable() error {
             loopringEns TEXT                -- [peer].loopring.eth
         );
     `
-
 	if _, err := l.Factory.Db.Exec(query); err != nil {
-		return fmt.Errorf("failed to create tables: %w", err)
+		log.Printf("failed to create tables: %v", err)
 	}
-
-	return nil
 }

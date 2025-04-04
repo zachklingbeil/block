@@ -1,4 +1,4 @@
-package out
+package fx
 
 import (
 	"encoding/json"
@@ -12,40 +12,54 @@ import (
 )
 
 type Peers struct {
-	Factory        *factory.Factory
-	LoopringApiKey string
+	Factory *factory.Factory
+	Map     map[string]*Peer
 }
 
 type Peer struct {
 	Address     string
 	ENS         string
 	LoopringENS string
-	LoopringID  string
+	LoopringID  int64
 }
 
-func NewPeers(factory *factory.Factory) (*Peers, error) {
+func HelloUniverse(factory *factory.Factory) (*Peers, error) {
 	peers := &Peers{
-		Factory:        factory,
-		LoopringApiKey: os.Getenv("LOOPRING_API_KEY"),
+		Factory: factory,
+		Map:     make(map[string]*Peer),
 	}
-	if err := peers.PeerTable(); err != nil {
-		return nil, err
+
+	var value []Peer
+	if err := factory.DiskToMem("peers", &value); err != nil {
+		return nil, fmt.Errorf("failed to load peers table: %w", err)
+	}
+
+	for _, record := range value {
+		peers.Map[record.Address] = &Peer{
+			Address:     record.Address,
+			ENS:         record.ENS,
+			LoopringENS: record.LoopringENS,
+			LoopringID:  record.LoopringID,
+		}
 	}
 	return peers, nil
 }
 
-// PeerTable creates the addresses table if it doesn't already exist.
-func (p *Peers) PeerTable() error {
+func (p *Peers) Update(peer *Peer) error {
 	query := `
-    CREATE TABLE IF NOT EXISTS peers (
-        address TEXT PRIMARY KEY,       -- Ethereum address
-        id BIGINT,                      -- Loopring account ID
-        ens TEXT,                       -- [peer].eth
-        loopringEns TEXT                -- [peer].loopring.eth
-    );`
-	if _, err := p.Factory.Db.Exec(query); err != nil {
-		return fmt.Errorf("failed to create addresses table: %w", err)
+    INSERT INTO peers (address, id, ens, loopringEns)
+    VALUES ($1, $2, $3, $4)
+    ON CONFLICT (address) DO UPDATE
+    SET id = EXCLUDED.id,
+        ens = EXCLUDED.ens,
+        loopringEns = EXCLUDED.loopringEns;
+    `
+	_, err := p.Factory.Db.Exec(query, peer.Address, peer.LoopringID, peer.ENS, peer.LoopringENS)
+	if err != nil {
+		return fmt.Errorf("failed to upsert peer: %w", err)
 	}
+
+	p.Map[peer.Address] = peer
 	return nil
 }
 
@@ -99,7 +113,7 @@ func (p *Peers) FetchLoopringID(address string) *Peer {
 		Owner     string `json:"owner"`
 	}
 
-	response, err := p.Factory.Json.In(url, p.LoopringApiKey)
+	response, err := p.Factory.Json.In(url, os.Getenv("LOOPRING_API_KEY"))
 	if err != nil {
 		return &Peer{Address: address}
 	}
@@ -107,5 +121,23 @@ func (p *Peers) FetchLoopringID(address string) *Peer {
 	if err := json.Unmarshal(response, &resID); err != nil {
 		return &Peer{Address: address}
 	}
-	return &Peer{Address: address, LoopringID: fmt.Sprintf("%d", resID.AccountID)}
+	return &Peer{Address: address, LoopringID: resID.AccountID}
+}
+
+func (p *Peers) FetchLoopringAddress(id int64) (*Peer, error) {
+	url := fmt.Sprintf("https://api3.loopring.io/api/v3/account?accountId=%d", id)
+	var resID struct {
+		AccountID int64  `json:"accountId"`
+		Owner     string `json:"owner"`
+	}
+
+	response, err := p.Factory.Json.In(url, os.Getenv("LOOPRING_API_KEY"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch address for account ID %d: %w", id, err)
+	}
+
+	if err := json.Unmarshal(response, &resID); err != nil {
+		return nil, fmt.Errorf("failed to parse address for account ID %d: %w", id, err)
+	}
+	return &Peer{Address: resID.Owner, LoopringID: id}, nil
 }

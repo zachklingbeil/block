@@ -60,6 +60,7 @@ func (l *Loopring) FetchBlocks() error {
 		}
 	}
 	l.QualityControl()
+	l.ExtractPeerInfo()
 	return nil
 }
 
