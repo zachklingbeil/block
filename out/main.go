@@ -6,4 +6,5 @@ import (
 
 type Output struct {
 	Factory *factory.Factory
+	Peers   []Peer
 }
