@@ -5,56 +5,6 @@ import (
 	"fmt"
 )
 
-// FetchBlocks fetches blocks sequentially from the last fetched block to the current block and stores them in the database.
-func (l *Loopring) FetchBlocks() error {
-	// Current block number - highest blockId in database
-	response, err := l.Factory.Json.In("https://api3.loopring.io/api/v3/block/getBlock", "")
-	if err != nil {
-		return fmt.Errorf("failed to fetch the latest block data: %w", err)
-	}
-
-	var block Block
-	if err := json.Unmarshal(response, &block); err != nil {
-		return fmt.Errorf("failed to parse block data: %w", err)
-	}
-	currentBlock := block.Number
-
-	query := `SELECT COALESCE(MAX(block_id), 0) FROM blocks`
-	var blockHeight int64
-	if err := l.Db.QueryRow(query).Scan(&blockHeight); err != nil {
-		return fmt.Errorf("failed to fetch the highest block ID: %w", err)
-	}
-
-	// Fetch and store each block sequentially
-	for i := blockHeight + 1; i <= currentBlock; i++ {
-		if err := l.GetBlock(int(i)); err != nil {
-			fmt.Printf("Failed to fetch block %d: %v\n", i, err)
-			continue
-		}
-	}
-	l.QualityControl()
-	return nil
-}
-
-// GetBlock fetches a block from the Loopring API and inserts it into the database.
-func (l *Loopring) GetBlock(number int) error {
-	url := fmt.Sprintf("https://api3.loopring.io/api/v3/block/getBlock?id=%d", number)
-	response, err := l.Factory.Json.In(url, "")
-	if err != nil {
-		return fmt.Errorf("failed to fetch block data for block number %d: %w", number, err)
-	}
-
-	var block Block
-	if err := json.Unmarshal(response, &block); err != nil {
-		return fmt.Errorf("failed to parse block data for block number %d: %w", number, err)
-	}
-
-	if err := l.InsertBlock(&block); err != nil {
-		return fmt.Errorf("failed to insert block into database: %w", err)
-	}
-	return nil
-}
-
 // CreateTable ensures the blocks table exists in the database.
 func (l *Loopring) CreateTable() error {
 	query := `
@@ -66,10 +16,10 @@ func (l *Loopring) CreateTable() error {
 				transactions JSONB NOT NULL
 		  );
 	 `
-
-	if _, err := l.Db.Exec(query); err != nil {
+	if _, err := l.Factory.Db.Exec(query); err != nil {
 		return fmt.Errorf("failed to create blocks table: %w", err)
 	}
+
 	return nil
 }
 
@@ -86,17 +36,19 @@ func (l *Loopring) InsertBlock(block *Block) error {
 		return fmt.Errorf("failed to marshal transactions: %w", err)
 	}
 
-	if _, err := l.Db.Exec(query, block.Number, block.Size, block.Created, block.TxHash, transactions); err != nil {
+	if _, err := l.Factory.Db.Exec(query, block.Number, block.Size, block.Created, block.TxHash, transactions); err != nil {
 		return fmt.Errorf("failed to insert block into database: %w", err)
 	}
 	l.Factory.Json.Print(block.Number)
 	return nil
 }
 
-// If a block does not have transactions, QualityControl it fetches the block and updates the database.
+// QualityControl checks if each block in the database has transactions.
+// If a block does not have transactions, it fetches the block and updates the database.
 func (l *Loopring) QualityControl() error {
 	query := `SELECT block_id, transactions FROM loopring`
-	rows, err := l.Db.Query(query)
+
+	rows, err := l.Factory.Db.Query(query)
 	if err != nil {
 		return fmt.Errorf("failed to query blocks from the database: %w", err)
 	}
@@ -110,6 +62,7 @@ func (l *Loopring) QualityControl() error {
 			return fmt.Errorf("failed to scan block row: %w", err)
 		}
 
+		// Check if the transactions slice is empty
 		if len(transactionsJSON) == 0 || string(transactionsJSON) == "[]" {
 			fmt.Printf("Block %d has no transactions. Fetching block data...\n", blockID)
 			if err := l.GetBlock(int(blockID)); err != nil {

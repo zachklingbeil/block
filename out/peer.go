@@ -24,10 +24,36 @@ type Peer struct {
 }
 
 func NewPeers(factory *factory.Factory) (*Peers, error) {
+<<<<<<< HEAD
 	return &Peers{
 		Factory:        factory,
 		LoopringApiKey: os.Getenv("LOOPRING_API_KEY"),
 	}, nil
+=======
+	peers := &Peers{
+		Factory:        factory,
+		LoopringApiKey: os.Getenv("LOOPRING_API_KEY"),
+	}
+	if err := peers.PeerTable(); err != nil {
+		return nil, err
+	}
+	return peers, nil
+}
+
+// PeerTable creates the addresses table if it doesn't already exist.
+func (p *Peers) PeerTable() error {
+	query := `
+    CREATE TABLE IF NOT EXISTS peers (
+        address TEXT PRIMARY KEY,       -- Ethereum address
+        id BIGINT,                      -- Loopring account ID
+        ens TEXT,                       -- [peer].eth
+        loopringEns TEXT                -- [peer].loopring.eth
+    );`
+	if _, err := p.Factory.Db.Exec(query); err != nil {
+		return fmt.Errorf("failed to create addresses table: %w", err)
+	}
+	return nil
+>>>>>>> simple
 }
 
 func (p *Peers) FormatAddress(address string) string {
@@ -88,6 +114,5 @@ func (p *Peers) FetchLoopringID(address string) *Peer {
 	if err := json.Unmarshal(response, &resID); err != nil {
 		return &Peer{Address: address}
 	}
-
 	return &Peer{Address: address, LoopringID: fmt.Sprintf("%d", resID.AccountID)}
 }
