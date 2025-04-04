@@ -2,47 +2,45 @@ package loopring
 
 import "fmt"
 
-func (l *Loopring) ExtractPeerInfo() ([]string, []int64, []int64, error) {
+func (l *Loopring) ExtractPeerInfo() error {
 	var blocks []Block
 	if err := l.Factory.DiskToMem("loopring", &blocks); err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to load database: %w", err)
+		return fmt.Errorf("failed to load database: %w", err)
 	}
 
-	// Extract unique addresses, account IDs, and IDs without addresses
-	address := make(map[string]struct{})
-	id := make(map[int64]struct{})
+	// Extract IDs without addresses
 	noAddress := make(map[int64]struct{})
 
 	for _, block := range blocks {
 		for _, tx := range block.Transactions {
 			// Check if the address already exists in Peer.Map
 			if tx.ToAddress != "" {
-				if _, exists := l.Peers.Map[tx.ToAddress]; !exists {
-					address[tx.ToAddress] = struct{}{}
-				}
-			} else if tx.To != 0 {
-				// Check if the ID without an address already exists in Peer.Map
-				if _, exists := l.Peers.Map[fmt.Sprintf("%d", tx.To)]; !exists {
-					noAddress[tx.To] = struct{}{}
+				formattedAddress := l.Peers.FormatAddress(tx.ToAddress)
+				peer, exists := l.Peers.Map[formattedAddress]
+				if !exists || peer == nil {
+					// Address exists but no valid Peer, skip further processing
+					continue
 				}
 			}
 
-			// Check if the "From" account ID already exists in Peer.Map
-			if tx.From != 0 {
-				if _, exists := l.Peers.Map[fmt.Sprintf("%d", tx.From)]; !exists {
-					id[tx.From] = struct{}{}
-				}
-			}
-
-			// Check if the "To" account ID already exists in Peer.Map
+			// Check if the ID is in Peer.Map
 			if tx.To != 0 {
-				if _, exists := l.Peers.Map[fmt.Sprintf("%d", tx.To)]; !exists {
-					id[tx.To] = struct{}{}
+				idKey := fmt.Sprintf("%d", tx.To)
+				peer, exists := l.Peers.Map[idKey]
+				if !exists || peer == nil {
+					noAddress[tx.To] = struct{}{}
 				}
 			}
 		}
 	}
-	return stringsToSlice(address), intsToSlice(id), intsToSlice(noAddress), nil
+
+	// Convert noAddress map to a slice and fetch missing addresses
+	missingAccounts := intsToSlice(noAddress)
+	if err := l.FetchMissingAddresses(missingAccounts); err != nil {
+		return fmt.Errorf("failed to fetch missing addresses: %w", err)
+	}
+
+	return nil
 }
 
 func (l *Loopring) FetchMissingAddresses(missingAccounts []int64) error {
@@ -62,15 +60,6 @@ func (l *Loopring) FetchMissingAddresses(missingAccounts []int64) error {
 		}
 	}
 	return nil
-}
-
-// Helper function to convert map keys to a slice of strings
-func stringsToSlice(m map[string]struct{}) []string {
-	keys := make([]string, 0, len(m))
-	for key := range m {
-		keys = append(keys, key)
-	}
-	return keys
 }
 
 // Helper function to convert map keys to a slice of int64
