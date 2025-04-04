@@ -1,13 +1,53 @@
-package peer
+package out
 
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/wealdtech/go-ens/v3"
+	"github.com/zachklingbeil/factory"
 )
+
+type Peers struct {
+	Factory        *factory.Factory
+	LoopringApiKey string
+}
+
+type Peer struct {
+	Address     string
+	ENS         string
+	LoopringENS string
+	LoopringID  string
+}
+
+func NewPeers(factory *factory.Factory) (*Peers, error) {
+	peers := &Peers{
+		Factory:        factory,
+		LoopringApiKey: os.Getenv("LOOPRING_API_KEY"),
+	}
+	if err := peers.PeerTable(); err != nil {
+		return nil, err
+	}
+	return peers, nil
+}
+
+// PeerTable creates the addresses table if it doesn't already exist.
+func (p *Peers) PeerTable() error {
+	query := `
+    CREATE TABLE IF NOT EXISTS peers (
+        address TEXT PRIMARY KEY,       -- Ethereum address
+        id BIGINT,                      -- Loopring account ID
+        ens TEXT,                       -- [peer].eth
+        loopringEns TEXT                -- [peer].loopring.eth
+    );`
+	if _, err := p.Factory.Db.Exec(query); err != nil {
+		return fmt.Errorf("failed to create addresses table: %w", err)
+	}
+	return nil
+}
 
 func (p *Peers) FormatAddress(address string) string {
 	if strings.HasPrefix(address, "0x") {
@@ -40,13 +80,11 @@ func (p *Peers) FetchLoopringENS(address string) *Peer {
 		Loopring string `json:"data"`
 	}
 
-	// Handle the response and error
 	response, err := p.Factory.Json.In(url, "")
 	if err != nil {
 		return &Peer{Address: address}
 	}
 
-	// Unmarshal the response into the struct
 	if err := json.Unmarshal(response, &resName); err != nil {
 		return &Peer{Address: address}
 	}
@@ -61,16 +99,13 @@ func (p *Peers) FetchLoopringID(address string) *Peer {
 		Owner     string `json:"owner"`
 	}
 
-	// Handle the response and error
 	response, err := p.Factory.Json.In(url, p.LoopringApiKey)
 	if err != nil {
 		return &Peer{Address: address}
 	}
 
-	// Unmarshal the response into the struct
 	if err := json.Unmarshal(response, &resID); err != nil {
 		return &Peer{Address: address}
 	}
-
 	return &Peer{Address: address, LoopringID: fmt.Sprintf("%d", resID.AccountID)}
 }

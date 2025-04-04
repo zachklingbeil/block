@@ -227,6 +227,8 @@ github.com/yusufpapurcu/wmi v1.2.4 h1:zFUKzehAFReQwLys1b/iSMl+JQGSCSjtVqQn9bBrPo
 github.com/yusufpapurcu/wmi v1.2.4/go.mod h1:SBZ9tNy3G9/m5Oi98Zks0QjeHVDvuK0qfxQmPyzfmi0=
 github.com/zachklingbeil/factory v1.0.9 h1:aTsuM7/zEEulLG4P5txlpe2JWwIX6qUWizoIPLOU5y4=
 github.com/zachklingbeil/factory v1.0.9/go.mod h1:1rbMdGrEb9GtAAuBv0k4MUXDqkRhIlgOEY5FfKnu95c=
+github.com/zachklingbeil/factory v1.0.18 h1:LEwQ8d/dcrAf3l7LsGlkr1lfvdEVaV4UnHZLR9m48Bs=
+github.com/zachklingbeil/factory v1.0.18/go.mod h1:1rbMdGrEb9GtAAuBv0k4MUXDqkRhIlgOEY5FfKnu95c=
 golang.org/x/crypto v0.36.0 h1:AnAEvhDddvBdpY+uR+MyHmuZzzNqXSe/GvuDeob5L34=
 golang.org/x/crypto v0.36.0/go.mod h1:Y4J0ReaxCR1IMaabaSMugxJES1EpwhBHhv2bDHklZvc=
 golang.org/x/exp v0.0.0-20230810033253-352e893a4cad h1:g0bG7Z4uG+OgH2QDODnjp6ggkk1bJDsINcuWmJN1iJU=

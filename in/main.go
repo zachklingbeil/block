@@ -20,17 +20,15 @@ func NewInput(factory *factory.Factory) *Input {
 		log.Fatalf("Error creating Loopring instance: %v", err)
 	}
 
-	ethereum, err := ethereum.NewEthereum(factory)
-	if err != nil {
-		log.Fatalf("Error creating Ethereum instance: %v", err)
-	}
+	// ethereum, err := ethereum.NewEthereum(factory)
+	// if err != nil {
+	// 	log.Fatalf("Error creating Ethereum instance: %v", err)
+	// }
 	io := &Input{
-		Ethereum: ethereum,
+		// Ethereum: ethereum,
 		Loopring: loopring,
 		Factory:  factory,
 	}
 	loopring.FetchBlocks()
-	loopring.EnsureTransactions()
-	loopring.GetPeers()
 	return io
 }

@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	factory, err := factory.NewFactory()
+	factory, err := factory.NewFactory("block")
 	if err != nil {
 		log.Fatalf("Error creating factory: %v", err)
 	}
