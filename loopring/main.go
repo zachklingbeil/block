@@ -25,6 +25,16 @@ func NewLoopring(factory *factory.Factory, peers *peer.Peers) (*Loopring, error)
 	return loopring, nil
 }
 
+func (l *Loopring) GetHighestBlockID() int64 {
+	query := `SELECT COALESCE(MAX(block_id), 0) FROM loopring`
+	var blockHeight int64
+	if err := l.Factory.Db.QueryRow(query).Scan(&blockHeight); err != nil {
+		fmt.Printf("Failed to fetch the highest block ID: %v\n", err)
+		return 0
+	}
+	return blockHeight
+}
+
 func (l *Loopring) Tables() {
 	query := `
         CREATE TABLE IF NOT EXISTS loopring (

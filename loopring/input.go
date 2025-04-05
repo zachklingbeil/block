@@ -14,53 +14,73 @@ type Block struct {
 }
 
 type Transaction struct {
-	TxType    TxType `json:"txType"`
+	TxType    string `json:"txType"`
 	From      int64  `json:"accountId"`
 	To        int64  `json:"toAccountId"`
 	ToAddress string `json:"toAccountAddress"`
 }
 
-type TxType string
-
-const (
-	Transfer TxType = "Transfer, Deposit, Withdraw"
-)
-
 // FetchBlocks fetches blocks sequentially from the last fetched block to the current block and stores them in the database.
 func (l *Loopring) FetchBlocks() error {
-	// Fetch the current block number directly
-	response, err := l.Factory.Json.In("https://api3.loopring.io/api/v3/block/getBlock", "")
-	if err != nil {
-		return fmt.Errorf("failed to fetch the latest block data: %w", err)
-	}
-
-	var block Block
-	if err := json.Unmarshal(response, &block); err != nil {
-		return fmt.Errorf("failed to parse block data: %w", err)
-	}
-	currentBlock := block.Number
-
-	// Get the highest block ID from the database
-	query := `SELECT COALESCE(MAX(block_id), 0) FROM loopring`
-	var blockHeight int64
-	if err := l.Factory.Db.QueryRow(query).Scan(&blockHeight); err != nil {
-		return fmt.Errorf("failed to fetch the highest block ID: %w", err)
-	}
+	currentBlock := l.GetCurrentBlockNumber()
+	blockHeight := l.GetHighestBlockID()
 
 	if blockHeight == currentBlock {
 		fmt.Println("blockHeight = currentBlock")
 		return nil
 	}
 
-	// Fetch and store each block sequentially
-	for i := blockHeight + 1; i <= currentBlock; i++ {
+	if err := l.FetchAndStoreBlocks(blockHeight, currentBlock); err != nil {
+		return err
+	}
+
+	if err := l.QualityControl(); err != nil {
+		return err
+	}
+
+	if err := l.ExtractPeerInfo(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetCurrentBlockNumber fetches the current block number from the Loopring API.
+func (l *Loopring) GetCurrentBlockNumber() int64 {
+	response, err := l.Factory.Json.In("https://api3.loopring.io/api/v3/block/getBlock", "")
+	if err != nil {
+		fmt.Printf("Failed to fetch the latest block data: %v\n", err)
+		return 0
+	}
+
+	var block Block
+	if err := json.Unmarshal(response, &block); err != nil {
+		fmt.Printf("Failed to parse block data: %v\n", err)
+		return 0
+	}
+
+	return block.Number
+}
+
+// GetHighestBlockID retrieves the highest block ID stored in the database.
+func (l *Loopring) GetHighestBlockID() int64 {
+	query := `SELECT COALESCE(MAX(block_id), 0) FROM loopring`
+	var blockHeight int64
+	if err := l.Factory.Db.QueryRow(query).Scan(&blockHeight); err != nil {
+		fmt.Printf("Failed to fetch the highest block ID: %v\n", err)
+		return 0
+	}
+	return blockHeight
+}
+
+// FetchAndStoreBlocks fetches and stores blocks sequentially from the last fetched block to the current block.
+func (l *Loopring) FetchAndStoreBlocks(startBlock, endBlock int64) error {
+	for i := startBlock + 1; i <= endBlock; i++ {
 		if err := l.GetBlock(int(i)); err != nil {
 			fmt.Printf("Failed to fetch block %d: %v\n", i, err)
 			continue
 		}
 	}
-	l.QualityControl()
-	l.ExtractPeerInfo()
 	return nil
 }
 
