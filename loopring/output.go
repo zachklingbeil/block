@@ -12,8 +12,8 @@ func (l *Loopring) HelloPeers() error {
 		return fmt.Errorf("no blocks found in the database")
 	}
 
-	// Initialize a map to track unique IDs
-	uniqueIDs := make(map[int64]struct{})
+	// Initialize a map to track unique accountId -> address mappings
+	uniqueAccounts := make(map[int64]string)
 
 	// Process each block up to the highest block
 	for blockID := int64(1); blockID <= highestBlock; blockID++ {
@@ -30,24 +30,23 @@ func (l *Loopring) HelloPeers() error {
 			return fmt.Errorf("failed to unmarshal transactions for block %d: %w", blockID, err)
 		}
 
-		// Extract unique IDs from the transactions
+		// Extract unique accountId -> address mappings from the transactions
 		for _, tx := range transactions {
-			if tx.From != 0 {
-				uniqueIDs[tx.From] = struct{}{}
-			}
-			if tx.To != 0 {
-				uniqueIDs[tx.To] = struct{}{}
+			// Only map the To accountId to its ToAddress
+			if tx.To != 0 && tx.ToAddress != "" {
+				uniqueAccounts[tx.To] = tx.ToAddress
 			}
 		}
 	}
 
-	// Get the total number of unique IDs
-	count := len(uniqueIDs)
-	fmt.Printf("Processing %d unique IDs...\n", count)
+	// Get the total number of unique accounts
+	count := len(uniqueAccounts)
+	fmt.Printf("Processing %d unique accounts...\n", count)
 
-	// Call HelloUniverse for each unique ID and log the countdown
-	for id := range uniqueIDs {
-		idStr := fmt.Sprintf("%d", id)
+	// Call HelloUniverse for each unique accountId and log the countdown
+	for accountId, address := range uniqueAccounts {
+		idStr := fmt.Sprintf("%d", accountId)
+		fmt.Printf("Calling HelloUniverse for accountId: %s, address: %s\n", idStr, address)
 		l.Factory.Peer.HelloUniverse(idStr)
 		count--
 		fmt.Printf("%d\n", count)

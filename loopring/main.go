@@ -29,5 +29,4 @@ func (l *Loopring) FetchBlocks() {
 			continue
 		}
 	}
-	l.QualityControl()
 }

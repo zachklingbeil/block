@@ -85,32 +85,3 @@ func (l *Loopring) InsertBlock(block *Block) error {
 	l.Factory.Json.Print(block.Number)
 	return nil
 }
-
-func (l *Loopring) QualityControl() error {
-	query := `SELECT block_id, transactions FROM loopring`
-	rows, err := l.Factory.Db.Query(query)
-	if err != nil {
-		return fmt.Errorf("failed to query blocks: %w", err)
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var blockID int64
-		var transactionsJSON []byte
-
-		if err := rows.Scan(&blockID, &transactionsJSON); err != nil {
-			fmt.Printf("Failed to scan block %d: %v\n", blockID, err)
-			continue
-		}
-
-		if len(transactionsJSON) == 0 || string(transactionsJSON) == "[]" {
-			fmt.Printf("Block %d missing transactions. Refetching...\n", blockID)
-			if err := l.GetBlock(int(blockID)); err != nil {
-				fmt.Printf("Failed to refetch block %d: %v\n", blockID, err)
-				continue
-			}
-			fmt.Printf("Block %d updated successfully.\n", blockID)
-		}
-	}
-	return nil
-}
