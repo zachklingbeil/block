@@ -20,68 +20,31 @@ type Transaction struct {
 	ToAddress string `json:"toAccountAddress"`
 }
 
-// FetchBlocks fetches blocks sequentially from the last fetched block to the current block and stores them in the database.
-func (l *Loopring) FetchBlocks() error {
-	currentBlock := l.GetCurrentBlockNumber()
-	blockHeight := l.GetHighestBlockID()
-
-	if blockHeight == currentBlock {
-		fmt.Println("blockHeight = currentBlock")
-		return nil
-	}
-
-	if err := l.FetchAndStoreBlocks(blockHeight, currentBlock); err != nil {
-		return err
-	}
-
-	if err := l.QualityControl(); err != nil {
-		return err
-	}
-
-	if err := l.ExtractPeerInfo(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// GetCurrentBlockNumber fetches the current block number from the Loopring API.
-func (l *Loopring) GetCurrentBlockNumber() int64 {
-	response, err := l.Factory.Json.In("https://api3.loopring.io/api/v3/block/getBlock", "")
-	if err != nil {
-		fmt.Printf("Failed to fetch the latest block data: %v\n", err)
-		return 0
-	}
-
-	var block Block
-	if err := json.Unmarshal(response, &block); err != nil {
-		fmt.Printf("Failed to parse block data: %v\n", err)
-		return 0
-	}
-
-	return block.Number
-}
-
-// GetHighestBlockID retrieves the highest block ID stored in the database.
-func (l *Loopring) GetHighestBlockID() int64 {
-	query := `SELECT COALESCE(MAX(block_id), 0) FROM loopring`
+// Helper function to fetch the highest block ID
+func (l *Loopring) blockHeight() int64 {
 	var blockHeight int64
-	if err := l.Factory.Db.QueryRow(query).Scan(&blockHeight); err != nil {
+	err := l.Factory.Db.QueryRow(`SELECT COALESCE(MAX(block_id), 0) FROM loopring`).Scan(&blockHeight)
+	if err != nil {
 		fmt.Printf("Failed to fetch the highest block ID: %v\n", err)
 		return 0
 	}
 	return blockHeight
 }
 
-// FetchAndStoreBlocks fetches and stores blocks sequentially from the last fetched block to the current block.
-func (l *Loopring) FetchAndStoreBlocks(startBlock, endBlock int64) error {
-	for i := startBlock + 1; i <= endBlock; i++ {
-		if err := l.GetBlock(int(i)); err != nil {
-			fmt.Printf("Failed to fetch block %d: %v\n", i, err)
-			continue
-		}
+// Simplified GetCurrentBlockNumber
+func (l *Loopring) currentBlock() int64 {
+	var block Block
+	data, err := l.Factory.Json.In("https://api3.loopring.io/api/v3/block/getBlock", "")
+	if err != nil {
+		fmt.Printf("Failed to fetch block data: %v\n", err)
+		return 0
 	}
-	return nil
+	err = json.Unmarshal(data, &block)
+	if err != nil {
+		fmt.Printf("Failed to parse block data: %v\n", err)
+		return 0
+	}
+	return block.Number
 }
 
 // GetBlock fetches a block from the Loopring API and inserts it into the database.
@@ -123,14 +86,11 @@ func (l *Loopring) InsertBlock(block *Block) error {
 	return nil
 }
 
-// QualityControl checks if each block in the database has transactions.
-// If a block does not have transactions, it fetches the block and updates the database.
 func (l *Loopring) QualityControl() error {
 	query := `SELECT block_id, transactions FROM loopring`
-
 	rows, err := l.Factory.Db.Query(query)
 	if err != nil {
-		return fmt.Errorf("failed to query blocks from the database: %w", err)
+		return fmt.Errorf("failed to query blocks: %w", err)
 	}
 	defer rows.Close()
 
@@ -139,17 +99,17 @@ func (l *Loopring) QualityControl() error {
 		var transactionsJSON []byte
 
 		if err := rows.Scan(&blockID, &transactionsJSON); err != nil {
-			return fmt.Errorf("failed to scan block row: %w", err)
+			fmt.Printf("Failed to scan block %d: %v\n", blockID, err)
+			continue
 		}
 
-		// Check if the transactions slice is empty
 		if len(transactionsJSON) == 0 || string(transactionsJSON) == "[]" {
-			fmt.Printf("Block %d has no transactions. Fetching block data...\n", blockID)
+			fmt.Printf("Block %d missing transactions. Refetching...\n", blockID)
 			if err := l.GetBlock(int(blockID)); err != nil {
-				fmt.Printf("Failed to fetch block %d: %v\n", blockID, err)
+				fmt.Printf("Failed to refetch block %d: %v\n", blockID, err)
 				continue
 			}
-			fmt.Printf("Successfully updated block %d with transactions.\n", blockID)
+			fmt.Printf("Block %d updated successfully.\n", blockID)
 		}
 	}
 	return nil

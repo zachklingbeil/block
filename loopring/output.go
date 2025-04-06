@@ -1,72 +1,58 @@
 package loopring
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
-func (l *Loopring) ExtractPeerInfo() error {
-	var blocks []Block
-	if err := l.Factory.DiskToMem("loopring", &blocks); err != nil {
-		return fmt.Errorf("failed to load database: %w", err)
+func (l *Loopring) HelloPeers() error {
+	// Fetch the highest block ID in the database
+	highestBlock := l.blockHeight()
+	if highestBlock == 0 {
+		return fmt.Errorf("no blocks found in the database")
 	}
 
-	// Extract IDs without addresses
-	noAddress := make(map[int64]struct{})
+	// Initialize a map to track unique IDs
+	uniqueIDs := make(map[int64]struct{})
 
-	for _, block := range blocks {
-		for _, tx := range block.Transactions {
-			// Check if the address already exists in Peer.Map
-			if tx.ToAddress != "" {
-				formattedAddress := l.Peers.FormatAddress(tx.ToAddress)
-				peer, exists := l.Peers.Map[formattedAddress]
-				if !exists || peer == nil {
-					// Address exists but no valid Peer, skip further processing
-					continue
-				}
-			}
-
-			// Check if the ID is in Peer.Map
-			if tx.To != 0 {
-				idKey := fmt.Sprintf("%d", tx.To)
-				peer, exists := l.Peers.Map[idKey]
-				if !exists || peer == nil {
-					noAddress[tx.To] = struct{}{}
-				}
-			}
-		}
-	}
-
-	// Convert noAddress map to a slice and fetch missing addresses
-	missingAccounts := intsToSlice(noAddress)
-	if err := l.FetchMissingAddresses(missingAccounts); err != nil {
-		return fmt.Errorf("failed to fetch missing addresses: %w", err)
-	}
-
-	return nil
-}
-
-func (l *Loopring) FetchMissingAddresses(missingAccounts []int64) error {
-	totalAccounts := len(missingAccounts)
-
-	for i, accountID := range missingAccounts {
-		l.Factory.Json.Print(fmt.Sprintf("%d/%d", i+1, totalAccounts))
-
-		peer, err := l.Peers.FetchLoopringAddress(accountID)
+	// Process each block up to the highest block
+	for blockID := int64(1); blockID <= highestBlock; blockID++ {
+		// Fetch the block data from the database
+		var blockJSON string
+		err := l.Factory.Db.QueryRow(`SELECT transactions FROM loopring WHERE block_id = $1`, blockID).Scan(&blockJSON)
 		if err != nil {
-			fmt.Printf("Failed to fetch address for account ID %d: %v\n", accountID, err)
-			continue
+			return fmt.Errorf("failed to fetch transactions for block %d: %w", blockID, err)
 		}
 
-		if err := l.Peers.Update(peer); err != nil {
-			fmt.Printf("Failed to insert or update address for account ID %d: %v\n", accountID, err)
+		// Unmarshal the transactions
+		var transactions []Transaction
+		if err := json.Unmarshal([]byte(blockJSON), &transactions); err != nil {
+			return fmt.Errorf("failed to unmarshal transactions for block %d: %w", blockID, err)
+		}
+
+		// Extract unique IDs from the transactions
+		for _, tx := range transactions {
+			if tx.From != 0 {
+				uniqueIDs[tx.From] = struct{}{}
+			}
+			if tx.To != 0 {
+				uniqueIDs[tx.To] = struct{}{}
+			}
 		}
 	}
+
+	// Get the total number of unique IDs
+	count := len(uniqueIDs)
+	fmt.Printf("Processing %d unique IDs...\n", count)
+
+	// Call HelloUniverse for each unique ID and log the countdown
+	for id := range uniqueIDs {
+		idStr := fmt.Sprintf("%d", id)
+		l.Factory.Peer.HelloUniverse(idStr)
+		count--
+		fmt.Printf("%d\n", count)
+	}
+
+	fmt.Println("All HelloUniverse calls completed.")
 	return nil
-}
-
-// Helper function to convert map keys to a slice of int64
-func intsToSlice(m map[int64]struct{}) []int64 {
-	keys := make([]int64, 0, len(m))
-	for key := range m {
-		keys = append(keys, key)
-	}
-	return keys
 }
