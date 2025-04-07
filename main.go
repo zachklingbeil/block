@@ -15,5 +15,5 @@ func main() {
 
 	loop := loopring.NewLoopring(factory)
 	loop.FetchBlocks()
-	loop.HelloPeers()
+	select {}
 }
