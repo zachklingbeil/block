@@ -1,7 +1,7 @@
 services:
     block:
         container_name: block
-        image: docker.timefactory.io/block
+        image: docker.timefactory.io/block:stable
         volumes:
             - ethereum:/root/.ethereum
         user: '0:0'

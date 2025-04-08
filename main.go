@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 
+	"github.com/zachklingbeil/block/loopring"
 	"github.com/zachklingbeil/factory"
 )
 
@@ -12,9 +13,7 @@ func main() {
 		log.Fatalf("Error creating factory: %v", err)
 	}
 
-	factory.Peer.HelloUniverse()
-
-	// loop := loopring.NewLoopring(factory)
-	// loop.FetchBlocks()
-	// select {}
+	loop := loopring.NewLoopring(factory)
+	loop.FetchBlocks()
+	select {}
 }
