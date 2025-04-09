@@ -129,3 +129,35 @@ func (l *Loopring) InsertBlock(block *Block) error {
 	l.Factory.Json.Print(block.Number)
 	return nil
 }
+
+// QualityControl checks if each block in the database has transactions.
+// If a block does not have transactions, it fetches the block and updates the database.
+func (l *Loopring) QualityControl() error {
+	query := `SELECT block_id, transactions FROM loopring`
+
+	rows, err := l.Factory.Db.Query(query)
+	if err != nil {
+		return fmt.Errorf("failed to query blocks from the database: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var blockID int64
+		var transactionsJSON []byte
+
+		if err := rows.Scan(&blockID, &transactionsJSON); err != nil {
+			return fmt.Errorf("failed to scan block row: %w", err)
+		}
+
+		// Check if the transactions slice is empty
+		if len(transactionsJSON) == 0 || string(transactionsJSON) == "[]" {
+			fmt.Printf("Block %d has no transactions. Fetching block data...\n", blockID)
+			if err := l.GetBlock(int(blockID)); err != nil {
+				fmt.Printf("Failed to fetch block %d: %v\n", blockID, err)
+				continue
+			}
+			fmt.Printf("Successfully updated block %d with transactions.\n", blockID)
+		}
+	}
+	return nil
+}

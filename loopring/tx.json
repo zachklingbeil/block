@@ -53,5 +53,69 @@
 		"orderBFeeBips": 0,
 
 		"orderBIsAmm": true
+	},
+	{
+		"txType": "OFFCHAIN_WITHDRAWAL",
+		"id": 5676923,
+		"hash": "0x2c00fe6b10882f48623f30af6f15aaa56feef7f6adef2ce89d4e2d3cab4ff30d",
+		"symbol": "ETH",
+		"amount": "277000000000000000",
+		"receiver": 0,
+		"txHash": "0xe9686aaf3389a00480c73c5f5105f9b2a819e0a18de1d335b52c252a5c036899",
+		"feeTokenSymbol": "ETH",
+		"feeAmount": "246000000000000",
+		"status": "processed",
+		"progress": "100%",
+		"timestamp": 1744165245393,
+		"blockNum": 0,
+		"updatedAt": 1744169730597,
+		"receiverAddress": "",
+		"senderAddress": "0xb6b9a9ebd967ab654cb8ef7bc244b19ef91832ea",
+		"memo": "",
+		"requestId": 154441,
+		"withdrawalInfo": {
+			"recipient": "0x9115abeF49e2317D62371d622eeAD350C450dDe8",
+			"fastStatus": "",
+			"distributeHash": "0xe9686aaf3389a00480c73c5f5105f9b2a819e0a18de1d335b52c252a5c036899"
+		},
+		"blockIdInfo": {
+			"blockId": 59218,
+			"indexInBlock": 1
+		},
+		"storageInfo": {
+			"accountId": 89149,
+			"tokenId": 0,
+			"storageId": 37
+		}
+	},
+	{
+		"txType": "NftMint",
+		"toTokenTokenId": 32850,
+		"feeTokenId": 0,
+		"feeAmount": "4180000000000",
+		"validUntil": 1746788975,
+		"toAccountId": 303010,
+		"toAccountAddress": "0x1b48d9eb53cde2d377f36f40226b3d1c76004093",
+		"storageId": 61037,
+		"minterAccountId": 303010,
+		"nft": "0x44d5150D22D4270F024F03b4C00EaEafF0490C12",
+		"nftData": "0x2f5cbbf6a7fb22dadc16d15d4e5c1bc72ccdc4aafecdc08fa55cc70a55fc0396",
+		"nftId": "85054496342596430850856402714466316744806962624467129102520953324449135474126",
+		"amount": "1",
+		"nftType": "ERC1155"
+	},
+	{
+		"txType": "Transfer",
+		"accountId": 303010,
+		"tokenTokenId": 32844,
+		"tokenNftData": "0x1e606188268db2f8ee24e57b08f3d2e77bb1ae628ef49010daa102576f1a8f8a",
+		"tokenAmount": "1",
+		"toTokenTokenId": 32829,
+		"feeTokenId": 0,
+		"feeAmount": "402000000000",
+		"validUntil": 1746783700,
+		"toAccountId": 303015,
+		"toAccountAddress": "0x5a60f1C154Ed0645b9F35639a1D4DB71841F3B45",
+		"storageId": 61003
 	}
 ]

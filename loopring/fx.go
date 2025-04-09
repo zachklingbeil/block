@@ -27,11 +27,10 @@ func fx(block Block) Output {
 	t := time.UnixMilli(block.Created)
 
 	// Format the timestamp directly into a string representation of Coordinates
-	formattedCoords := fmt.Sprintf("%d.%d.%d.%d.%d.%d.%d.%d",
-		t.Year()-2015,  // 0-based year
-		int(t.Month()), // Month
-		func() int { _, w := t.ISOWeek(); return w }(), // Week
-		int(t.Weekday()),   // Day
+	formattedCoords := fmt.Sprintf("%d.%d.%d.%d.%d.%d.%d",
+		t.Year()-2015,      // 0-based year
+		int(t.Month()),     // Month
+		t.Day(),            // Date of the month (1-31)
 		t.Hour(),           // Hour
 		t.Minute(),         // Minute
 		t.Second(),         // Second
@@ -46,11 +45,11 @@ func fx(block Block) Output {
 	}
 }
 
-// QueryAndProcessLoopring queries the loopring table, processes the data, and inserts Blocks into the coords table
-func (l *Loopring) QueryAndProcessLoopring() error {
+// LoadBlocks queries the loopring table, processes the data, and inserts Blocks into the coords table
+func (l *Loopring) LoadBlocks() error {
 	// Query the loopring table to fetch data
 	query := `
-        SELECT created_at, block_id, block_size
+        SELECT created, block_id, block_size
         FROM loopring
     `
 	rows, err := l.Factory.Db.Query(query)
