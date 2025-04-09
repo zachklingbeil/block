@@ -1,10 +1,10 @@
 services:
     block:
         container_name: block
-        image: docker.timefactory.io/block:stable
+        image: docker.timefactory.io/block
         volumes:
-            - ethereum:/root/.ethereum
-        user: '0:0'
+            - ethereum:/ethereum
+        user: 0:0
         networks:
             - timefactory
 networks:
