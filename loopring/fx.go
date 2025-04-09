@@ -3,13 +3,25 @@ package loopring
 import (
 	"fmt"
 	"time"
+
+	"github.com/zachklingbeil/factory"
 )
+
+type Loopring struct {
+	Factory *factory.Factory
+}
 
 type Output struct {
 	Number    int64
 	Size      int64
 	Timestamp int64
 	Coords    string
+}
+
+func NewLoopring(factory *factory.Factory) *Loopring {
+	return &Loopring{
+		Factory: factory,
+	}
 }
 
 // ProcessInputs converts a slice of Block into a slice of Output
@@ -109,3 +121,121 @@ func (l *Loopring) CreateCoordsTable() error {
 	}
 	return nil
 }
+
+// func (l *Loopring) OutputCoordsAsJSON() error {
+// 	query := `
+//         SELECT block_id, block_size, created, coords
+//         FROM coords
+//     `
+// 	rows, err := l.Factory.Db.Query(query)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to query coords table: %w", err)
+// 	}
+// 	defer rows.Close()
+
+// 	// Create a slice to hold the results
+// 	var results []Output
+// 	for rows.Next() {
+// 		var output Output
+// 		if err := rows.Scan(&output.Number, &output.Size, &output.Timestamp, &output.Coords); err != nil {
+// 			return fmt.Errorf("failed to scan row: %w", err)
+// 		}
+// 		results = append(results, output)
+// 	}
+
+// 	// Convert the results to JSON
+// 	jsonData, err := json.MarshalIndent(results, "", "  ")
+// 	if err != nil {
+// 		return fmt.Errorf("failed to marshal results to JSON: %w", err)
+// 	}
+
+// 	// Write JSON to a file or print to console
+// 	file, err := os.Create("coords.json")
+// 	if err != nil {
+// 		return fmt.Errorf("failed to create JSON file: %w", err)
+// 	}
+// 	defer file.Close()
+
+// 	if _, err := file.Write(jsonData); err != nil {
+// 		return fmt.Errorf("failed to write JSON to file: %w", err)
+// 	}
+
+// 	fmt.Println("Coords table exported to coords.json")
+// 	return nil
+// }
+
+// type Loopring struct {
+// 	TotalNum     int          `json:"totalNum,omitempty"`
+// 	Transactions []LoopringTx `json:"transactions,omitempty"`
+// }
+
+// type LoopringTx struct {
+// 	TxId  int `json:"id,omitempty"`
+// 	Block struct {
+// 		Number int64 `json:"blockId,omitempty"`
+// 		Index  int64 `json:"indexInBlock,omitempty"`
+// 	} `json:"blockIdInfo,omitempty"`
+// 	Timestamp int64  `json:"timestamp,omitempty"`
+// 	Zero      string `json:"senderAddress,omitempty"`
+// 	One       string `json:"receiverAddress,omitempty"`
+// 	Value     string `json:"amount,omitempty"`
+// 	Token     string `json:"symbol,omitempty"`
+// 	FeeToken  string `json:"feeTokenSymbol,omitempty"`
+// 	FeeValue  string `json:"feeAmount,omitempty"`
+// }
+
+// type Transaction struct {
+// 	TxType           TxType   `json:"txType"`
+// 	AccountID        *int64   `json:"accountId,omitempty"`
+// 	Token            *Token   `json:"token,omitempty"`
+// 	ToToken          *ToToken `json:"toToken,omitempty"`
+// 	Fee              *Fee     `json:"fee,omitempty"`
+// 	ValidUntil       *int64   `json:"validUntil,omitempty"`
+// 	ToAccountID      *int64   `json:"toAccountId,omitempty"`
+// 	ToAccountAddress *string  `json:"toAccountAddress,omitempty"`
+// 	StorageID        *int64   `json:"storageId,omitempty"`
+// 	OrderA           *Order   `json:"orderA,omitempty"`
+// 	OrderB           *Order   `json:"orderB,omitempty"`
+// 	Valid            *bool    `json:"valid,omitempty"`
+// 	Owner            *string  `json:"owner,omitempty"`
+// 	FromAddress      *string  `json:"fromAddress,omitempty"`
+// 	ToAddress        *string  `json:"toAddress,omitempty"`
+// }
+
+// type Fee struct {
+// 	TokenID int64  `json:"tokenId"`
+// 	Amount  string `json:"amount"`
+// }
+
+// type ToToken struct {
+// 	TokenID int64 `json:"tokenId"`
+// }
+
+// type Token struct {
+// 	TokenID int64   `json:"tokenId"`
+// 	NftData *string `json:"nftData,omitempty"`
+// 	Amount  string  `json:"amount"`
+// }
+
+// type TxType string
+
+// const (
+// 	Deposit   TxType = "Deposit"
+// 	SpotTrade TxType = "SpotTrade"
+// 	Transfer  TxType = "Transfer"
+// )
+// type Order struct {
+// 	StorageID  int64  `json:"storageID"`
+// 	AccountID  int64  `json:"accountID"`
+// 	AmountS    string `json:"amountS"`
+// 	AmountB    string `json:"amountB"`
+// 	TokenS     int64  `json:"tokenS"`
+// 	TokenB     int64  `json:"tokenB"`
+// 	ValidUntil int64  `json:"validUntil"`
+// 	Taker      string `json:"taker"`
+// 	FeeBips    int64  `json:"feeBips"`
+// 	IsAmm      bool   `json:"isAmm"`
+// 	NftData    string `json:"nftData"`
+// 	FillS      int64  `json:"fillS"`
+// 	FilledS    string `json:"filledS"`
+// }
