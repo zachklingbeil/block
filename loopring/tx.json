@@ -1,0 +1,57 @@
+[
+	{
+		"txType": "Deposit,Withdraw",
+		"accountId": 118424,
+		"owner": "0xf0e7e8a636ff7bad9047ea90df39716e355b5830",
+		"fromAddress": "0xf0e7e8a636ff7bad9047ea90df39716e355b5830",
+		"toAddress": "0xf0e7e8a636ff7bad9047ea90df39716e355b5830",
+
+		"tokenId": 1,
+		"amount": "499703600000000000",
+		"feeTokenId": 1,
+		"feeAmount": "1947000000000000000"
+	},
+	{
+		"txType": "AccountUpdate",
+		"accountId": 265884,
+		"owner": "0x6112e0d8524292cc11988835275d7bef1b42ee14",
+		"feeTokenId": 0,
+		"feeAmount": "133000000000000",
+		"nonce": 0
+	},
+	{
+		"txType": "AmmUpdate",
+		"accountId": 1,
+		"owner": "0x18920d6E6Fb7EbE057a4DD9260D6D95845c95036",
+		"nonce": 19564
+	},
+	{
+		"txType": "SpotTrade",
+		"blockNumber": 59213,
+		"createdAt": 1744142224670,
+		"index": 1,
+
+		"orderAAccountID": 40736,
+		"orderBAccountID": 22,
+
+		"orderBTokenB": 6,
+		"orderATokenB": 0,
+
+		"orderAAmountB": "100117664044780512",
+		"orderBAmountB": "147718000",
+
+		"orderAAmountS": "147718527",
+		"orderAFilledS": "147718000",
+
+		"orderBAmountS": "100129000000000000",
+		"orderBFilledS": "100129000000000000",
+
+		"orderAFillS": 1720582,
+		"orderBFillS": 6391585,
+
+		"orderAFeeBips": 10,
+		"orderBFeeBips": 0,
+
+		"orderBIsAmm": true
+	}
+]
