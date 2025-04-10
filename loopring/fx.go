@@ -3,7 +3,6 @@ package loopring
 import (
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"maps"
 
@@ -50,32 +49,16 @@ func (l *Loopring) flattenTransactions(blockNumber, blockTime int64, transaction
 
 	for i, tx := range transactions {
 		if txData, ok := tx.(map[string]any); ok {
-			coordinates := generateCoordinates(blockTime, int64(i+1))
+			coordinates := l.generateCoordinates(blockNumber, blockTime, int64(i+1))
 			flatTx := flattenMap(txData, "")
-			flatTx["block"] = blockNumber
-			flatTx["index"] = int64(i + 1)
-			flatTx["coordinates"] = coordinates
-			flattened = append(flattened, flatTx)
+			flatTx["coordinates"] = coordinates // Embed the full Coordinates struct
+			cleanedTx := removeEmptyFields(flatTx)
+			flattened = append(flattened, cleanedTx)
 		} else {
 			fmt.Printf("Unexpected transaction format: %+v\n", tx)
 		}
 	}
 	return flattened
-}
-
-func generateCoordinates(timestamp int64, index int64) string {
-	t := time.UnixMilli(timestamp)
-
-	year := int64(t.Year() - 2015)
-	month := int64(t.Month())
-	day := int64(t.Day())
-	hour := int64(t.Hour())
-	minute := int64(t.Minute())
-	second := int64(t.Second())
-	millisecond := int64(t.Nanosecond() / 1e6)
-
-	// Format the coordinates string
-	return fmt.Sprintf("%d.%d.%d.%d.%d.%d.%d.%d", year, month, day, hour, minute, second, millisecond, index)
 }
 
 func (l *Loopring) fetchBlock(number int) ([]byte, error) {
@@ -114,19 +97,48 @@ func flattenMap(input map[string]any, prefix string) map[string]any {
 	}
 	return flatMap
 }
-func (l *Loopring) StoreTransactions(blockNumber int64, transactions []any) error {
-	// Ensure the table exists
+
+func removeEmptyFields(data map[string]any) map[string]any {
+	cleaned := make(map[string]any)
+	for key, value := range data {
+		switch v := value.(type) {
+		case string:
+			if v != "" {
+				cleaned[key] = v
+			}
+		case []any:
+			if len(v) > 0 {
+				cleaned[key] = v
+			}
+		case map[string]any:
+			nested := removeEmptyFields(v)
+			if len(nested) > 0 {
+				cleaned[key] = nested
+			}
+		default:
+			if v != nil {
+				cleaned[key] = v
+			}
+		}
+	}
+	return cleaned
+}
+
+func (l *Loopring) CreateTable() error {
 	createTableQuery := `
         CREATE TABLE IF NOT EXISTS loopring (
             block BIGINT PRIMARY KEY,
-            transactions JSONB NOT NULL
+            tx JSONB NOT NULL
         );
     `
 	_, err := l.Factory.Db.Exec(createTableQuery)
 	if err != nil {
 		return fmt.Errorf("failed to create table: %w", err)
 	}
+	return nil
+}
 
+func (l *Loopring) StoreTransactions(blockNumber int64, transactions []any) error {
 	// Convert transactions to JSON
 	txJSON, err := json.Marshal(transactions)
 	if err != nil {
@@ -135,10 +147,10 @@ func (l *Loopring) StoreTransactions(blockNumber int64, transactions []any) erro
 
 	// Insert into the database
 	query := `
-        INSERT INTO loopring (block, transactions)
+        INSERT INTO loopring (block, tx)
         VALUES ($1, $2)
         ON CONFLICT (block) DO UPDATE
-        SET transactions = EXCLUDED.transactions;
+        SET tx = EXCLUDED.tx;
     `
 	_, err = l.Factory.Db.Exec(query, blockNumber, txJSON)
 	if err != nil {
@@ -147,24 +159,3 @@ func (l *Loopring) StoreTransactions(blockNumber int64, transactions []any) erro
 
 	return nil
 }
-
-// func (l *Loopring) StoreTransactions(blockNumber int64, transactions []any) error {
-// 	txJSON, err := json.Marshal(transactions)
-// 	if err != nil {
-// 		return fmt.Errorf("failed to marshal transactions: %w", err)
-// 	}
-
-// 	// Insert into the database
-// 	query := `
-//         INSERT INTO loopring (block, transactions)
-//         VALUES ($1, $2)
-//         ON CONFLICT (block) DO UPDATE
-//         SET transactions = EXCLUDED.transactions;
-//     `
-// 	_, err = l.Factory.Db.Exec(query, blockNumber, txJSON)
-// 	if err != nil {
-// 		return fmt.Errorf("failed to store transactions: %w", err)
-// 	}
-
-// 	return nil
-// }
