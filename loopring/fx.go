@@ -25,18 +25,28 @@ func NewLoopring(factory *factory.Factory) *Loopring {
 }
 
 // ProcessInputs converts a slice of Block into a slice of Output
-func (l *Loopring) ProcessInputs(b []Block) []Output {
-	blocks := make([]Output, len(b))
+func (l *Loopring) ProcessInputs(in []BlockIn) []Output {
+	blocks := make([]Output, len(in))
 
-	for i, block := range b {
+	for i, block := range in {
 		blocks[i] = fx(block)
 	}
 	return blocks
 }
 
+type Coordinates struct {
+	Year        int64
+	Month       int64
+	Day         int64
+	Hour        int64
+	Minute      int64
+	Second      int64
+	Millisecond int64
+}
+
 // fx processes a single Block into a Output
-func fx(block Block) Output {
-	t := time.UnixMilli(block.Created)
+func fx(in BlockIn) Output {
+	t := time.UnixMilli(in.Created)
 
 	// Format the timestamp directly into a string representation of Coordinates
 	formattedCoords := fmt.Sprintf("%d.%d.%d.%d.%d.%d.%d",
@@ -51,118 +61,11 @@ func fx(block Block) Output {
 	// Return the Output with the formatted coordinates
 	return Output{
 		Coords:    formattedCoords,
-		Number:    block.Number,
-		Size:      block.Size,
-		Timestamp: block.Created,
+		Number:    in.Number,
+		Size:      in.Size,
+		Timestamp: in.Created,
 	}
 }
-
-// LoadBlocks queries the loopring table, processes the data, and inserts Blocks into the coords table
-func (l *Loopring) LoadBlocks() error {
-	// Query the loopring table to fetch data
-	query := `
-        SELECT created, block_id, block_size
-        FROM loopring
-    `
-	rows, err := l.Factory.Db.Query(query)
-	if err != nil {
-		return fmt.Errorf("failed to query loopring table: %w", err)
-	}
-	defer rows.Close()
-
-	// Create a slice of Block
-	var b []Block
-	for rows.Next() {
-		var block Block
-		if err := rows.Scan(&block.Created, &block.Number, &block.Size); err != nil {
-			return fmt.Errorf("failed to scan row: %w", err)
-		}
-		b = append(b, block)
-	}
-
-	// Process the b into Blocks
-	blocks := l.ProcessInputs(b)
-
-	// Insert the Blocks into the coords table
-	for _, block := range blocks {
-		if err := l.InsertBlockToCoords(&block); err != nil {
-			return fmt.Errorf("failed to insert block into coords table: %w", err)
-		}
-	}
-
-	return nil
-}
-
-// InsertBlockToCoords inserts a block into the coords table
-func (l *Loopring) InsertBlockToCoords(o *Output) error {
-	query := `
-        INSERT INTO coords (block_id, block_size, created, coords)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT (coords) DO NOTHING
-    `
-	if _, err := l.Factory.Db.Exec(query, o.Number, o.Size, o.Timestamp, o.Coords); err != nil {
-		return fmt.Errorf("failed to insert block into coords table: %w", err)
-	}
-	return nil
-}
-
-func (l *Loopring) CreateCoordsTable() error {
-	query := `
-        CREATE TABLE IF NOT EXISTS coords (
-            block_id BIGINT NOT NULL,
-            block_size BIGINT NOT NULL,
-            created BIGINT NOT NULL,
-            coords TEXT NOT NULL,
-            PRIMARY KEY (coords) -- Use coords as the primary key
-        )
-    `
-	if _, err := l.Factory.Db.Exec(query); err != nil {
-		return fmt.Errorf("failed to create coords table: %w", err)
-	}
-	return nil
-}
-
-// func (l *Loopring) OutputCoordsAsJSON() error {
-// 	query := `
-//         SELECT block_id, block_size, created, coords
-//         FROM coords
-//     `
-// 	rows, err := l.Factory.Db.Query(query)
-// 	if err != nil {
-// 		return fmt.Errorf("failed to query coords table: %w", err)
-// 	}
-// 	defer rows.Close()
-
-// 	// Create a slice to hold the results
-// 	var results []Output
-// 	for rows.Next() {
-// 		var output Output
-// 		if err := rows.Scan(&output.Number, &output.Size, &output.Timestamp, &output.Coords); err != nil {
-// 			return fmt.Errorf("failed to scan row: %w", err)
-// 		}
-// 		results = append(results, output)
-// 	}
-
-// 	// Convert the results to JSON
-// 	jsonData, err := json.MarshalIndent(results, "", "  ")
-// 	if err != nil {
-// 		return fmt.Errorf("failed to marshal results to JSON: %w", err)
-// 	}
-
-// 	// Write JSON to a file or print to console
-// 	file, err := os.Create("coords.json")
-// 	if err != nil {
-// 		return fmt.Errorf("failed to create JSON file: %w", err)
-// 	}
-// 	defer file.Close()
-
-// 	if _, err := file.Write(jsonData); err != nil {
-// 		return fmt.Errorf("failed to write JSON to file: %w", err)
-// 	}
-
-// 	fmt.Println("Coords table exported to coords.json")
-// 	return nil
-// }
 
 // type Loopring struct {
 // 	TotalNum     int          `json:"totalNum,omitempty"`
@@ -200,42 +103,4 @@ func (l *Loopring) CreateCoordsTable() error {
 // 	Owner            *string  `json:"owner,omitempty"`
 // 	FromAddress      *string  `json:"fromAddress,omitempty"`
 // 	ToAddress        *string  `json:"toAddress,omitempty"`
-// }
-
-// type Fee struct {
-// 	TokenID int64  `json:"tokenId"`
-// 	Amount  string `json:"amount"`
-// }
-
-// type ToToken struct {
-// 	TokenID int64 `json:"tokenId"`
-// }
-
-// type Token struct {
-// 	TokenID int64   `json:"tokenId"`
-// 	NftData *string `json:"nftData,omitempty"`
-// 	Amount  string  `json:"amount"`
-// }
-
-// type TxType string
-
-// const (
-// 	Deposit   TxType = "Deposit"
-// 	SpotTrade TxType = "SpotTrade"
-// 	Transfer  TxType = "Transfer"
-// )
-// type Order struct {
-// 	StorageID  int64  `json:"storageID"`
-// 	AccountID  int64  `json:"accountID"`
-// 	AmountS    string `json:"amountS"`
-// 	AmountB    string `json:"amountB"`
-// 	TokenS     int64  `json:"tokenS"`
-// 	TokenB     int64  `json:"tokenB"`
-// 	ValidUntil int64  `json:"validUntil"`
-// 	Taker      string `json:"taker"`
-// 	FeeBips    int64  `json:"feeBips"`
-// 	IsAmm      bool   `json:"isAmm"`
-// 	NftData    string `json:"nftData"`
-// 	FillS      int64  `json:"fillS"`
-// 	FilledS    string `json:"filledS"`
 // }
