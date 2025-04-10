@@ -258,6 +258,8 @@ github.com/zachklingbeil/factory v1.0.94 h1:ShkTZdrnLhMtuBb/sjenj1Arl0pbaZ8DZEMf
 github.com/zachklingbeil/factory v1.0.94/go.mod h1:xJCLqwCDQFMtEYh1UDk8XRlu9HBlKlyLe21IlzuL1GQ=
 github.com/zachklingbeil/factory v1.0.95 h1:rjgQoQYqMXqqUH9FCxb4FBOY1LK/YwwTKneOIEMQabw=
 github.com/zachklingbeil/factory v1.0.95/go.mod h1:xJCLqwCDQFMtEYh1UDk8XRlu9HBlKlyLe21IlzuL1GQ=
+github.com/zachklingbeil/factory v1.0.96 h1:EzZJCmtIQuX3mvI/+VYyjl6EJ60vQLwxE/M/+hHimD8=
+github.com/zachklingbeil/factory v1.0.96/go.mod h1:xJCLqwCDQFMtEYh1UDk8XRlu9HBlKlyLe21IlzuL1GQ=
 golang.org/x/crypto v0.37.0 h1:kJNSjF/Xp7kU0iB2Z+9viTPMW4EqqsrywMXLJOOsXSE=
 golang.org/x/crypto v0.37.0/go.mod h1:vg+k43peMZ0pUMhYmVAWysMK35e6ioLh3wB8ZCAfbVc=
 golang.org/x/exp v0.0.0-20230810033253-352e893a4cad h1:g0bG7Z4uG+OgH2QDODnjp6ggkk1bJDsINcuWmJN1iJU=
