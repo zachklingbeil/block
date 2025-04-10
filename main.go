@@ -14,9 +14,7 @@ func main() {
 	}
 
 	loop := loopring.NewLoopring(factory)
-	// loop.CreateTable()
 	loop.FetchBlocks()
-	// loop.QualityControl()
 	// loop.LoadBlocks()
 	select {}
 }

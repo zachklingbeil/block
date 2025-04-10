@@ -29,7 +29,6 @@ func (l *Loopring) ProcessBlock(number int) error {
 		return fmt.Errorf("failed to parse block %d: %w", number, err)
 	}
 
-	// Extract transactions and metadata
 	blockNumber := int64(blockData["blockId"].(float64))
 	blockTime := int64(blockData["createdAt"].(float64))
 	transactions, ok := blockData["transactions"].([]any)
@@ -37,21 +36,18 @@ func (l *Loopring) ProcessBlock(number int) error {
 		return fmt.Errorf("invalid transactions format in block %d", number)
 	}
 
-	// Process and store transactions
 	l.Txs = l.flattenTransactions(blockNumber, blockTime, transactions)
 	l.StoreTransactions(blockNumber, l.Txs)
-
 	return nil
 }
 
 func (l *Loopring) flattenTransactions(blockNumber, blockTime int64, transactions []any) []any {
 	var flattened []any
-
 	for i, tx := range transactions {
 		if txData, ok := tx.(map[string]any); ok {
 			coordinates := l.generateCoordinates(blockNumber, blockTime, int64(i+1))
 			flatTx := flattenMap(txData, "")
-			flatTx["coordinates"] = coordinates // Embed the full Coordinates struct
+			flatTx["coordinates"] = coordinates
 			cleanedTx := removeEmptyFields(flatTx)
 			flattened = append(flattened, cleanedTx)
 		} else {
@@ -122,40 +118,4 @@ func removeEmptyFields(data map[string]any) map[string]any {
 		}
 	}
 	return cleaned
-}
-
-func (l *Loopring) CreateTable() error {
-	createTableQuery := `
-        CREATE TABLE IF NOT EXISTS loopring (
-            block BIGINT PRIMARY KEY,
-            tx JSONB NOT NULL
-        );
-    `
-	_, err := l.Factory.Db.Exec(createTableQuery)
-	if err != nil {
-		return fmt.Errorf("failed to create table: %w", err)
-	}
-	return nil
-}
-
-func (l *Loopring) StoreTransactions(blockNumber int64, transactions []any) error {
-	// Convert transactions to JSON
-	txJSON, err := json.Marshal(transactions)
-	if err != nil {
-		return fmt.Errorf("failed to marshal transactions: %w", err)
-	}
-
-	// Insert into the database
-	query := `
-        INSERT INTO loopring (block, tx)
-        VALUES ($1, $2)
-        ON CONFLICT (block) DO UPDATE
-        SET tx = EXCLUDED.tx;
-    `
-	_, err = l.Factory.Db.Exec(query, blockNumber, txJSON)
-	if err != nil {
-		return fmt.Errorf("failed to store transactions: %w", err)
-	}
-
-	return nil
 }

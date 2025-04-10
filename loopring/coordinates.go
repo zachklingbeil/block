@@ -22,7 +22,6 @@ func (l *Loopring) generateCoordinates(block int64, timestamp int64, index int64
 	t := time.UnixMilli(timestamp)
 	coordinates := Coordinates{
 		Block:       block,
-		Index:       index,
 		Year:        int64(t.Year() - 2015),
 		Month:       int64(t.Month()),
 		Day:         int64(t.Day()),
@@ -30,6 +29,7 @@ func (l *Loopring) generateCoordinates(block int64, timestamp int64, index int64
 		Minute:      int64(t.Minute()),
 		Second:      int64(t.Second()),
 		Millisecond: int64(t.Nanosecond() / 1e6),
+		Index:       index,
 	}
 	coordinates.String = fmt.Sprintf("%d.%d.%d.%d.%d.%d.%d.%d",
 		coordinates.Year,

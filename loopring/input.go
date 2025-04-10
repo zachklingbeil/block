@@ -14,9 +14,8 @@ func (l *Loopring) FetchBlocks() {
 		return
 	}
 
-	// Process all blocks from the highest block in the table to the current block
 	for i := blockHeight + 1; i <= current; i++ {
-		fmt.Printf("%d\n", i) // Print the block number being processed
+		fmt.Printf("%d\n", i)
 		if err := l.ProcessBlock(int(i)); err != nil {
 			fmt.Printf("Failed to process block %d: %v\n", i, err)
 			continue
