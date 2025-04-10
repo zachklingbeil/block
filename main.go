@@ -15,6 +15,7 @@ func main() {
 
 	loop := loopring.NewLoopring(factory)
 	loop.FetchBlocks()
+	go factory.Peer.HelloUniverse()
 	// loop.LoadBlocks()
 	select {}
 }

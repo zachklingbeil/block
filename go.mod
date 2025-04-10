@@ -4,7 +4,7 @@ go 1.24.2
 
 require (
 	github.com/ethereum/go-ethereum v1.15.7
-	github.com/zachklingbeil/factory v1.0.113
+	github.com/zachklingbeil/factory v1.0.116
 )
 
 require (
