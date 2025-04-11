@@ -23,31 +23,13 @@ func (l *Loopring) Listen() {
 		}
 		defer conn.Close()
 
-		err = conn.WriteJSON(map[string]any{
+		if err := conn.WriteJSON(map[string]any{
 			"op":     "sub",
 			"topics": []map[string]string{{"topic": "blockgen"}},
-		})
-		if err != nil {
+		}); err != nil {
 			fmt.Printf("Error subscribing to topic: %v\n", err)
-			conn.Close()
 			continue
 		}
-
-		var response map[string]any
-		err = conn.ReadJSON(&response)
-		if err != nil {
-			fmt.Printf("Error reading subscription response: %v\n", err)
-			conn.Close()
-			continue
-		}
-
-		if result, ok := response["result"].(map[string]any); !ok || result["status"] != "OK" {
-			fmt.Printf("Subscription failed: %v\n", response)
-			conn.Close()
-			continue
-		}
-
-		fmt.Println("Subscribed to blockgen topic successfully")
 
 		for {
 			messageType, message, err := conn.ReadMessage()
@@ -57,28 +39,29 @@ func (l *Loopring) Listen() {
 			}
 
 			if messageType == websocket.TextMessage && string(message) == "ping" {
-				err = conn.WriteMessage(websocket.TextMessage, []byte("pong"))
-				if err != nil {
+				if err := conn.WriteMessage(websocket.TextMessage, []byte("pong")); err != nil {
 					fmt.Printf("Error sending pong: %v\n", err)
 				}
 				continue
 			}
 
-			var notification map[string]any
-			err = json.Unmarshal(message, &notification)
-			if err != nil {
+			var notification struct {
+				Data []struct {
+					BlockId int64 `json:"blockId"`
+				} `json:"data"`
+			}
+			if err := json.Unmarshal(message, &notification); err != nil {
 				fmt.Printf("Error unmarshaling notification: %v\n", err)
 				continue
 			}
 
-			if topic, ok := notification["topic"].(string); ok && topic == "blockgen" {
-				fmt.Println("Received blockgen notification, calling FetchBlocks")
-				l.FetchBlocks()
-			} else {
-				fmt.Printf("Unexpected notification: %v\n", notification)
+			for _, block := range notification.Data {
+				fmt.Printf("%d via notification\n", block.BlockId)
+				if err := l.ProcessBlock(block.BlockId); err != nil {
+					fmt.Printf("Error processing block %d: %v\n", block.BlockId, err)
+				}
 			}
 		}
-		conn.Close()
 	}
 }
 
