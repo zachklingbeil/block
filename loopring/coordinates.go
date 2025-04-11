@@ -18,7 +18,7 @@ type Coordinates struct {
 	String      string `json:"string"`
 }
 
-func (l *Loopring) generateCoordinates(block int64, timestamp int64, index int64) Coordinates {
+func (l *Loopring) coordinates(block int64, timestamp int64, index int64) Coordinates {
 	t := time.UnixMilli(timestamp)
 	coordinates := Coordinates{
 		Block:       block,

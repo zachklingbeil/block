@@ -5,20 +5,9 @@ import (
 	"fmt"
 
 	"maps"
-
-	"github.com/zachklingbeil/factory"
 )
 
-type Loopring struct {
-	Factory *factory.Factory
-	Txs     []any
-}
-
-func NewLoopring(factory *factory.Factory) *Loopring {
-	return &Loopring{Factory: factory}
-}
-
-func (l *Loopring) ProcessBlock(number int) error {
+func (l *Loopring) ProcessBlock(number int64) error {
 	response, err := l.fetchBlock(number)
 	if err != nil {
 		return err
@@ -36,19 +25,19 @@ func (l *Loopring) ProcessBlock(number int) error {
 		return fmt.Errorf("invalid transactions format in block %d", number)
 	}
 
-	l.Txs = l.flattenTransactions(blockNumber, blockTime, transactions)
+	l.Txs = l.flatten(blockNumber, blockTime, transactions)
 	l.StoreTransactions(blockNumber, l.Txs)
 	return nil
 }
 
-func (l *Loopring) flattenTransactions(blockNumber, blockTime int64, transactions []any) []any {
+func (l *Loopring) flatten(blockNumber, blockTime int64, transactions []any) []any {
 	var flattened []any
 	for i, tx := range transactions {
 		if txData, ok := tx.(map[string]any); ok {
-			coordinates := l.generateCoordinates(blockNumber, blockTime, int64(i+1))
+			coordinates := l.coordinates(blockNumber, blockTime, int64(i+1))
 			flatTx := flattenMap(txData, "")
 			flatTx["coordinates"] = coordinates
-			cleanedTx := removeEmptyFields(flatTx)
+			cleanedTx := cleanup(flatTx)
 			flattened = append(flattened, cleanedTx)
 		} else {
 			fmt.Printf("Unexpected transaction format: %+v\n", tx)
@@ -57,7 +46,7 @@ func (l *Loopring) flattenTransactions(blockNumber, blockTime int64, transaction
 	return flattened
 }
 
-func (l *Loopring) fetchBlock(number int) ([]byte, error) {
+func (l *Loopring) fetchBlock(number int64) ([]byte, error) {
 	url := fmt.Sprintf("https://api3.loopring.io/api/v3/block/getBlock?id=%d", number)
 	response, err := l.Factory.Json.In(url, "")
 	if err != nil {
@@ -94,7 +83,7 @@ func flattenMap(input map[string]any, prefix string) map[string]any {
 	return flatMap
 }
 
-func removeEmptyFields(data map[string]any) map[string]any {
+func cleanup(data map[string]any) map[string]any {
 	cleaned := make(map[string]any)
 	for key, value := range data {
 		switch v := value.(type) {
@@ -107,7 +96,7 @@ func removeEmptyFields(data map[string]any) map[string]any {
 				cleaned[key] = v
 			}
 		case map[string]any:
-			nested := removeEmptyFields(v)
+			nested := cleanup(v)
 			if len(nested) > 0 {
 				cleaned[key] = nested
 			}

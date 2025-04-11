@@ -4,7 +4,8 @@ go 1.24.2
 
 require (
 	github.com/ethereum/go-ethereum v1.15.7
-	github.com/zachklingbeil/factory v1.0.116
+	github.com/gorilla/websocket v1.5.3
+	github.com/zachklingbeil/factory v1.0.118
 )
 
 require (
@@ -21,7 +22,6 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/holiman/uint256 v1.3.2 // indirect
 	github.com/ipfs/go-cid v0.5.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
