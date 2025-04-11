@@ -47,8 +47,8 @@ github.com/deepmap/oapi-codegen v1.6.0 h1:w/d1ntwh91XI0b/8ja7+u5SvA4IFfM0UNNLmiD
 github.com/deepmap/oapi-codegen v1.6.0/go.mod h1:ryDa9AgbELGeB+YEXE1dR53yAjHwFvE9iAUlWl9Al3M=
 github.com/ethereum/c-kzg-4844 v1.0.3 h1:IEnbOHwjixW2cTvKRUlAAUOeleV7nNM/umJR+qy4WDs=
 github.com/ethereum/c-kzg-4844 v1.0.3/go.mod h1:VewdlzQmpT5QSrVhbBuGoCdFJkpaJlO1aQputP83wc0=
-github.com/ethereum/go-ethereum v1.15.7 h1:vm1XXruZVnqtODBgqFaTclzP0xAvCvQIDKyFNUA1JpY=
-github.com/ethereum/go-ethereum v1.15.7/go.mod h1:+S9k+jFzlyVTNcYGvqFhzN/SFhI6vA+aOY4T5tLSPL0=
+github.com/ethereum/go-ethereum v1.15.8 h1:H6NilvRXFVoHiXZ3zkuTqKW5XcxjLZniV5UjxJt1GJU=
+github.com/ethereum/go-ethereum v1.15.8/go.mod h1:+S9k+jFzlyVTNcYGvqFhzN/SFhI6vA+aOY4T5tLSPL0=
 github.com/ethereum/go-verkle v0.2.2 h1:I2W0WjnrFUIzzVPwm8ykY+7pL2d4VhlsePn4j7cnFk8=
 github.com/ethereum/go-verkle v0.2.2/go.mod h1:M3b90YRnzqKyyzBEWJGqj8Qff4IDeXnzFw0P9bFw3uk=
 github.com/ferranbt/fastssz v0.1.2 h1:Dky6dXlngF6Qjc+EfDipAkE83N5I5DE68bY6O0VLNPk=
@@ -208,12 +208,10 @@ github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 h1:gEOO8jv9F4OT7lGC
 github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1/go.mod h1:Ohn+xnUBiLI6FVj/9LpzZWtj1/D6lUovWYBkxHVV3aM=
 github.com/yusufpapurcu/wmi v1.2.4 h1:zFUKzehAFReQwLys1b/iSMl+JQGSCSjtVqQn9bBrPo0=
 github.com/yusufpapurcu/wmi v1.2.4/go.mod h1:SBZ9tNy3G9/m5Oi98Zks0QjeHVDvuK0qfxQmPyzfmi0=
-github.com/zachklingbeil/factory v1.0.116 h1:sl7hFQR/fLG7Ci/52n+tCqbUZU7rPtFyqxsDs2QHRc8=
-github.com/zachklingbeil/factory v1.0.116/go.mod h1:xJCLqwCDQFMtEYh1UDk8XRlu9HBlKlyLe21IlzuL1GQ=
-github.com/zachklingbeil/factory v1.0.117 h1:mFhymTX2Cmdj0mX7dJ0aMos9M7cyY71djS0hVuOCims=
-github.com/zachklingbeil/factory v1.0.117/go.mod h1:xJCLqwCDQFMtEYh1UDk8XRlu9HBlKlyLe21IlzuL1GQ=
-github.com/zachklingbeil/factory v1.0.118 h1:vUfjb2BNUDsvmUmsbWcZ98XBJBE/79Nkk9mrDTStoEU=
-github.com/zachklingbeil/factory v1.0.118/go.mod h1:xJCLqwCDQFMtEYh1UDk8XRlu9HBlKlyLe21IlzuL1GQ=
+github.com/zachklingbeil/factory v1.0.127 h1:PbccJ8qXbejBP6dyDdLYVdbjHZsP/UOjBG6BeGoHk00=
+github.com/zachklingbeil/factory v1.0.127/go.mod h1:aPvGs1VQSf+SOE3t2pc17gz0KQues3h19ghCVvT/PRA=
+github.com/zachklingbeil/peer v1.0.5 h1:LXMN2XGdp88AUI2VJrf1Qs/0iRhPGgjTaKp076/z0Vw=
+github.com/zachklingbeil/peer v1.0.5/go.mod h1:uBbdCwYYUC138GpZq0GhpsumnKHxaPXAp7eo2AOEbRk=
 golang.org/x/crypto v0.37.0 h1:kJNSjF/Xp7kU0iB2Z+9viTPMW4EqqsrywMXLJOOsXSE=
 golang.org/x/crypto v0.37.0/go.mod h1:vg+k43peMZ0pUMhYmVAWysMK35e6ioLh3wB8ZCAfbVc=
 golang.org/x/exp v0.0.0-20230810033253-352e893a4cad h1:g0bG7Z4uG+OgH2QDODnjp6ggkk1bJDsINcuWmJN1iJU=

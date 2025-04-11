@@ -1,21 +1,14 @@
 package main
 
 import (
-	"log"
-
 	"github.com/zachklingbeil/block/loopring"
 	"github.com/zachklingbeil/factory"
+	"github.com/zachklingbeil/peer"
 )
 
 func main() {
-	factory, err := factory.NewFactory("block")
-	if err != nil {
-		log.Fatalf("Error creating factory: %v", err)
-	}
-
-	loop := loopring.NewLoopring(factory)
-	go loop.Listen()
-	go loop.FetchBlocks()
-	go factory.Peer.HelloUniverse()
+	factory := factory.Assemble("timefactory")
+	peer.HelloPeers(factory)
+	loopring.Connect(factory)
 	select {}
 }
