@@ -9,14 +9,6 @@ type Loopring struct {
 	Txs     []any
 	Map     map[string]*Tx
 }
-type Tx struct {
-	Zero     string `json:"zero"`
-	One      string `json:"one"`
-	Token    string `json:"token"`
-	Value    int64  `json:"value"`
-	Fee      int64  `json:"fee"`
-	FeeToken string `json:"feeToken"`
-}
 
 func Connect(factory *factory.Factory) *Loopring {
 	loop := &Loopring{

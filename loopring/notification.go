@@ -9,14 +9,9 @@ import (
 
 func (l *Loopring) Listen() {
 	for {
-		wsApiKey, err := l.fetchWsApiKey()
-		if err != nil {
-			fmt.Printf("Error fetching WebSocket API key: %v\n", err)
-			continue
-		}
-
-		wsUrl := "wss://ws.api3.loopring.io/v3/ws?wsApiKey=" + wsApiKey
-		conn, _, err := websocket.DefaultDialer.Dial(wsUrl, nil)
+		key := l.fetchWsApiKey()
+		url := "wss://ws.api3.loopring.io/v3/ws?wsApiKey=" + key
+		conn, _, err := websocket.DefaultDialer.Dial(url, nil)
 		if err != nil {
 			fmt.Printf("Error connecting to WebSocket: %v\n", err)
 			continue
@@ -32,50 +27,48 @@ func (l *Loopring) Listen() {
 		}
 
 		for {
-			messageType, message, err := conn.ReadMessage()
+			m, message, err := conn.ReadMessage()
 			if err != nil {
 				fmt.Printf("Error reading WebSocket message: %v\n", err)
 				break
 			}
 
-			if messageType == websocket.TextMessage && string(message) == "ping" {
-				if err := conn.WriteMessage(websocket.TextMessage, []byte("pong")); err != nil {
-					fmt.Printf("Error sending pong: %v\n", err)
-				}
+			if m == websocket.TextMessage && string(message) == "ping" {
+				conn.WriteMessage(websocket.TextMessage, []byte("pong"))
 				continue
 			}
 
-			var notification struct {
+			var newBlock struct {
 				Data []struct {
-					BlockId int64 `json:"blockId"`
+					Number int64 `json:"blockId"`
 				} `json:"data"`
 			}
-			if err := json.Unmarshal(message, &notification); err != nil {
-				fmt.Printf("Error unmarshaling notification: %v\n", err)
+			if err := json.Unmarshal(message, &newBlock); err != nil {
 				continue
 			}
 
-			for _, block := range notification.Data {
-				fmt.Printf("%d via notification\n", block.BlockId)
-				if err := l.ProcessBlock(block.BlockId); err != nil {
-					fmt.Printf("Error processing block %d: %v\n", block.BlockId, err)
+			for _, block := range newBlock.Data {
+				fmt.Printf("%d\n", block.Number)
+				if err := l.ProcessBlock(block.Number); err != nil {
+					fmt.Printf("Error processing block %d: %v\n", block.Number, err)
 				}
 			}
 		}
 	}
 }
 
-func (l *Loopring) fetchWsApiKey() (string, error) {
+func (l *Loopring) fetchWsApiKey() string {
 	data, err := l.Factory.Json.In("https://api3.loopring.io/v3/ws/key", "")
 	if err != nil {
-		return "", fmt.Errorf("failed to fetch WebSocket API key: %v", err)
+		fmt.Printf("Error fetching WebSocket API key: %v\n", err)
+		return ""
 	}
-
 	var result struct {
 		Key string `json:"key"`
 	}
 	if err := json.Unmarshal(data, &result); err != nil {
-		return "", fmt.Errorf("failed to parse API key response: %v", err)
+		fmt.Printf("Error parsing API key response: %v\n", err)
+		return ""
 	}
-	return result.Key, nil
+	return result.Key
 }
