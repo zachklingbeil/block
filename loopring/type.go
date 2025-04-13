@@ -1,88 +1,71 @@
 package loopring
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+)
 
-type In struct {
-	Block        int64 `json:"blockId"`
+type Block struct {
+	Number       int64 `json:"blockId"`
 	Size         int64 `json:"blockSize"`
 	Timestamp    int64 `json:"createdAt"`
 	Transactions []any `json:"transactions"`
 }
 
 type Tx struct {
-	Zero     *Zero       `json:"zero"`
-	ZeroID   *ZeroID     `json:"zeroId"`
-	One      *One        `json:"one"`
-	OneID    *OneID      `json:"oneId"`
-	TokenIn  *Token      `json:"tokenIn"`
-	TokenOut *TokenOut   `json:"tokenOut"`
-	Fee      *Fee        `json:"fee"`
-	FeeToken *FeeToken   `json:"feeToken"`
-	Value    int64       `json:"value"`
-	Coord    *Coordinate `json:"coordinates,omitempty"`
 	*json.RawMessage
 }
 
-type Zero struct {
-	A *string `json:"owner,omitempty"`
-	B *string `json:"fromAddress,omitempty"`
-	C *string `json:"senderAddress,omitempty"`
+func (l *Loopring) CreateTestTable() error {
+	createTableQuery := `
+	CREATE TABLE IF NOT EXISTS test (
+		year SMALLINT NOT NULL,
+		month SMALLINT NOT NULL,
+		day SMALLINT NOT NULL,
+		hour SMALLINT NOT NULL,
+		minute SMALLINT NOT NULL,
+		second SMALLINT NOT NULL,
+		millisecond SMALLINT NOT NULL,
+		index SMALLINT NOT NULL,
+		tx JSONB NOT NULL,
+		PRIMARY KEY (year, month, day, hour, minute, second, millisecond, index)
+		);
+		`
+	_, err := l.Factory.Db.Exec(createTableQuery)
+	if err != nil {
+		return fmt.Errorf("failed to create transactions table: %w", err)
+	}
+	return nil
 }
 
-type ZeroID struct {
-	A *int64 `json:"accountId"`
-	B *int64 `json:"minterAccountId"`
-	C *int64 `json:"orderAAccountID"`
-}
+// <zero> sent <zero.value> of <one.token> to <one>
+// <zero> received <one.value> of <zero.token> from <one>
 
-type One struct {
-	A *string `json:"toAddress,omitempty"`
-	B *string `json:"toAccountAddress,omitempty"`
-	C *string `json:"receiverAddress,omitempty"`
-}
+// <one> sent <one.value> of <zero.token> to <zero>
+// <one> received <zero.value> of <one.token> from <zero>
+// {
+//    "txType": "Swap",
 
-type OneID struct {
-	A *int64 `json:"toAccountId,omitempty"`
-	B *int64 `json:"orderBAccountID,omitempty"`
-}
+//    "zero": 239514,
+//    "zero.value": "127447000",
+//    "one.token": 6,
 
-type Token struct {
-	A *int64  `json:"tokenId,omitempty"`
-	B *int64  `json:"orderATokenB,omitempty"`
-	C *int64  `json:"orderBTokenB,omitempty"`
-	D *string `json:"orderAAmountB,omitempty"`
-	E *string `json:"orderBAmountB,omitempty"`
-}
+//    "one": 108,
+//    "one.value": "1414390000000000000000",
+//    "zero.token": 1,
 
-type TokenOut struct {
-	A *int64  `json:"toTokenId,omitempty"`
-	B *int64  `json:"orderATokenS,omitempty"`
-	C *int64  `json:"orderBTokenS,omitempty"`
-	D *string `json:"orderAAmountS,omitempty"`
-	E *string `json:"orderAFilledS,omitempty"`
-	F *string `json:"orderBAmountS,omitempty"`
-	G *string `json:"orderBFilledS,omitempty"`
-}
+//    "zero.feeBips": 10,
+//    "one.feeBips": 0,
 
-type Fee struct {
-	Value *string `json:"feeAmount,omitempty"`
-	BipsA *int64  `json:"orderAFeeBips,omitempty"`
-	BipsB *int64  `json:"orderBFeeBips,omitempty"`
-}
-
-type FeeToken struct {
-	Token  *int64  `json:"feeTokenId,omitempty"`
-	Symbol *string `json:"feeTokenSymbol,omitempty"`
-}
-
-type Misc struct {
-	Nonce           *int64  `json:"nonce,omitempty"`
-	Timestamp       *int64  `json:"timestamp,omitempty"`
-	Memo            *string `json:"memo,omitempty"`
-	WithdrawnTo     *string `json:"withdrawalInfoRecipient,omitempty"`
-	ZeroNftData     *string `json:"orderANftData,omitempty"`
-	OneNftData      *string `json:"orderBNftData,omitempty"`
-	NftTokenAddress *string `json:"nftTokenAddress,omitempty"`
-	NftTokenID      *string `json:"nftId,omitempty"`
-	NftData         *string `json:"nftData,omitempty"`
-}
+//	   "coordinates": {
+//	      "year": 10,
+//	      "month": 4,
+//	      "day": 13,
+//	      "hour": 17,
+//	      "minute": 0,
+//	      "second": 10,
+//	      "millisecond": 192,
+//	      "index": 1,
+//	      "string": "10.4.13.17.0.10.192.1"
+//	   }
+//	}
