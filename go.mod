@@ -5,8 +5,8 @@ go 1.24.2
 require (
 	github.com/ethereum/go-ethereum v1.15.8
 	github.com/gorilla/websocket v1.5.3
-	github.com/zachklingbeil/factory v1.0.127
-	github.com/zachklingbeil/peer v1.0.5
+	github.com/zachklingbeil/factory v1.0.133
+	github.com/zachklingbeil/peer v1.0.7
 )
 
 require (

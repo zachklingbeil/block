@@ -1,9 +1,11 @@
 services:
     block:
         container_name: block
-        image: docker.timefactory.io/block
+        image: docker.zachklingbeil.com/block
         volumes:
             - ethereum:/ethereum
+        environment:
+            - REDIS_PASSWORD=${REDIS_PASSWORD}
         user: 0:0
         networks:
             - timefactory

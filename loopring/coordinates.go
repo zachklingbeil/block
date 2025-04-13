@@ -1,26 +1,24 @@
 package loopring
 
 import (
-	"fmt"
 	"time"
 )
 
-type Coordinates struct {
-	Block       int64  `json:"block"`
-	Year        int64  `json:"year"`
-	Month       int64  `json:"month"`
-	Day         int64  `json:"day"`
-	Hour        int64  `json:"hour"`
-	Minute      int64  `json:"minute"`
-	Second      int64  `json:"second"`
-	Millisecond int64  `json:"millisecond"`
-	Index       int64  `json:"index"`
-	String      string `json:"string"`
+type Coordinate struct {
+	Block       int64 `json:"block"`
+	Year        int64 `json:"year"`
+	Month       int64 `json:"month"`
+	Day         int64 `json:"day"`
+	Hour        int64 `json:"hour"`
+	Minute      int64 `json:"minute"`
+	Second      int64 `json:"second"`
+	Millisecond int64 `json:"millisecond"`
+	Index       int64 `json:"index"`
 }
 
-func (l *Loopring) coordinates(block int64, timestamp int64, index int64) Coordinates {
+func (l *Loopring) coordinates(block int64, timestamp int64, index int64) Coordinate {
 	t := time.UnixMilli(timestamp)
-	coordinates := Coordinates{
+	coordinates := Coordinate{
 		Block:       block,
 		Year:        int64(t.Year() - 2015),
 		Month:       int64(t.Month()),
@@ -31,15 +29,5 @@ func (l *Loopring) coordinates(block int64, timestamp int64, index int64) Coordi
 		Millisecond: int64(t.Nanosecond() / 1e6),
 		Index:       index,
 	}
-	coordinates.String = fmt.Sprintf("%d.%d.%d.%d.%d.%d.%d.%d",
-		coordinates.Year,
-		coordinates.Month,
-		coordinates.Day,
-		coordinates.Hour,
-		coordinates.Minute,
-		coordinates.Second,
-		coordinates.Millisecond,
-		coordinates.Index,
-	)
 	return coordinates
 }
