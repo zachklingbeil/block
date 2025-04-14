@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/zachklingbeil/block/loopring"
+	"github.com/zachklingbeil/block/process"
 	"github.com/zachklingbeil/factory"
 	"github.com/zachklingbeil/peer"
 )
@@ -9,6 +10,8 @@ import (
 func main() {
 	factory := factory.Assemble("timefactory")
 	peer.HelloPeers(factory)
-	loopring.Connect(factory)
+	go loopring.Connect(factory)
+	process := process.InitProcess(factory)
+	process.ProcessTransactions()
 	select {}
 }
