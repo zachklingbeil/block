@@ -5,8 +5,7 @@ import (
 	"time"
 )
 
-// CreateNestedMap creates a nested map for each Coord field, preserving the int/uint types
-// CreateNestedMap assigns data to the innermost map for each Coord
+// Creates map for each Coord field, preserving the int/uint types, data will be assigned to the innermost map
 func (c *Coordinates) CreateNestedMap(data any) {
 	for _, coord := range c.Coords {
 		c.NestedMap[coord.Year][coord.Month][coord.Day][coord.Hour][coord.Minute][coord.Second][coord.Millisecond][coord.Index] = data
