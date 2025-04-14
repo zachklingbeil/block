@@ -9,6 +9,7 @@ import (
 type Process struct {
 	Factory *factory.Factory
 	Blocks  []Block
+	Raw     []RawTx
 	Txs     *Txs
 }
 
@@ -33,13 +34,15 @@ type Txs struct {
 }
 
 type Tx struct {
-	Zero     int64  `json:"zero,omitempty"`
-	ZeroId   string `json:"zeroId,omitempty"`
-	One      string `json:"one,omitempty"`
-	Value    string `json:"value,omitempty"`
-	Token    int64  `json:"token,omitempty"`
-	Fee      string `json:"fee,omitempty"`
-	FeeToken int64  `json:"feeToken,omitempty"`
+	Zero        int64       `json:"zero,omitempty"`
+	ZeroId      string      `json:"zeroId,omitempty"`
+	One         string      `json:"one,omitempty"`
+	Value       string      `json:"value,omitempty"`
+	Token       int64       `json:"token,omitempty"`
+	Fee         string      `json:"fee,omitempty"`
+	FeeToken    int64       `json:"feeToken,omitempty"`
+	Coordinates *Coordinate `json:"coordinates,omitempty"`
+	*json.RawMessage
 }
 
 // Depost,  Withdraw (fee)
@@ -64,6 +67,31 @@ type Swap struct {
 	ZeroFee     int64       `json:"orderA.feeBips"`
 	OneFee      int64       `json:"fee.orderB.feeBips"`
 	Coordinates *Coordinate `json:"coordinates,omitempty"`
+}
+
+type RawTx struct {
+	Zero      string `json:"fromAddress,omitempty"`
+	ZeroId    int64  `json:"accountId,omitempty"`
+	ZeroSwap  int64  `json:"orderA.accountID,omitempty"`
+	ZeroValue string `json:"orderA.filledS,omitempty"`
+	ZeroToken int64  `json:"orderB.tokenB,omitempty"`
+	ZeroFee   int64  `json:"fee.orderA.feeBips,omitempty"`
+
+	One        string `json:"toAddress,omitempty"`
+	OneId      int64  `json:"toAccountId,omitempty"`
+	OneSwap    int64  `json:"orderB.accountID,omitempty"`
+	OneValue   string `json:"orderB.filledS,omitempty"`
+	OneToken   int64  `json:"orderA.tokenB,omitempty"`
+	OneFee     int64  `json:"fee.orderB.feeBips,omitempty"`
+	OneAddress string `json:"toAccountAddress,omitempty"`
+
+	Type        string      `json:"txType,omitempty"`
+	Value       string      `json:"token.amount,omitempty"`
+	Token       int64       `json:"token.tokenId,omitempty"`
+	Fee         string      `json:"fee.amount,omitempty"`
+	FeeToken    int64       `json:"fee.tokenId,omitempty"`
+	Coordinates *Coordinate `json:"coordinates,omitempty"`
+	*json.RawMessage
 }
 
 type Transfer struct {

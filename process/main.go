@@ -56,6 +56,7 @@ func (p *Process) ProcessTransactions() error {
 	fmt.Printf("Processed transactions: %+v\n", counts)
 	return nil
 }
+
 func (p *Process) PrintTransactionExamples() {
 	fmt.Println("Printing examples of each transaction type:")
 
