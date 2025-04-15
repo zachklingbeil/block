@@ -11,7 +11,8 @@ func main() {
 	factory := factory.Assemble("timefactory")
 	peer.HelloPeers(factory)
 	go loopring.Connect(factory)
-	process := process.InitProcess(factory)
-	process.ProcessTransactions()
+	process.InitProcess(factory)
+	// process := process.InitProcess(factory)
+	// process.ProcessTransactions()
 	select {}
 }
