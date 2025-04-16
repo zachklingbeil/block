@@ -5,7 +5,15 @@ import (
 	"fmt"
 
 	"github.com/zachklingbeil/factory"
+	"github.com/zachklingbeil/peer"
 )
+
+// 0x605872a5a459e778959b8a49dc3a56a8c9197983 lp-eth-usdt 4
+// 0xf6cd964e6345e8f01e548063de13d0de7d8c59de lp-wbtc-eth 5
+// 0xE6cc0d45c4e4f81be340f4d176e6ce0d63ad5743 lp-lrc-usdt 15
+// 0x7af6e5dd61c93277b406ffcadad6e6089b27075b lp-wbtc-usdc 75
+// 0x194db39e4c99f6c8dd81b4647465f7599f3c215a LP-LRC-USDC 108
+// 0xb42bbcd12c14f4b2efc1c84bb971f62a943db7d5 lp-taiko-usdc 127
 
 type Process struct {
 	Factory *factory.Factory
@@ -14,6 +22,7 @@ type Process struct {
 	Txs     []Tx
 	Map     map[*Coordinate]*Tx
 	Counts  map[string]int
+	Peer    *peer.Peers
 }
 
 type Types struct {
@@ -29,11 +38,12 @@ type Types struct {
 	*json.RawMessage
 }
 
-func InitProcess(factory *factory.Factory) *Process {
+func InitProcess(factory *factory.Factory, peer *peer.Peers) *Process {
 	qtx := 10000
 
 	process := &Process{
 		Factory: factory,
+		Peer:    peer,
 		Txs:     make([]Tx, 0, qtx),
 		Counts:  make(map[string]int),
 		Map:     make(map[*Coordinate]*Tx),
@@ -53,7 +63,7 @@ func InitProcess(factory *factory.Factory) *Process {
 	// if err := process.CreateTxTable(); err != nil {
 	// 	fmt.Printf("Warning: failed to create transactions table: %v\n", err)
 	// }
-	if err := process.LoadRecentBlocks(500); err != nil {
+	if err := process.LoadRecentBlocks(10); err != nil {
 		fmt.Printf("Warning: failed to load blocks: %v\n", err)
 	}
 	return process
@@ -166,8 +176,6 @@ func (p *Process) PrintExampleTxForEachType() {
 		}
 	}
 
-	// Print an example transaction for each type
-	fmt.Println("Example transactions by type:")
 	for txType, tx := range exampleTxs {
 		txJSON, err := json.MarshalIndent(tx, "", "  ")
 		if err != nil {
@@ -183,7 +191,7 @@ func (p *Process) PopulateTxMap() {
 		tx := p.Txs[i] // Get the transaction
 
 		txWithoutCoordinates := tx
-		txWithoutCoordinates.Coordinates = Coordinate{} // Clear the Coordinates field
+		txWithoutCoordinates.Coordinates = Coordinate{}
 
 		p.Map[&tx.Coordinates] = &txWithoutCoordinates
 	}

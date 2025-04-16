@@ -9,10 +9,12 @@ import (
 
 func main() {
 	factory := factory.Assemble("timefactory")
-	peer.HelloPeers(factory)
-	go loopring.Connect(factory)
+	p := peer.HelloPeers(factory)
 
-	process := process.InitProcess(factory)
+	go loopring.Connect(factory)
+	go p.HelloUniverse()
+
+	process := process.InitProcess(factory, p)
 	process.ProcessTransactions()
 	process.PrintExampleTxForEachType()
 	select {}

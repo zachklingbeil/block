@@ -63,9 +63,12 @@ func (p *Process) WithdrawToTx(dw DW) Tx {
 
 // Convert a single Swap transaction to Tx
 func (p *Process) SwapToTx(swap Swap) Tx {
+	zero := p.Peer.GetAddressByLoopringID(swap.ZeroId)
+	one := p.Peer.GetAddressByLoopringID(swap.OneId)
+
 	return Tx{
-		Zero:        swap.ZeroId,
-		One:         swap.OneId,
+		Zero:        zero,
+		One:         one,
 		Value:       swap.ZeroValue,
 		Token:       swap.ZeroToken,
 		OneValue:    swap.OneValue,
@@ -92,8 +95,9 @@ type Swap struct {
 
 // Convert a single Transfer transaction to Tx
 func (p *Process) TransferToTx(transfer Transfer) Tx {
+	zero := p.Peer.GetAddressByLoopringID(transfer.ZeroId)
 	return Tx{
-		Zero:        transfer.ZeroId,
+		Zero:        zero,
 		One:         transfer.One,
 		Value:       transfer.Value,
 		Token:       transfer.Token,
@@ -145,8 +149,9 @@ type Mint struct {
 
 // Convert a single AccountUpdate transaction to Tx
 func (p *Process) AccountUpdateToTx(accountUpdate AccountUpdate) Tx {
+	zero := p.Peer.GetAddressByLoopringID(accountUpdate.ZeroId)
 	return Tx{
-		Zero:        accountUpdate.ZeroId,
+		Zero:        zero,
 		Type:        "accountUpdate",
 		Coordinates: accountUpdate.Coordinates,
 	}
@@ -160,8 +165,9 @@ type AccountUpdate struct {
 
 // Convert a single AmmUpdate transaction to Tx
 func (p *Process) AmmUpdateToTx(ammUpdate AmmUpdate) Tx {
+	peer := p.Peer.GetAddressByLoopringID(ammUpdate.ZeroId)
 	return Tx{
-		Zero:        ammUpdate.ZeroId,
+		Zero:        peer,
 		Type:        "ammUpdate",
 		Coordinates: ammUpdate.Coordinates,
 	}
@@ -177,34 +183,30 @@ type AmmUpdate struct {
 
 // Convert a single NftData transaction to Tx
 func (p *Process) NftDataToTx(nftData NftData) Tx {
-	// Marshal the original NftData struct to JSON
 	raw, err := json.Marshal(nftData)
 	if err != nil {
 		fmt.Printf("Error marshaling NftData to raw JSON: %v\n", err)
 	}
 
-	// Unmarshal the JSON into a map to extract additional fields
-	var rawMap map[string]interface{}
+	var rawMap map[string]any
 	if err := json.Unmarshal(raw, &rawMap); err != nil {
 		fmt.Printf("Error unmarshaling NftData to map: %v\n", err)
 	}
 
-	// Remove fields that are explicitly mapped in the Tx struct
 	delete(rawMap, "accountId")
 	delete(rawMap, "txType")
 	delete(rawMap, "coordinates")
 
-	// Marshal the remaining fields back into JSON for dynamic storage
 	filteredRaw, err := json.Marshal(rawMap)
 	if err != nil {
 		fmt.Printf("Error marshaling filtered raw map to JSON: %v\n", err)
 	}
-
+	peer := p.Peer.GetAddressByLoopringID(nftData.ZeroId)
 	return Tx{
-		Zero:        nftData.ZeroId,
+		Zero:        peer,
 		Type:        "nftData",
 		Coordinates: nftData.Coordinates,
-		Raw:         filteredRaw, // Store only the additional fields
+		Raw:         filteredRaw,
 	}
 }
 
