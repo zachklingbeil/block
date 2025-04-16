@@ -12,7 +12,7 @@ type Loopring struct {
 func Connect(factory *factory.Factory) *Loopring {
 	loop := &Loopring{
 		Factory: factory,
-		Txs:     []any{},
+		Txs:     make([]any, 0, 10000),
 	}
 	go loop.Listen()
 	go loop.FetchBlocks()

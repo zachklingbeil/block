@@ -3,8 +3,6 @@ package loopring
 import (
 	"encoding/json"
 	"fmt"
-
-	"maps"
 )
 
 func (l *Loopring) FetchBlocks() {
@@ -93,9 +91,9 @@ func (l *Loopring) flatten(blockNumber, blockTime int64, transactions []any) []a
 	for i, tx := range transactions {
 		if txData, ok := tx.(map[string]any); ok {
 			coordinates := l.coordinates(blockNumber, blockTime, int64(i+1))
-			flatTx := flattenMap(txData, "")
+			flatTx := l.Factory.Json.FlattenMap(txData, "")
 			flatTx["coordinates"] = coordinates
-			cleanedTx := cleanup(flatTx)
+			cleanedTx := l.Factory.Json.Cleanup(flatTx)
 			flattened = append(flattened, cleanedTx)
 		} else {
 			fmt.Printf("Unexpected transaction format: %+v\n", tx)
@@ -104,56 +102,56 @@ func (l *Loopring) flatten(blockNumber, blockTime int64, transactions []any) []a
 	return flattened
 }
 
-func flattenMap(input map[string]any, prefix string) map[string]any {
-	flatMap := make(map[string]any)
+// func flattenMap(input map[string]any, prefix string) map[string]any {
+// 	flatMap := make(map[string]any)
 
-	for key, value := range input {
-		newKey := key
-		if prefix != "" {
-			newKey = prefix + "." + key
-		}
+// 	for key, value := range input {
+// 		newKey := key
+// 		if prefix != "" {
+// 			newKey = prefix + "." + key
+// 		}
 
-		switch v := value.(type) {
-		case map[string]any:
-			maps.Copy(flatMap, flattenMap(v, newKey))
-		case []any:
-			for i, item := range v {
-				arrayKey := fmt.Sprintf("%s[%d]", newKey, i)
-				if nestedMap, ok := item.(map[string]any); ok {
-					maps.Copy(flatMap, flattenMap(nestedMap, arrayKey))
-				} else {
-					flatMap[arrayKey] = item
-				}
-			}
-		default:
-			flatMap[newKey] = v
-		}
-	}
-	return flatMap
-}
+// 		switch v := value.(type) {
+// 		case map[string]any:
+// 			maps.Copy(flatMap, flattenMap(v, newKey))
+// 		case []any:
+// 			for i, item := range v {
+// 				arrayKey := fmt.Sprintf("%s[%d]", newKey, i)
+// 				if nestedMap, ok := item.(map[string]any); ok {
+// 					maps.Copy(flatMap, flattenMap(nestedMap, arrayKey))
+// 				} else {
+// 					flatMap[arrayKey] = item
+// 				}
+// 			}
+// 		default:
+// 			flatMap[newKey] = v
+// 		}
+// 	}
+// 	return flatMap
+// }
 
-func cleanup(data map[string]any) map[string]any {
-	cleaned := make(map[string]any)
-	for key, value := range data {
-		switch v := value.(type) {
-		case string:
-			if v != "" {
-				cleaned[key] = v
-			}
-		case []any:
-			if len(v) > 0 {
-				cleaned[key] = v
-			}
-		case map[string]any:
-			nested := cleanup(v)
-			if len(nested) > 0 {
-				cleaned[key] = nested
-			}
-		default:
-			if v != nil {
-				cleaned[key] = v
-			}
-		}
-	}
-	return cleaned
-}
+// func cleanup(data map[string]any) map[string]any {
+// 	cleaned := make(map[string]any)
+// 	for key, value := range data {
+// 		switch v := value.(type) {
+// 		case string:
+// 			if v != "" {
+// 				cleaned[key] = v
+// 			}
+// 		case []any:
+// 			if len(v) > 0 {
+// 				cleaned[key] = v
+// 			}
+// 		case map[string]any:
+// 			nested := cleanup(v)
+// 			if len(nested) > 0 {
+// 				cleaned[key] = nested
+// 			}
+// 		default:
+// 			if v != nil {
+// 				cleaned[key] = v
+// 			}
+// 		}
+// 	}
+// 	return cleaned
+// }
