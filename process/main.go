@@ -1,19 +1,11 @@
 package process
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/zachklingbeil/factory"
 	"github.com/zachklingbeil/peer"
 )
-
-// 0x605872a5a459e778959b8a49dc3a56a8c9197983 lp-eth-usdt 4
-// 0xf6cd964e6345e8f01e548063de13d0de7d8c59de lp-wbtc-eth 5
-// 0xE6cc0d45c4e4f81be340f4d176e6ce0d63ad5743 lp-lrc-usdt 15
-// 0x7af6e5dd61c93277b406ffcadad6e6089b27075b lp-wbtc-usdc 75
-// 0x194db39e4c99f6c8dd81b4647465f7599f3c215a LP-LRC-USDC 108
-// 0xb42bbcd12c14f4b2efc1c84bb971f62a943db7d5 lp-taiko-usdc 127
 
 type Process struct {
 	Factory *factory.Factory
@@ -23,19 +15,6 @@ type Process struct {
 	Map     map[*Coordinate]*Tx
 	Counts  map[string]int
 	Peer    *peer.Peers
-}
-
-type Types struct {
-	Deposit       []DW            `json:"deposit,omitempty"`
-	Withdrawal    []DW            `json:"withdraw,omitempty"`
-	Swaps         []Swap          `json:"swap,omitempty"`
-	Transfers     []Transfer      `json:"transfer,omitempty"`
-	Mints         []Mint          `json:"mint,omitempty"`
-	AccountUpdate []AccountUpdate `json:"accountUpdate,omitempty"`
-	AmmUpdate     []AmmUpdate     `json:"ammUpdate,omitempty"`
-	NftData       []NftData       `json:"nftData,omitempty"`
-	TBD           []any           `json:"tbd,omitempty"`
-	*json.RawMessage
 }
 
 func InitProcess(factory *factory.Factory, peer *peer.Peers) *Process {
@@ -63,132 +42,15 @@ func InitProcess(factory *factory.Factory, peer *peer.Peers) *Process {
 	// if err := process.CreateTxTable(); err != nil {
 	// 	fmt.Printf("Warning: failed to create transactions table: %v\n", err)
 	// }
-	if err := process.LoadRecentBlocks(10); err != nil {
+	if err := process.LoadRecentBlocks(100); err != nil {
 		fmt.Printf("Warning: failed to load blocks: %v\n", err)
 	}
 	return process
 }
 
-func (p *Process) LoadRecentBlocks(limit int) error {
-	query := `
-        SELECT block, tx
-        FROM loopring
-        ORDER BY block DESC
-        LIMIT $1;
-    `
-	rows, err := p.Factory.Db.Query(query, limit)
-	if err != nil {
-		return fmt.Errorf("failed to query loopring table: %w", err)
-	}
-	defer rows.Close()
-
-	var rawTxs []any
-	for rows.Next() {
-		var txArray []byte
-		if err := rows.Scan(new(int64), &txArray); err != nil {
-			return fmt.Errorf("failed to scan row: %w", err)
-		}
-
-		var transactions []json.RawMessage
-		if err := json.Unmarshal(txArray, &transactions); err != nil {
-			return fmt.Errorf("failed to unmarshal transactions array: %w", err)
-		}
-
-		for _, tx := range transactions {
-			rawTxs = append(rawTxs, tx)
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("error iterating over rows: %w", err)
-	}
-	p.RawTxs = rawTxs
-	p.Counts["Input"] = len(p.RawTxs)
-	return nil
-}
-
-func (p *Process) ProcessTransactions() error {
-	for _, rawTx := range p.RawTxs {
-		txJSON, ok := rawTx.(json.RawMessage)
-		if !ok {
-			fmt.Printf("Skipping invalid transaction format: %v\n", rawTx)
-			continue
-		}
-
-		if err := p.processTransaction(txJSON); err != nil {
-			fmt.Printf("Error processing transaction: %v\n", err)
-			continue
-		}
-	}
-
-	p.ConvertTypesToTxs()
-	p.Counts["Txs"] = len(p.Txs)
-	p.Factory.Json.Print(p.Counts)
-	return nil
-}
-
-func (p *Process) ConvertTypesToTxs() {
-	for _, deposit := range p.Types.Deposit {
-		p.Txs = append(p.Txs, p.DepositToTx(deposit))
-	}
-
-	for _, withdrawal := range p.Types.Withdrawal {
-		p.Txs = append(p.Txs, p.WithdrawToTx(withdrawal))
-	}
-
-	for _, swap := range p.Types.Swaps {
-		p.Txs = append(p.Txs, p.SwapToTx(swap))
-	}
-
-	for _, transfer := range p.Types.Transfers {
-		p.Txs = append(p.Txs, p.TransferToTx(transfer))
-	}
-
-	for _, mint := range p.Types.Mints {
-		p.Txs = append(p.Txs, p.MintToTx(mint))
-	}
-
-	for _, accountUpdate := range p.Types.AccountUpdate {
-		p.Txs = append(p.Txs, p.AccountUpdateToTx(accountUpdate))
-	}
-
-	for _, ammUpdate := range p.Types.AmmUpdate {
-		p.Txs = append(p.Txs, p.AmmUpdateToTx(ammUpdate))
-	}
-
-	for _, nftData := range p.Types.NftData {
-		p.Txs = append(p.Txs, p.NftDataToTx(nftData))
-	}
-}
-
-func (p *Process) PrintExampleTxForEachType() {
-	if len(p.Txs) == 0 {
-		fmt.Println("No transactions processed.")
-		return
-	}
-
-	// Map to store the first transaction for each type
-	exampleTxs := make(map[string]Tx)
-
-	// Iterate over p.Txs and store the first transaction for each type
-	for _, tx := range p.Txs {
-		if _, exists := exampleTxs[tx.Type]; !exists {
-			exampleTxs[tx.Type] = tx
-		}
-	}
-
-	for txType, tx := range exampleTxs {
-		txJSON, err := json.MarshalIndent(tx, "", "  ")
-		if err != nil {
-			fmt.Printf("Error marshaling transaction to JSON for type %s: %v\n", txType, err)
-			continue
-		}
-		fmt.Printf("Example %s transaction:\n%s\n\n", txType, string(txJSON))
-	}
-}
-
 func (p *Process) PopulateTxMap() {
 	for i := range p.Txs {
-		tx := p.Txs[i] // Get the transaction
+		tx := p.Txs[i]
 
 		txWithoutCoordinates := tx
 		txWithoutCoordinates.Coordinates = Coordinate{}

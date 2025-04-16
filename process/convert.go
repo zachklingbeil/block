@@ -6,14 +6,12 @@ import (
 )
 
 type Tx struct {
-	Zero any `json:"zero,omitempty"`
-	One  any `json:"one,omitempty"`
-
-	Value    string `json:"value,omitempty"`
-	Token    any    `json:"token,omitempty"`
-	Fee      any    `json:"fee,omitempty"`
-	FeeToken int64  `json:"feeToken,omitempty"`
-
+	Zero        any             `json:"zero,omitempty"`
+	One         any             `json:"one,omitempty"`
+	Value       string          `json:"value,omitempty"`
+	Token       any             `json:"token,omitempty"`
+	Fee         any             `json:"fee,omitempty"`
+	FeeToken    int64           `json:"feeToken,omitempty"`
 	OneValue    string          `json:"oneValue,omitempty"`
 	OneToken    int64           `json:"oneToken,omitempty"`
 	OneFee      any             `json:"oneFee,omitempty"`
@@ -23,17 +21,38 @@ type Tx struct {
 	Raw         json.RawMessage `json:"raw,omitempty"`
 }
 
-// Depost,  Withdraw (fee)
-type DW struct {
-	Zero        string     `json:"fromAddress"`
-	ZeroId      int64      `json:"accountId"`
-	One         string     `json:"toAddress"`
-	Value       string     `json:"token.amount"`
-	Token       int64      `json:"token.tokenId"`
-	Fee         string     `json:"fee.amount,omitempty"`
-	FeeToken    int64      `json:"fee.tokenId,omitempty"`
-	Type        string     `json:"txType,omitempty"`
-	Coordinates Coordinate `json:"coordinates"`
+func (p *Process) ConvertTypesToTxs() {
+	for _, deposit := range p.Types.Deposit {
+		p.Txs = append(p.Txs, p.DepositToTx(deposit))
+	}
+
+	for _, withdrawal := range p.Types.Withdrawal {
+		p.Txs = append(p.Txs, p.WithdrawToTx(withdrawal))
+	}
+
+	for _, swap := range p.Types.Swaps {
+		p.Txs = append(p.Txs, p.SwapToTx(swap))
+	}
+
+	for _, transfer := range p.Types.Transfers {
+		p.Txs = append(p.Txs, p.TransferToTx(transfer))
+	}
+
+	for _, mint := range p.Types.Mints {
+		p.Txs = append(p.Txs, p.MintToTx(mint))
+	}
+
+	for _, accountUpdate := range p.Types.AccountUpdate {
+		p.Txs = append(p.Txs, p.AccountUpdateToTx(accountUpdate))
+	}
+
+	for _, ammUpdate := range p.Types.AmmUpdate {
+		p.Txs = append(p.Txs, p.AmmUpdateToTx(ammUpdate))
+	}
+
+	for _, nftData := range p.Types.NftData {
+		p.Txs = append(p.Txs, p.NftDataToTx(nftData))
+	}
 }
 
 // Convert a single DW (Deposit/Withdraw) transaction to Tx
@@ -80,19 +99,6 @@ func (p *Process) SwapToTx(swap Swap) Tx {
 	}
 }
 
-type Swap struct {
-	ZeroId      int64      `json:"orderA.accountID"`
-	ZeroValue   string     `json:"orderA.filledS"`
-	ZeroToken   int64      `json:"orderB.tokenB"`
-	OneId       int64      `json:"orderB.accountID"`
-	OneValue    string     `json:"orderB.filledS"`
-	OneToken    int64      `json:"orderA.tokenB"`
-	ZeroFee     int64      `json:"orderA.feeBips"`
-	OneFee      int64      `json:"fee.orderB.feeBips"`
-	Type        string     `json:"txType,omitempty"`
-	Coordinates Coordinate `json:"coordinates"`
-}
-
 // Convert a single Transfer transaction to Tx
 func (p *Process) TransferToTx(transfer Transfer) Tx {
 	zero := p.Peer.GetAddressByLoopringID(transfer.ZeroId)
@@ -108,18 +114,6 @@ func (p *Process) TransferToTx(transfer Transfer) Tx {
 	}
 }
 
-type Transfer struct {
-	ZeroId      int64      `json:"accountId"`
-	OneId       int64      `json:"toAccountId"`
-	One         string     `json:"toAccountAddress"`
-	Value       string     `json:"token.amount"`
-	Token       int64      `json:"token.tokenId"`
-	Fee         string     `json:"fee.amount,omitempty"`
-	FeeToken    int64      `json:"fee.tokenId,omitempty"`
-	Type        string     `json:"txType,omitempty"`
-	Coordinates Coordinate `json:"coordinates"`
-}
-
 // Convert a single Mint transaction to Tx
 func (p *Process) MintToTx(mint Mint) Tx {
 	return Tx{
@@ -133,20 +127,6 @@ func (p *Process) MintToTx(mint Mint) Tx {
 	}
 }
 
-type Mint struct {
-	ZeroId      int64      `json:"minterAccountId"`
-	Zero        string     `json:"toAccountAddress"`
-	Nft         any        `json:"toToken.tokenId"`
-	NftId       string     `json:"nftToken.nftId"`
-	NftData     string     `json:"nftToken.nftData"`
-	NftAddress  string     `json:"nftToken.tokenAddress"`
-	Quantity    string     `json:"nftToken.amount"`
-	Fee         string     `json:"fee.amount,omitempty"`
-	FeeToken    int64      `json:"fee.tokenId,omitempty"`
-	Type        string     `json:"txType,omitempty"`
-	Coordinates Coordinate `json:"coordinates"`
-}
-
 // Convert a single AccountUpdate transaction to Tx
 func (p *Process) AccountUpdateToTx(accountUpdate AccountUpdate) Tx {
 	zero := p.Peer.GetAddressByLoopringID(accountUpdate.ZeroId)
@@ -157,12 +137,6 @@ func (p *Process) AccountUpdateToTx(accountUpdate AccountUpdate) Tx {
 	}
 }
 
-type AccountUpdate struct {
-	ZeroId      int64      `json:"accountId"`
-	Type        string     `json:"txType,omitempty"`
-	Coordinates Coordinate `json:"coordinates"`
-}
-
 // Convert a single AmmUpdate transaction to Tx
 func (p *Process) AmmUpdateToTx(ammUpdate AmmUpdate) Tx {
 	peer := p.Peer.GetAddressByLoopringID(ammUpdate.ZeroId)
@@ -171,14 +145,6 @@ func (p *Process) AmmUpdateToTx(ammUpdate AmmUpdate) Tx {
 		Type:        "ammUpdate",
 		Coordinates: ammUpdate.Coordinates,
 	}
-}
-
-type AmmUpdate struct {
-	Zero        string     `json:"owner"`
-	ZeroId      int64      `json:"accountId"`
-	Nonce       int64      `json:"nonce"`
-	Type        string     `json:"txType,omitempty"`
-	Coordinates Coordinate `json:"coordinates"`
 }
 
 // Convert a single NftData transaction to Tx
@@ -208,14 +174,4 @@ func (p *Process) NftDataToTx(nftData NftData) Tx {
 		Coordinates: nftData.Coordinates,
 		Raw:         filteredRaw,
 	}
-}
-
-type NftData struct {
-	ZeroId      int64      `json:"accountId"`
-	One         string     `json:"minter"`
-	NftId       string     `json:"nftToken.nftId"`
-	NftData     string     `json:"nftToken.nftData,omitempty"`
-	NftAddress  string     `json:"nftToken.tokenAddress"`
-	Type        string     `json:"txType,omitempty"`
-	Coordinates Coordinate `json:"coordinates"`
 }

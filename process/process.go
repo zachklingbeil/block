@@ -5,6 +5,26 @@ import (
 	"fmt"
 )
 
+func (p *Process) ProcessTransactions() error {
+	for _, rawTx := range p.RawTxs {
+		txJSON, ok := rawTx.(json.RawMessage)
+		if !ok {
+			fmt.Printf("Skipping invalid transaction format: %v\n", rawTx)
+			continue
+		}
+
+		if err := p.processTransaction(txJSON); err != nil {
+			fmt.Printf("Error processing transaction: %v\n", err)
+			continue
+		}
+	}
+
+	p.ConvertTypesToTxs()
+	p.Counts["Txs"] = len(p.Txs)
+	p.Factory.Json.Print(p.Counts)
+	return nil
+}
+
 // Helper method to process a single transaction
 func (p *Process) processTransaction(txJSON []byte) error {
 	var txTypeWrapper struct {
