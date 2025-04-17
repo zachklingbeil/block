@@ -16,6 +16,7 @@ func main() {
 
 	process := process.InitProcess(factory, p)
 	process.ProcessTransactions()
-	process.PrintExampleTxForEachType()
+	// process.PrintExampleTxForEachType()
+	process.ExtractUniqueAddresses()
 	select {}
 }

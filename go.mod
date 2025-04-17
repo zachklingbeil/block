@@ -6,7 +6,7 @@ require (
 	github.com/ethereum/go-ethereum v1.15.8
 	github.com/gorilla/websocket v1.5.3
 	github.com/zachklingbeil/factory v1.0.137
-	github.com/zachklingbeil/peer v1.0.11
+	github.com/zachklingbeil/peer v1.0.20
 )
 
 require (

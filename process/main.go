@@ -42,7 +42,7 @@ func InitProcess(factory *factory.Factory, peer *peer.Peers) *Process {
 	// if err := process.CreateTxTable(); err != nil {
 	// 	fmt.Printf("Warning: failed to create transactions table: %v\n", err)
 	// }
-	if err := process.LoadRecentBlocks(100); err != nil {
+	if err := process.LoadRecentBlocks(1000); err != nil {
 		fmt.Printf("Warning: failed to load blocks: %v\n", err)
 	}
 	return process
@@ -57,4 +57,34 @@ func (p *Process) PopulateTxMap() {
 
 		p.Map[&tx.Coordinates] = &txWithoutCoordinates
 	}
+}
+
+func (p *Process) ExtractUniqueAddresses() error {
+	uniqueAddresses := make(map[string]struct{}) // Use a map to track unique addresses
+
+	// Iterate over the transactions
+	for _, tx := range p.Txs {
+		// Add the Zero field to the map if it's not nil and is a string
+		if address, ok := tx.Zero.(string); ok {
+			uniqueAddresses[address] = struct{}{}
+		}
+
+		// Add the One field to the map if it's not nil and is a string
+		if address, ok := tx.One.(string); ok {
+			uniqueAddresses[address] = struct{}{}
+		}
+	}
+
+	// Convert the map keys to a slice of strings
+	addresses := make([]string, 0, len(uniqueAddresses))
+	for address := range uniqueAddresses {
+		addresses = append(addresses, address)
+	}
+
+	// Pass the addresses to Peer.NewBlock in a goroutine
+	go func() {
+		p.Peer.NewBlock(addresses)
+	}()
+
+	return nil
 }

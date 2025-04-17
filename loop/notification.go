@@ -1,4 +1,4 @@
-package loopring
+package loop
 
 import (
 	"encoding/json"
