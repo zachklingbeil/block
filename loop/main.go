@@ -35,7 +35,7 @@ func (l *Loopring) BlockByBlock() {
 			fmt.Printf("Error fetching block %d: %v\n", blockNum, err)
 			continue
 		}
-		if blockNum%50 == 0 {
+		if blockNum%1000 == 0 {
 			if err := l.SaveMap(); err != nil {
 				fmt.Printf("Error saving map at block %d: %v\n", blockNum, err)
 			}

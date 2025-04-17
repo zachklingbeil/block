@@ -11,7 +11,5 @@ func main() {
 
 	go loop.Connect(factory)
 	// go p.HelloUniverse()
-
-	// loop.Connect(factory)
 	select {}
 }
