@@ -1,7 +1,7 @@
 services:
     block:
         container_name: block
-        image: docker.zachklingbeil.com/block:simple
+        image: docker.zachklingbeil.com/block:loop
         # image: docker.zachklingbeil.com/block
         volumes:
             - ethereum:/ethereum

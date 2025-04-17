@@ -82,12 +82,9 @@ func (p *Process) WithdrawToTx(dw DW) Tx {
 
 // Convert a single Swap transaction to Tx
 func (p *Process) SwapToTx(swap Swap) Tx {
-	zero := p.Peer.GetAddressByLoopringID(swap.ZeroId)
-	one := p.Peer.GetAddressByLoopringID(swap.OneId)
-
 	return Tx{
-		Zero:        zero,
-		One:         one,
+		Zero:        swap.ZeroId,
+		One:         swap.OneId,
 		Value:       swap.ZeroValue,
 		Token:       swap.ZeroToken,
 		OneValue:    swap.OneValue,
@@ -101,9 +98,8 @@ func (p *Process) SwapToTx(swap Swap) Tx {
 
 // Convert a single Transfer transaction to Tx
 func (p *Process) TransferToTx(transfer Transfer) Tx {
-	zero := p.Peer.GetAddressByLoopringID(transfer.ZeroId)
 	return Tx{
-		Zero:        zero,
+		Zero:        transfer.ZeroId,
 		One:         transfer.One,
 		Value:       transfer.Value,
 		Token:       transfer.Token,
@@ -129,9 +125,8 @@ func (p *Process) MintToTx(mint Mint) Tx {
 
 // Convert a single AccountUpdate transaction to Tx
 func (p *Process) AccountUpdateToTx(accountUpdate AccountUpdate) Tx {
-	zero := p.Peer.GetAddressByLoopringID(accountUpdate.ZeroId)
 	return Tx{
-		Zero:        zero,
+		Zero:        accountUpdate.ZeroId,
 		Type:        "accountUpdate",
 		Coordinates: accountUpdate.Coordinates,
 	}
@@ -139,9 +134,8 @@ func (p *Process) AccountUpdateToTx(accountUpdate AccountUpdate) Tx {
 
 // Convert a single AmmUpdate transaction to Tx
 func (p *Process) AmmUpdateToTx(ammUpdate AmmUpdate) Tx {
-	peer := p.Peer.GetAddressByLoopringID(ammUpdate.ZeroId)
 	return Tx{
-		Zero:        peer,
+		Zero:        ammUpdate.ZeroId,
 		Type:        "ammUpdate",
 		Coordinates: ammUpdate.Coordinates,
 	}
@@ -167,9 +161,8 @@ func (p *Process) NftDataToTx(nftData NftData) Tx {
 	if err != nil {
 		fmt.Printf("Error marshaling filtered raw map to JSON: %v\n", err)
 	}
-	peer := p.Peer.GetAddressByLoopringID(nftData.ZeroId)
 	return Tx{
-		Zero:        peer,
+		Zero:        nftData.ZeroId,
 		Type:        "nftData",
 		Coordinates: nftData.Coordinates,
 		Raw:         filteredRaw,

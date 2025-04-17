@@ -5,44 +5,54 @@ import (
 	"fmt"
 )
 
-func (l *Loopring) CreateTable() error {
-	createTableQuery := `
-        CREATE TABLE IF NOT EXISTS loopring (
-            block BIGINT PRIMARY KEY,
-            tx JSONB NOT NULL
-        );
-    `
-	_, err := l.Factory.Db.Exec(createTableQuery)
-	if err != nil {
-		return fmt.Errorf("failed to create table: %w", err)
-	}
-	return nil
-}
-
-func (l *Loopring) StoreTransactions(blockNumber int64, transactions []any) error {
-	txJSON, err := json.Marshal(transactions)
-	if err != nil {
-		return fmt.Errorf("failed to marshal transactions: %w", err)
-	}
-
+func (l *Loopring) CreateTxTable() error {
 	query := `
-        INSERT INTO loopring (block, tx)
-        VALUES ($1, $2)
-        ON CONFLICT (block) DO UPDATE
-        SET tx = EXCLUDED.tx;
-    `
-	_, err = l.Factory.Db.Exec(query, blockNumber, txJSON)
+	CREATE TABLE IF NOT EXISTS tx (
+		year SMALLINT NOT NULL,
+		month SMALLINT NOT NULL,
+		day SMALLINT NOT NULL,
+		hour SMALLINT NOT NULL,
+		minute SMALLINT NOT NULL,
+		second SMALLINT NOT NULL,
+		millisecond SMALLINT NOT NULL,
+		index SMALLINT NOT NULL,
+		tx JSONB NOT NULL,
+		PRIMARY KEY (year, month, day, hour, minute, second, millisecond, index)
+		);
+		`
+	_, err := l.Factory.Db.Exec(query)
 	if err != nil {
-		return fmt.Errorf("failed to store transactions: %w", err)
+		return fmt.Errorf("failed to create transactions table: %w", err)
 	}
 	return nil
 }
 
-func (l *Loopring) fetchBlock(number int64) ([]byte, error) {
-	url := fmt.Sprintf("https://api3.loopring.io/api/v3/block/getBlock?id=%d", number)
-	response, err := l.Factory.Json.In(url, "")
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch block %d: %w", number, err)
+func (l *Loopring) SaveMap() error {
+	l.Factory.Rw.RLock()
+	defer l.Factory.Rw.RUnlock()
+	query := `
+        INSERT INTO tx (
+            year, month, day, hour, minute, second, millisecond, index, tx
+        ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9
+        )
+        ON CONFLICT (year, month, day, hour, minute, second, millisecond, index)
+        DO UPDATE SET tx = EXCLUDED.tx;
+    `
+	for coord, tx := range l.Map {
+		txJSON, err := json.Marshal(tx)
+		if err != nil {
+			return fmt.Errorf("failed to marshal tx: %w", err)
+		}
+		_, err = l.Factory.Db.ExecContext(
+			l.Factory.Ctx,
+			query,
+			coord.Year, coord.Month, coord.Day, coord.Hour, coord.Minute,
+			coord.Second, coord.Millisecond, coord.Index, txJSON,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to insert tx: %w", err)
+		}
 	}
-	return response, nil
+	return nil
 }

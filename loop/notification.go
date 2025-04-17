@@ -7,6 +7,39 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+func (l *Loopring) Loop() {
+	l.Types = &Type{
+		Deposits:       make([]DW, 0, 300),
+		Withdrawals:    make([]DW, 0, 300),
+		Swaps:          make([]Swap, 0, 300),
+		Transfers:      make([]Transfer, 0, 300),
+		Mints:          make([]Mint, 0, 300),
+		NftData:        make([]NftData, 0, 300),
+		AmmUpdates:     make([]AmmUpdate, 0, 300),
+		AccountUpdates: make([]AccountUpdate, 0, 300),
+		TBD:            make([]any, 0, 10),
+	}
+	l.Transactions = make([]Transaction, 0, 1000)
+}
+
+// Simplified GetCurrentBlockNumber
+func (l *Loopring) currentBlock() int64 {
+	data, err := l.Factory.Json.In("https://api3.loopring.io/api/v3/block/getBlock", "")
+	if err != nil {
+		fmt.Printf("Failed to fetch block data: %v\n", err)
+		return 0
+	}
+	var block struct {
+		Number int64 `json:"blockId"`
+	}
+	err = json.Unmarshal(data, &block)
+	if err != nil {
+		fmt.Printf("Failed to parse block data: %v\n", err)
+		return 0
+	}
+	return block.Number
+}
+
 func (l *Loopring) Listen() {
 	for {
 		key := l.fetchWsApiKey()
@@ -51,7 +84,7 @@ func (l *Loopring) Listen() {
 			}
 			for _, block := range resp.Data {
 				fmt.Printf("%d\n", block.Number)
-				if err := l.ProcessBlock(block.Number); err != nil {
+				if err := l.fetchBlock(block.Number); err != nil {
 					fmt.Printf("Error processing block %d: %v\n", block.Number, err)
 				}
 			}
