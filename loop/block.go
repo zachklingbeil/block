@@ -13,6 +13,7 @@ type Block struct {
 }
 
 type Coordinate struct {
+	Block       int64
 	Year        int64 `json:"year"`
 	Month       int64 `json:"month"`
 	Day         int64 `json:"day"`

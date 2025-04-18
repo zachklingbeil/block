@@ -26,6 +26,12 @@ func Connect(factory *factory.Factory) *Loopring {
 	return loop
 }
 
+func (l *Loopring) GetTxMap() map[Coordinate]*Tx {
+	l.Factory.Rw.RLock()
+	defer l.Factory.Rw.RUnlock()
+	return l.Map
+}
+
 func (l *Loopring) BlockByBlock() {
 	current := l.currentBlock()
 	for blockNum := current; blockNum >= 1; blockNum-- {
@@ -56,7 +62,7 @@ func (l *Loopring) fetchBlock(number int64) error {
 	}
 
 	for idx, tx := range block.Transactions {
-		coord := l.coordinates(block.Timestamp, int64(idx+1))
+		coord := l.coordinates(number, block.Timestamp, int64(idx+1))
 		if txMap, ok := tx.(map[string]any); ok {
 			txMap["coordinates"] = coord
 			flatTx := l.Factory.Json.FlattenMap(txMap, "")
@@ -70,9 +76,10 @@ func (l *Loopring) fetchBlock(number int64) error {
 	return nil
 }
 
-func (l *Loopring) coordinates(timestamp int64, index int64) Coordinate {
+func (l *Loopring) coordinates(blockNumber, timestamp, index int64) Coordinate {
 	t := time.UnixMilli(timestamp)
 	coordinates := Coordinate{
+		Block:       blockNumber,
 		Year:        int64(t.Year() - 2015),
 		Month:       int64(t.Month()),
 		Day:         int64(t.Day()),
