@@ -6,6 +6,7 @@ import (
 
 type Ethereum struct {
 	Factory *factory.Factory
+	Map     map[Coordinate]*Tx
 }
 
 func NewEthereum(factory *factory.Factory) *Ethereum {

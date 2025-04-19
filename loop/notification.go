@@ -7,21 +7,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-func (l *Loopring) Loop() {
-	l.Types = &Type{
-		Deposits:       make([]DW, 0, 300),
-		Withdrawals:    make([]DW, 0, 300),
-		Swaps:          make([]Swap, 0, 300),
-		Transfers:      make([]Transfer, 0, 300),
-		Mints:          make([]Mint, 0, 300),
-		NftData:        make([]NftData, 0, 300),
-		AmmUpdates:     make([]AmmUpdate, 0, 300),
-		AccountUpdates: make([]AccountUpdate, 0, 300),
-		TBD:            make([]any, 0, 10),
-	}
-	l.Transactions = make([]Transaction, 0, 1000)
-}
-
 // Simplified GetCurrentBlockNumber
 func (l *Loopring) currentBlock() int64 {
 	data, err := l.Factory.Json.In("https://api3.loopring.io/api/v3/block/getBlock", "")
