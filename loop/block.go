@@ -3,24 +3,20 @@ package loop
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
-	"strings"
 	"time"
 )
 
 func (l *Loopring) PrepareBlock(block *Block) []Tx {
 	var result []Tx
 
-	// Precompute base coordinates for the block
 	baseCoord := l.coordinates(block.Number, block.Timestamp)
 
 	for idx, tx := range block.Transactions.TBD {
-		// Update the index for each transaction
 		coord := l.updateIndex(baseCoord, int64(idx+1))
 
 		if txMap, ok := tx.(map[string]any); ok {
 			txMap["coordinates"] = coord
-			flatTx := l.Factory.Json.FlattenMap(txMap, "")
+			flatTx := l.Factory.Json.Flat(txMap, "")
 			cleanTx := l.Factory.Json.Cleanup(flatTx)
 
 			txBytes, err := json.Marshal(cleanTx)
@@ -156,102 +152,4 @@ func txEqual(a, b *Tx) bool {
 		a.OneFeeToken == b.OneFeeToken &&
 		a.Type == b.Type &&
 		bytes.Equal(a.Raw, b.Raw)
-}
-
-func (l *Loopring) SaveMap(m map[Coordinate]*Tx) error {
-	l.Factory.Rw.RLock()
-	defer l.Factory.Rw.RUnlock()
-
-	if len(m) == 0 {
-		return nil
-	}
-
-	const batchSize = 10000
-	coords := make([]Coordinate, 0, len(m))
-	for coord := range m {
-		coords = append(coords, coord)
-	}
-
-	for i := 0; i < len(coords); i += batchSize {
-		end := i + batchSize
-		if end > len(coords) {
-			end = len(coords)
-		}
-
-		valueStrings := make([]string, 0, end-i)
-		valueArgs := make([]any, 0, (end-i)*2)
-		argIdx := 1
-
-		for _, coord := range coords[i:end] {
-			tx := m[coord]
-			coordJSON, err := json.Marshal(coord)
-			if err != nil {
-				return fmt.Errorf("failed to marshal coordinate: %w", err)
-			}
-			txJSON, err := json.Marshal(tx)
-			if err != nil {
-				return fmt.Errorf("failed to marshal tx: %w", err)
-			}
-			valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d)", argIdx, argIdx+1))
-			valueArgs = append(valueArgs, coordJSON, txJSON)
-			argIdx += 2
-		}
-
-		queryTemplate := `
-        INSERT INTO tx (coordinate, tx)
-        VALUES %s
-        ON CONFLICT (coordinate)
-        DO UPDATE SET tx = EXCLUDED.tx;
-        `
-		query := fmt.Sprintf(queryTemplate, strings.Join(valueStrings, ","))
-
-		tx, err := l.Factory.Db.BeginTx(l.Factory.Ctx, nil)
-		if err != nil {
-			return fmt.Errorf("failed to begin transaction: %w", err)
-		}
-		_, err = tx.ExecContext(l.Factory.Ctx, query, valueArgs...)
-		if err != nil {
-			tx.Rollback()
-			return fmt.Errorf("failed to insert tx: %w", err)
-		}
-		if err := tx.Commit(); err != nil {
-			return fmt.Errorf("failed to commit transaction: %w", err)
-		}
-	}
-	return nil
-}
-
-func (l *Loopring) SaveFullMap() error {
-	l.Factory.Mu.Lock()
-	defer l.Factory.Mu.Unlock()
-	return l.SaveMap(l.Map)
-}
-
-func (l *Loopring) LoadMap() error {
-	l.Factory.Mu.Lock()
-	defer l.Factory.Mu.Unlock()
-
-	rows, err := l.Factory.Db.QueryContext(l.Factory.Ctx, "SELECT coordinate, tx FROM tx")
-	if err != nil {
-		return fmt.Errorf("failed to query tx table: %w", err)
-	}
-	defer rows.Close()
-
-	l.Map = make(map[Coordinate]*Tx)
-	for rows.Next() {
-		var coordJSON, txJSON []byte
-		if err := rows.Scan(&coordJSON, &txJSON); err != nil {
-			return fmt.Errorf("failed to scan row: %w", err)
-		}
-		var coord Coordinate
-		var tx Tx
-		if err := json.Unmarshal(coordJSON, &coord); err != nil {
-			return fmt.Errorf("failed to unmarshal coordinate: %w", err)
-		}
-		if err := json.Unmarshal(txJSON, &tx); err != nil {
-			return fmt.Errorf("failed to unmarshal tx: %w", err)
-		}
-		l.Map[coord] = &tx
-	}
-	return rows.Err()
 }

@@ -1,6 +1,5 @@
 package ethereum
 
-
 import (
 	"context"
 	"fmt"
@@ -8,16 +7,10 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-// BlockProcessor is responsible for processing blocks and transactions.
-type BlockProcessor struct {
-	Client *ethclient.Client
-}
-
-// BlockInfo holds information about a block.
-type BlockInfo struct {
+// Block holds information about a block.
+type Block struct {
 	Number       uint64
 	Hash         string
 	ParentHash   string
@@ -25,11 +18,11 @@ type BlockInfo struct {
 	GasUsed      uint64
 	GasLimit     uint64
 	BaseFee      *big.Int
-	Transactions []*TransactionInfo
+	Transactions []*Transactions
 }
 
-// TransactionInfo holds information about a transaction.
-type TransactionInfo struct {
+// Transactions holds information about a transaction.
+type Transactions struct {
 	Hash              string
 	From              string
 	To                string
@@ -52,29 +45,29 @@ type LogInfo struct {
 }
 
 // ProcessBlocks processes the latest `count` blocks.
-func (bp *BlockProcessor) ProcessBlocks(ctx context.Context, count int) ([]*BlockInfo, error) {
-	header, err := bp.Client.HeaderByNumber(ctx, nil)
+func (e *Ethereum) ProcessBlocks(ctx context.Context, count int) ([]*Block, error) {
+	header, err := e.Factory.Eth.HeaderByNumber(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get latest header: %w", err)
 	}
 	latestBlock := header.Number.Uint64()
 
-	var blocks []*BlockInfo
+	var blocks []*Block
 	for blockNum := latestBlock; blockNum > latestBlock-uint64(count); blockNum-- {
-		block, err := bp.Client.BlockByNumber(ctx, big.NewInt(int64(blockNum)))
+		block, err := e.Factory.Eth.BlockByNumber(ctx, big.NewInt(int64(blockNum)))
 		if err != nil {
 			log.Printf("Error fetching block %d: %v", blockNum, err)
 			continue
 		}
-		blockInfo := bp.processBlock(ctx, block)
+		blockInfo := e.processBlock(ctx, block)
 		blocks = append(blocks, blockInfo)
 	}
 	return blocks, nil
 }
 
 // processBlock processes a single block and returns its information.
-func (bp *BlockProcessor) processBlock(ctx context.Context, block *types.Block) *BlockInfo {
-	blockInfo := &BlockInfo{
+func (e *Ethereum) processBlock(ctx context.Context, block *types.Block) *Block {
+	blockInfo := &Block{
 		Number:     block.NumberU64(),
 		Hash:       block.Hash().Hex(),
 		ParentHash: block.ParentHash().Hex(),
@@ -85,15 +78,15 @@ func (bp *BlockProcessor) processBlock(ctx context.Context, block *types.Block) 
 	}
 
 	for _, tx := range block.Transactions() {
-		txInfo := bp.processTransaction(ctx, tx)
+		txInfo := e.processTransaction(ctx, tx)
 		blockInfo.Transactions = append(blockInfo.Transactions, txInfo)
 	}
 	return blockInfo
 }
 
 // processTransaction processes a single transaction and returns its information.
-func (bp *BlockProcessor) processTransaction(ctx context.Context, tx *types.Transaction) *TransactionInfo {
-	txInfo := &TransactionInfo{
+func (e *Ethereum) processTransaction(ctx context.Context, tx *types.Transaction) *Transactions {
+	txInfo := &Transactions{
 		Hash:       tx.Hash().Hex(),
 		Value:      tx.Value(),
 		Gas:        tx.Gas(),
@@ -118,7 +111,7 @@ func (bp *BlockProcessor) processTransaction(ctx context.Context, tx *types.Tran
 	}
 
 	// Get receipt for transaction status, logs, etc.
-	receipt, err := bp.Client.TransactionReceipt(ctx, tx.Hash())
+	receipt, err := e.Factory.Eth.TransactionReceipt(ctx, tx.Hash())
 	if err == nil {
 		txInfo.Status = receipt.Status
 		txInfo.CumulativeGasUsed = receipt.CumulativeGasUsed
