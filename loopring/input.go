@@ -42,7 +42,7 @@ func (l *Loopring) FetchBlock(number int64) *Input {
 		return nil
 	}
 
-	l.Input = &block
+	l.Block.In = &block
 	return &block
 }
 

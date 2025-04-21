@@ -1,4 +1,4 @@
-package loop
+package loopring
 
 import (
 	"encoding/json"
@@ -69,7 +69,7 @@ func (l *Loopring) Listen() {
 			}
 			for _, block := range resp.Data {
 				fmt.Printf("%d\n", block.Number)
-				if err := l.fetchBlock(block.Number); err != nil {
+				if err := l.FetchBlock(block.Number); err != nil {
 					fmt.Printf("Error processing block %d: %v\n", block.Number, err)
 				}
 			}
