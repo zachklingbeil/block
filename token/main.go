@@ -8,30 +8,18 @@ import (
 //go:embed tokens.json
 var tokens []byte
 
-type Tokens struct {
-	Map map[string]*Token
-}
-
 type Token struct {
-	Symbol   string `json:"symbol"`
-	Address  string `json:"address"`
-	ID       int    `json:"id"`
-	Decimals int    `json:"decimals"`
+	Symbol   string `json:"symbol,omitempty"`
+	Address  string `json:"address,omitempty"`
+	TokenId  int    `json:"tokenId,omitempty"`
+	Decimals int    `json:"decimals,omitempty"`
+	Zero     int    `json:"accountId,omitempty"`
 }
 
-func NewTokens() *Tokens {
-	t := &Tokens{
-		Map: make(map[string]*Token),
-	}
-
+func NewTokens() []*Token {
 	var source []*Token
 	if err := json.Unmarshal(tokens, &source); err != nil {
 		return nil
 	}
-
-	for _, token := range source {
-		t.Map[token.Address] = token
-		t.Map[token.Symbol] = token
-	}
-	return t
+	return source
 }

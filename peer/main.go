@@ -12,8 +12,6 @@ import (
 type Peers struct {
 	Factory        *factory.Factory
 	Map            map[string]*Peer
-	Addresses      []string
-	PeerChan       chan string
 	LoopringApiKey string
 }
 
@@ -28,7 +26,6 @@ func HelloPeers(factory *factory.Factory) *Peers {
 	peers := &Peers{
 		Factory:        factory,
 		Map:            make(map[string]*Peer),
-		Addresses:      nil,
 		LoopringApiKey: os.Getenv("LOOPRING_API_KEY"),
 	}
 
@@ -36,10 +33,6 @@ func HelloPeers(factory *factory.Factory) *Peers {
 		fmt.Printf("Error loading peers: %v\n", err)
 	}
 
-	peers.PeerChan = make(chan string, 1000)
-	for _, address := range peers.Addresses {
-		peers.PeerChan <- address
-	}
 	return peers
 }
 
@@ -50,8 +43,6 @@ func (p *Peers) NewBlock(addresses []string) {
 	for _, address := range addresses {
 		if _, exists := p.Map[address]; !exists {
 			p.Map[address] = &Peer{Address: address}
-			p.Addresses = append(p.Addresses, address)
-			p.PeerChan <- address
 			fmt.Printf("Added peer: %s\n", address)
 		}
 	}
@@ -65,21 +56,21 @@ func (p *Peers) HelloUniverse() {
 	for {
 		p.Factory.Mu.Lock()
 
-		for len(p.Addresses) == 0 {
+		if len(p.Map) == 0 {
 			p.saveBatch(&batch)
 			fmt.Println("Hello Universe")
 			p.Factory.When.Wait()
 		}
 
-		address := <-p.PeerChan
-		peer := p.Map[address]
-		p.Factory.Mu.Unlock()
-		p.processPeer(peer)
-		batch = append(batch, peer)
-		fmt.Printf("%d %s %s %d\n", len(p.PeerChan), peer.ENS, peer.LoopringENS, peer.LoopringID)
+		for _, peer := range p.Map {
+			p.Factory.Mu.Unlock()
+			p.processPeer(peer)
+			batch = append(batch, peer)
+			fmt.Printf("%d %s %s %d\n", len(batch), peer.ENS, peer.LoopringENS, peer.LoopringID)
 
-		if len(batch) >= batchSize || len(p.PeerChan) == 0 {
-			p.saveBatch(&batch)
+			if len(batch) >= batchSize {
+				p.saveBatch(&batch)
+			}
 		}
 	}
 }

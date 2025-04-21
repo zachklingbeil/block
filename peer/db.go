@@ -30,11 +30,11 @@ func (p *Peers) LoadPeers() error {
 			addresses = append(addresses, peer.Address)
 		}
 	}
-
 	if err := rows.Err(); err != nil {
 		return fmt.Errorf("error iterating over peer rows: %w", err)
 	}
-	p.Addresses = addresses
+
+	p.NewBlock(addresses)
 	fmt.Printf("%d peers\n", len(p.Map))
 	return nil
 }

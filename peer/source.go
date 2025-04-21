@@ -61,8 +61,6 @@ func (p *Peers) GetLoopringID(peer *Peer, address string) {
 		var response struct {
 			ID int64 `json:"accountId"`
 		}
-
-		// Validate the address format before making the request
 		if !common.IsHexAddress(address) {
 			fmt.Printf("Invalid address format: %s\n", address)
 			peer.LoopringID = -1
@@ -75,7 +73,6 @@ func (p *Peers) GetLoopringID(peer *Peer, address string) {
 			continue
 		}
 
-		// Check for unexpected status codes or empty responses
 		if json.Unmarshal(data, &response) != nil || response.ID == 0 {
 			fmt.Printf("Attempt %d: Unexpected response for address %s: %s\n", attempt, address, string(data))
 			continue
