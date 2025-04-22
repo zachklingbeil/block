@@ -122,7 +122,7 @@ func (l *Loopring) TransferToTx(transfer Transfer) Tx {
 
 func (l *Loopring) DepositToTx(dw Deposit) Tx {
 	return Tx{
-		Zero:  dw.Zero,
+		Zero:  dw.ZeroId,
 		One:   dw.One,
 		Value: dw.Value,
 		Token: dw.Token,
@@ -133,7 +133,7 @@ func (l *Loopring) DepositToTx(dw Deposit) Tx {
 
 func (l *Loopring) WithdrawToTx(dw Withdrawal) Tx {
 	return Tx{
-		Zero:     dw.Zero,
+		Zero:     dw.ZeroId,
 		One:      dw.One,
 		Value:    dw.Value,
 		Token:    dw.Token,

@@ -3,7 +3,7 @@ package loopring
 import (
 	"encoding/json"
 	"fmt"
-	"time"
+	"reflect"
 
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/zachklingbeil/factory/fx"
@@ -25,116 +25,114 @@ type Tx struct {
 	Raw         json.RawMessage `json:"raw,omitempty"`
 }
 
-func (l *Loopring) FetchBlock(number int64) error {
+type Raw struct {
+	Number       int64   `json:"blockId"`
+	Timestamp    int64   `json:"createdAt"`
+	Size         int64   `json:"blockSize"`
+	Coord        fx.Zero `json:"coordinate"`
+	Transactions []any   `json:"transactions"`
+}
+
+type Block struct {
+	Coord        fx.Zero `json:"coordinate"`
+	Transactions []Tx    `json:"transactions"`
+}
+
+func (l *Loopring) FetchBlock(number int64) (fx.Zero, []any, error) {
 	url := fmt.Sprintf("https://api3.loopring.io/api/v3/block/getBlock?id=%d", number)
 	response, err := l.Factory.Json.In(url, "")
 	if err != nil {
 		log.Error("Failed to fetch block data: %v", err)
-		return nil
+		return fx.Zero{}, nil, err
 	}
 
 	var block Raw
 	if err := json.Unmarshal(response, &block); err != nil {
 		log.Error("Failed to parse block data: %v", err)
-		return nil
+		return fx.Zero{}, nil, err
 	}
-	l.Raw = &block
-	return nil
+
+	coord, txs, err := l.Factory.Circuit.Coordinates(block.Number, block.Timestamp, block.Transactions)
+	if err != nil {
+		log.Error("Failed to get coordinates: %v", err)
+		return fx.Zero{}, nil, err
+	}
+	return coord, txs, nil
 }
 
-func (l *Loopring) Coordinates() fx.Zero {
-	t := time.UnixMilli(l.Raw.Timestamp)
-	return fx.Zero{
-		Block:       l.Raw.Number,
-		Year:        uint8(t.Year() - 2015),
-		Month:       uint8(t.Month()),
-		Day:         uint8(t.Day()),
-		Hour:        uint8(t.Hour()),
-		Minute:      uint8(t.Minute()),
-		Second:      uint8(t.Second()),
-		Millisecond: uint16(t.Nanosecond() / 1e6),
-		Index:       0,
-	}
+var txTypeToStruct = map[string]any{
+	"Deposit":       &Deposit{},
+	"Withdraw":      &Withdrawal{},
+	"SpotTrade":     &Swap{},
+	"Transfer":      &Transfer{},
+	"NftMint":       &Mint{},
+	"AccountUpdate": &AccountUpdate{},
+	"AmmUpdate":     &AmmUpdate{},
+	"NftData":       &NftData{},
 }
 
-func (l *Loopring) ProcessTransactions() error {
-	coord := l.Coordinates() // Get the block's coordinates
+func (l *Loopring) ProcessTransactions(txs []any) ([]Tx, error) {
 	var processedTxs []Tx
 
-	for i, tx := range l.Raw.Transactions {
-		if txMap, ok := tx.(map[string]any); ok {
-			if txType, ok := txMap["txType"].(string); ok {
-				var processedTx Tx
-				switch txType {
-				case "Deposit":
-					var deposit Deposit
-					if err := mapToStruct(txMap, &deposit); err == nil {
-						processedTx = l.DepositToTx(deposit)
-					}
-				case "Withdraw":
-					var withdrawal Withdrawal
-					if err := mapToStruct(txMap, &withdrawal); err == nil {
-						processedTx = l.WithdrawToTx(withdrawal)
-					}
-				case "SpotTrade":
-					var swap Swap
-					if err := mapToStruct(txMap, &swap); err == nil {
-						processedTx = l.SwapToTx(swap)
-					}
-				case "Transfer":
-					var transfer Transfer
-					if err := mapToStruct(txMap, &transfer); err == nil {
-						processedTx = l.TransferToTx(transfer)
-					}
-				case "NftMint":
-					var mint Mint
-					if err := mapToStruct(txMap, &mint); err == nil {
-						processedTx = l.MintToTx(mint)
-					}
-				case "AccountUpdate":
-					var accountUpdate AccountUpdate
-					if err := mapToStruct(txMap, &accountUpdate); err == nil {
-						processedTx = l.AccountUpdateToTx(accountUpdate)
-					}
-				case "NftData":
-					var nftData NftData
-					if err := mapToStruct(txMap, &nftData); err == nil {
-						processedTx = l.NftDataToTx(nftData)
-					}
-				case "AmmUpdate":
-					var ammUpdate AmmUpdate
-					if err := mapToStruct(txMap, &ammUpdate); err == nil {
-						processedTx = l.AmmUpdateToTx(ammUpdate)
-					}
-				default:
-					fmt.Printf("Unknown transaction type: %s\n", txType)
-					continue
-				}
-				processedTx.Index = uint16(i + 1)
-				processedTxs = append(processedTxs, processedTx)
-			}
+	for _, tx := range txs {
+		txMap, ok := tx.(map[string]any)
+		if !ok {
+			log.Error("Invalid transaction format: %v", tx)
+			continue
 		}
-	}
-	l.Block = &Block{
-		Coord:        coord,
-		Transactions: processedTxs,
-	}
-	return nil
-}
 
-func (l *Loopring) ToMap() map[fx.Zero][]Tx {
-	if l.Block == nil {
-		return nil
+		txType, ok := txMap["txType"].(string)
+		if !ok {
+			log.Error("Transaction missing txType field: %v", tx)
+			continue
+		}
+
+		structPtr, exists := txTypeToStruct[txType]
+		if !exists {
+			log.Warn("Unknown transaction type: %s", txType)
+			continue
+		}
+		structInstance := reflect.New(reflect.TypeOf(structPtr).Elem()).Interface()
+		if err := mapToStruct(txMap, structInstance); err != nil {
+			log.Error("Failed to unmarshal transaction: %v", err)
+			continue
+		}
+
+		var txObj Tx
+		switch txType {
+		case "Deposit":
+			txObj = l.DepositToTx(*structInstance.(*Deposit))
+		case "Withdraw":
+			txObj = l.WithdrawToTx(*structInstance.(*Withdrawal))
+		case "SpotTrade":
+			txObj = l.SwapToTx(*structInstance.(*Swap))
+		case "Transfer":
+			txObj = l.TransferToTx(*structInstance.(*Transfer))
+		case "NftMint":
+			txObj = l.MintToTx(*structInstance.(*Mint))
+		case "AccountUpdate":
+			txObj = l.AccountUpdateToTx(*structInstance.(*AccountUpdate))
+		case "AmmUpdate":
+			txObj = l.AmmUpdateToTx(*structInstance.(*AmmUpdate))
+		case "NftData":
+			txObj = l.NftDataToTx(*structInstance.(*NftData))
+		default:
+			log.Warn("Unhandled transaction type: %s", txType)
+			continue
+		}
+		processedTxs = append(processedTxs, txObj)
 	}
-	return map[fx.Zero][]Tx{
-		l.Block.Coord: l.Block.Transactions,
-	}
+
+	return processedTxs, nil
 }
 
 func mapToStruct(data map[string]any, target any) error {
 	bytes, err := json.Marshal(data)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal data: %w", err)
 	}
-	return json.Unmarshal(bytes, target)
+	if err := json.Unmarshal(bytes, target); err != nil {
+		return fmt.Errorf("failed to unmarshal data into target struct: %w", err)
+	}
+	return nil
 }

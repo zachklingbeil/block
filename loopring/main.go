@@ -15,24 +15,44 @@ type Loopring struct {
 	Raw     *Raw
 }
 
-type Raw struct {
-	Number       int64   `json:"blockId"`
-	Timestamp    int64   `json:"createdAt"`
-	Size         int64   `json:"blockSize"`
-	Coord        fx.Zero `json:"coordinate"`
-	Transactions []any   `json:"transactions"`
-}
-
-type Block struct {
-	Coord        fx.Zero `json:"coordinate"`
-	Transactions []Tx    `json:"transactions"`
-}
-
 func Connect(factory *factory.Factory) *Loopring {
 	loop := &Loopring{
 		Factory: factory,
 	}
 	return loop
+}
+
+func (l *Loopring) BlockByBlock(blockNumber int64) error {
+	coord, transactions, err := l.FetchBlock(blockNumber)
+	if err != nil {
+		log.Error("Failed to fetch block %d: %v", blockNumber, err)
+		return err
+	}
+
+	txs, err := l.ProcessTransactions(transactions)
+	if err != nil {
+		log.Error("Failed to process transactions for block %d: %v", blockNumber, err)
+		return err
+	}
+
+	block := &Block{
+		Coord:        coord,
+		Transactions: txs,
+	}
+
+	blockJSON, err := json.Marshal(block)
+	if err != nil {
+		log.Error("Failed to serialize block %d: %v", blockNumber, err)
+		return err
+	}
+
+	err = l.Factory.Db.Rdb.SAdd(l.Factory.Ctx, "blocks", blockJSON).Err()
+	if err != nil {
+		log.Error("Failed to store block %d in Redis: %v", blockNumber, err)
+		return err
+	}
+	fmt.Printf("%d\n", blockNumber)
+	return nil
 }
 
 func (l *Loopring) Loop() error {
@@ -42,22 +62,9 @@ func (l *Loopring) Loop() error {
 		return err
 	}
 
-	for blockNumber := past + 1; blockNumber <= past+distance; blockNumber++ {
-		if err := l.FetchBlock(blockNumber); err != nil {
-			log.Error("Failed to fetch block %d: %v", blockNumber, err)
-			continue
-		}
-		l.ProcessTransactions()
-		blockJSON, err := json.Marshal(l.Block)
-		if err != nil {
-			log.Error("Failed to serialize block %d: %v", blockNumber, err)
-			continue
-		}
-		err = l.Factory.Db.Rdb.SAdd(l.Factory.Ctx, "blocks", blockJSON).Err()
-		if err != nil {
-			log.Error("Failed to store block %d in Redis: %v", blockNumber, err)
-		} else {
-			fmt.Printf("%d\n", blockNumber)
+	for blockNumber := past + distance; blockNumber > past; blockNumber-- {
+		if err := l.BlockByBlock(blockNumber); err != nil {
+			log.Error("Error processing block %d: %v", blockNumber, err)
 		}
 	}
 	return nil
@@ -113,4 +120,13 @@ func (l *Loopring) Distance() (int64, int64, error) {
 		return past, distance, nil
 	}
 	return past, 0, nil
+}
+
+func (l *Loopring) ToMap() map[fx.Zero][]Tx {
+	if l.Block == nil {
+		return nil
+	}
+	return map[fx.Zero][]Tx{
+		l.Block.Coord: l.Block.Transactions,
+	}
 }
