@@ -49,44 +49,31 @@ func (p *Peers) NewBlock(addresses []string) {
 	p.Factory.When.Signal()
 }
 
-func (p *Peers) HelloUniverse() {
-	const batchSize = 1000
-	var batch []*Peer
+// func (p *Peers) HelloUniverse() {
+// 	const batchSize = 1000
+// 	var batch []*Peer
 
-	for {
-		p.Factory.Mu.Lock()
+// 	for {
+// 		p.Factory.Mu.Lock()
 
-		if len(p.Map) == 0 {
-			p.saveBatch(&batch)
-			fmt.Println("Hello Universe")
-			p.Factory.When.Wait()
-		}
+// 		if len(p.Map) == 0 {
+// 			p.saveBatch(&batch)
+// 			fmt.Println("Hello Universe")
+// 			p.Factory.When.Wait()
+// 		}
 
-		for _, peer := range p.Map {
-			p.Factory.Mu.Unlock()
-			p.processPeer(peer)
-			batch = append(batch, peer)
-			fmt.Printf("%d %s %s %d\n", len(batch), peer.ENS, peer.LoopringENS, peer.LoopringID)
+// 		for _, peer := range p.Map {
+// 			p.Factory.Mu.Unlock()
+// 			p.processPeer(peer)
+// 			batch = append(batch, peer)
+// 			fmt.Printf("%d %s %s %d\n", len(batch), peer.ENS, peer.LoopringENS, peer.LoopringID)
 
-			if len(batch) >= batchSize {
-				p.saveBatch(&batch)
-			}
-		}
-	}
-}
+// 		}
+// 	}
+// }
 
-func (p *Peers) processPeer(peer *Peer) {
-	p.GetENS(peer, peer.Address)
-	p.GetLoopringENS(peer, peer.Address)
-	p.GetLoopringID(peer, peer.Address)
-}
-
-func (p *Peers) saveBatch(batch *[]*Peer) {
-	if len(*batch) > 0 {
-		fmt.Printf("Saving batch of %d peers\n", len(*batch))
-		if err := p.SavePeers(*batch); err != nil {
-			fmt.Printf("Error saving batch: %v\n", err)
-		}
-		*batch = (*batch)[:0]
-	}
-}
+// func (p *Peers) processPeer(peer *Peer) {
+// 	p.GetENS(peer, peer.Address)
+// 	p.GetLoopringENS(peer, peer.Address)
+// 	p.GetLoopringID(peer, peer.Address)
+// }

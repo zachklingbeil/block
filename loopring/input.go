@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/zachklingbeil/factory/fx"
 )
 
 type Tx struct {
@@ -20,21 +21,9 @@ type Tx struct {
 	OneFee      any             `json:"oneFee,omitempty"`
 	OneFeeToken int64           `json:"oneFeeToken,omitempty"`
 	Type        string          `json:"type,omitempty"`
-	Coordinates Coordinate      `json:"coordinates"`
-	Index       int64           `json:"index"`
+	Coordinates fx.Zero         `json:"coordinates"`
+	Index       uint16          `json:"index"`
 	Raw         json.RawMessage `json:"raw,omitempty"`
-}
-
-type Coordinate struct {
-	Block       int64  `json:"block"`
-	Year        uint8  `json:"year"`
-	Month       uint8  `json:"month"`
-	Day         uint8  `json:"day"`
-	Hour        uint8  `json:"hour"`
-	Minute      uint8  `json:"minute"`
-	Second      uint8  `json:"second"`
-	Millisecond uint16 `json:"millisecond"`
-	Index       uint16 `json:"index"`
 }
 
 func (l *Loopring) FetchBlock(number int64) error {
@@ -57,7 +46,7 @@ func (l *Loopring) FetchBlock(number int64) error {
 func (l *Loopring) Index() error {
 	for i, transaction := range l.Block.Transactions {
 		if txMap, ok := transaction.(map[string]any); ok {
-			txMap["coordinate"] = Coordinate{
+			txMap["coordinate"] = fx.Zero{
 				Block:       l.Block.Coord.Block,
 				Year:        l.Block.Coord.Year,
 				Month:       l.Block.Coord.Month,
@@ -78,7 +67,7 @@ func (l *Loopring) Index() error {
 
 func (l *Loopring) Coordinates() error {
 	t := time.UnixMilli(l.Block.Timestamp)
-	l.Block.Coord = Coordinate{
+	l.Block.Coord = fx.Zero{
 		Block:       l.Block.Number,
 		Year:        uint8(t.Year() - 2015),
 		Month:       uint8(t.Month()),

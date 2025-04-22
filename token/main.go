@@ -3,6 +3,9 @@ package token
 import (
 	_ "embed"
 	"encoding/json"
+	"log"
+
+	"github.com/zachklingbeil/factory"
 )
 
 //go:embed tokens.json
@@ -16,10 +19,34 @@ type Token struct {
 	Zero     int    `json:"accountId,omitempty"`
 }
 
-func NewTokens() []*Token {
-	var source []*Token
-	if err := json.Unmarshal(tokens, &source); err != nil {
-		return nil
+func NewTokens(factory *factory.Factory) {
+	var tokensData []Token
+	if err := json.Unmarshal(tokens, &tokensData); err != nil {
+		log.Fatalf("Failed to unmarshal tokens: %v", err)
 	}
-	return source
+
+	var failed, skipped int
+
+	for _, token := range tokensData {
+		if token.Address == "" {
+			skipped++
+			continue
+		}
+
+		tokenJSON, err := json.Marshal(token)
+		if err != nil {
+			failed++
+			continue
+		}
+		err = factory.Db.Rdb.SAdd(factory.Ctx, "tokens", tokenJSON).Err()
+		// err = factory.Db.Rdb.RPush(factory.Ctx, "tokens", tokenJSON).Err()
+		if err != nil {
+			failed++
+		}
+	}
+
+	// Log the result
+	total := len(tokensData)
+	success := total - failed - skipped
+	log.Printf("Completed storing tokens in Redis: %d succeeded, %d failed, %d skipped\n", success, failed, skipped)
 }
