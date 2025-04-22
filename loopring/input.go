@@ -23,37 +23,26 @@ func (l *Loopring) ProcessTransactions(txs []any) ([]Tx, error) {
 		var txObj Tx
 		switch txType {
 		case "Deposit":
-			var Deposit Deposit
-			txObj = l.DepositToTx(Deposit)
+			txObj = l.DepositToTx(txMap)
 		case "Withdraw":
-			var Withdrawal Withdrawal
-			txObj = l.WithdrawToTx(Withdrawal)
+			txObj = l.WithdrawToTx(txMap)
 		case "SpotTrade":
-			var SpotTrade SpotTrade
-			txObj = l.SwapToTx(SpotTrade)
+			txObj = l.SwapToTx(txMap)
 		case "Transfer":
-			var Transfer Transfer
-			txObj = l.TransferToTx(Transfer)
+			txObj = l.TransferToTx(txMap)
 		case "NftMint":
-			var Mint Mint
-			txObj = l.MintToTx(Mint)
+			txObj = l.MintToTx(txMap)
 		case "AccountUpdate":
-			var AccountUpdate AccountUpdate
-			txObj = l.AccountUpdateToTx(AccountUpdate)
+			txObj = l.AccountUpdateToTx(txMap)
 		case "AmmUpdate":
-			var AmmUpdate AmmUpdate
-			txObj = l.AmmUpdateToTx(AmmUpdate)
+			txObj = l.AmmUpdateToTx(txMap)
 		case "NftData":
-			var NftData NftData
-			txObj = l.NftDataToTx(NftData)
+			txObj = l.NftDataToTx(txMap)
 		default:
 			log.Warn("Unhandled transaction type: %s", txType)
 			continue
 		}
-		// Append the processed transaction
 		processedTxs = append(processedTxs, txObj)
 	}
-
-	l.Factory.Json.Print(processedTxs)
 	return processedTxs, nil
 }

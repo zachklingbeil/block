@@ -35,12 +35,11 @@ func (l *Loopring) FetchBlock(number int64) (fx.Zero, []any, error) {
 		return fx.Zero{}, nil, err
 	}
 
-	simpleTxs := l.Factory.Json.Simplify(block.Transactions, "")
-	coord, txs, err := l.Factory.Circuit.Coordinates(block.Number, block.Timestamp, simpleTxs)
+	coord, txs, err := l.Factory.Circuit.Coordinates(block.Number, block.Timestamp, block.Transactions)
 	if err != nil {
 		log.Error("Failed to get coordinates: %v", err)
 		return fx.Zero{}, nil, err
 	}
 
-	return coord, txs, nil
+	return coord, l.Factory.Json.Simplify(txs, ""), nil
 }

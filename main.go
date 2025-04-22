@@ -13,6 +13,7 @@ func main() {
 	token.NewTokens(factory)
 
 	loop := loopring.Connect(factory)
-	loop.BlockByBlock(59420)
+	// loop.BlockByBlock(55555)
+	loop.Loop()
 	select {}
 }

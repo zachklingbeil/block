@@ -107,7 +107,23 @@ type SpotTrade struct {
 	Index     uint16 `json:"index"`
 }
 
-func (l *Loopring) SwapToTx(swap SpotTrade) Tx {
+func mapToStruct(data any, target any) error {
+	bytes, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("failed to marshal data: %w", err)
+	}
+	if err := json.Unmarshal(bytes, target); err != nil {
+		return fmt.Errorf("failed to unmarshal data into target struct: %w", err)
+	}
+	return nil
+}
+func (l *Loopring) SwapToTx(transaction any) Tx {
+	var swap SpotTrade
+	if err := mapToStruct(transaction, &swap); err != nil {
+		fmt.Printf("Error unmarshaling transaction to SpotTrade: %v\n", err)
+		return Tx{}
+	}
+
 	return Tx{
 		Zero:        swap.Zero,
 		One:         swap.One,
@@ -122,7 +138,13 @@ func (l *Loopring) SwapToTx(swap SpotTrade) Tx {
 	}
 }
 
-func (l *Loopring) TransferToTx(transfer Transfer) Tx {
+func (l *Loopring) TransferToTx(transaction any) Tx {
+	var transfer Transfer
+	if err := mapToStruct(transaction, &transfer); err != nil {
+		fmt.Printf("Error unmarshaling transaction to Transfer: %v\n", err)
+		return Tx{}
+	}
+
 	return Tx{
 		Zero:     transfer.ZeroId,
 		One:      transfer.One,
@@ -135,31 +157,49 @@ func (l *Loopring) TransferToTx(transfer Transfer) Tx {
 	}
 }
 
-func (l *Loopring) DepositToTx(dw Deposit) Tx {
+func (l *Loopring) DepositToTx(transaction any) Tx {
+	var deposit Deposit
+	if err := mapToStruct(transaction, &deposit); err != nil {
+		fmt.Printf("Error unmarshaling transaction to Deposit: %v\n", err)
+		return Tx{}
+	}
+
 	return Tx{
-		Zero:  dw.ZeroId,
-		One:   dw.One,
-		Value: dw.Value,
-		Token: dw.Token,
+		Zero:  deposit.ZeroId,
+		One:   deposit.One,
+		Value: deposit.Value,
+		Token: deposit.Token,
 		Type:  "deposit",
-		Index: dw.Index,
+		Index: deposit.Index,
 	}
 }
 
-func (l *Loopring) WithdrawToTx(dw Withdrawal) Tx {
+func (l *Loopring) WithdrawToTx(transaction any) Tx {
+	var withdrawal Withdrawal
+	if err := mapToStruct(transaction, &withdrawal); err != nil {
+		fmt.Printf("Error unmarshaling transaction to Withdrawal: %v\n", err)
+		return Tx{}
+	}
+
 	return Tx{
-		Zero:     dw.ZeroId,
-		One:      dw.One,
-		Value:    dw.Value,
-		Token:    dw.Token,
-		Fee:      dw.Fee,
-		FeeToken: dw.FeeToken,
+		Zero:     withdrawal.ZeroId,
+		One:      withdrawal.One,
+		Value:    withdrawal.Value,
+		Token:    withdrawal.Token,
+		Fee:      withdrawal.Fee,
+		FeeToken: withdrawal.FeeToken,
 		Type:     "withdraw",
-		Index:    dw.Index,
+		Index:    withdrawal.Index,
 	}
 }
 
-func (l *Loopring) AccountUpdateToTx(accountUpdate AccountUpdate) Tx {
+func (l *Loopring) AccountUpdateToTx(transaction any) Tx {
+	var accountUpdate AccountUpdate
+	if err := mapToStruct(transaction, &accountUpdate); err != nil {
+		fmt.Printf("Error unmarshaling transaction to AccountUpdate: %v\n", err)
+		return Tx{}
+	}
+
 	return Tx{
 		Zero:  accountUpdate.ZeroId,
 		Type:  "accountUpdate",
@@ -167,7 +207,13 @@ func (l *Loopring) AccountUpdateToTx(accountUpdate AccountUpdate) Tx {
 	}
 }
 
-func (l *Loopring) AmmUpdateToTx(ammUpdate AmmUpdate) Tx {
+func (l *Loopring) AmmUpdateToTx(transaction any) Tx {
+	var ammUpdate AmmUpdate
+	if err := mapToStruct(transaction, &ammUpdate); err != nil {
+		fmt.Printf("Error unmarshaling transaction to AmmUpdate: %v\n", err)
+		return Tx{}
+	}
+
 	return Tx{
 		Zero:  ammUpdate.ZeroId,
 		Type:  "ammUpdate",
@@ -175,7 +221,13 @@ func (l *Loopring) AmmUpdateToTx(ammUpdate AmmUpdate) Tx {
 	}
 }
 
-func (l *Loopring) MintToTx(mint Mint) Tx {
+func (l *Loopring) MintToTx(transaction any) Tx {
+	var mint Mint
+	if err := mapToStruct(transaction, &mint); err != nil {
+		fmt.Printf("Error unmarshaling transaction to Mint: %v\n", err)
+		return Tx{}
+	}
+
 	return Tx{
 		Zero:     mint.Zero,
 		Value:    mint.Quantity,
@@ -186,30 +238,43 @@ func (l *Loopring) MintToTx(mint Mint) Tx {
 		Index:    mint.Index,
 	}
 }
-
-func (l *Loopring) NftDataToTx(nftData NftData) Tx {
-	raw, err := json.Marshal(nftData)
-	if err != nil {
-		fmt.Printf("Error marshaling NftData to raw JSON: %v\n", err)
+func (l *Loopring) NftDataToTx(transaction any) Tx {
+	var nftData NftData
+	if err := mapToStruct(transaction, &nftData); err != nil {
+		fmt.Printf("Error unmarshaling transaction to NftData: %v\n", err)
+		return Tx{}
 	}
 
-	var rawMap map[string]any
-	if err := json.Unmarshal(raw, &rawMap); err != nil {
-		fmt.Printf("Error unmarshaling NftData to map: %v\n", err)
-	}
-
-	delete(rawMap, "accountId")
-	delete(rawMap, "txType")
-	delete(rawMap, "coordinates")
-
-	filteredRaw, err := json.Marshal(rawMap)
-	if err != nil {
-		fmt.Printf("Error marshaling filtered raw map to JSON: %v\n", err)
-	}
 	return Tx{
 		Zero:  nftData.ZeroId,
 		Type:  "nftData",
-		Raw:   filteredRaw,
 		Index: nftData.Index,
 	}
 }
+
+// func (l *Loopring) NftDataToTx(nftData NftData) Tx {
+// 	raw, err := json.Marshal(nftData)
+// 	if err != nil {
+// 		fmt.Printf("Error marshaling NftData to raw JSON: %v\n", err)
+// 	}
+
+// 	var rawMap map[string]any
+// 	if err := json.Unmarshal(raw, &rawMap); err != nil {
+// 		fmt.Printf("Error unmarshaling NftData to map: %v\n", err)
+// 	}
+
+// 	delete(rawMap, "accountId")
+// 	delete(rawMap, "txType")
+// 	delete(rawMap, "coordinates")
+
+// 	filteredRaw, err := json.Marshal(rawMap)
+// 	if err != nil {
+// 		fmt.Printf("Error marshaling filtered raw map to JSON: %v\n", err)
+// 	}
+// 	return Tx{
+// 		Zero:  nftData.ZeroId,
+// 		Type:  "nftData",
+// 		Raw:   filteredRaw,
+// 		Index: nftData.Index,
+// 	}
+// }
