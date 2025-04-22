@@ -68,5 +68,6 @@ func (p *Peers) LoadPeers() error {
 // 	}
 
 // 	fmt.Printf("%d peers\n", len(p.Map))
+// 	p.SavePeers()
 // 	return nil
 // }

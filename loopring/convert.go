@@ -5,17 +5,20 @@ import (
 	"fmt"
 )
 
-type Swap struct {
-	ZeroId    int64  `json:"orderA.accountID"`
-	ZeroValue string `json:"orderA.filledS"`
-	ZeroToken int64  `json:"orderB.tokenB"`
-	OneId     int64  `json:"orderB.accountID"`
-	OneValue  string `json:"orderB.filledS"`
-	OneToken  int64  `json:"orderA.tokenB"`
-	ZeroFee   int64  `json:"orderA.feeBips"`
-	OneFee    int64  `json:"fee.orderB.feeBips"`
-	Type      string `json:"txType,omitempty"`
-	Index     uint16 `json:"index"`
+type Tx struct {
+	Zero        any             `json:"zero,omitempty"`
+	One         any             `json:"one,omitempty"`
+	Value       string          `json:"value,omitempty"`
+	Token       any             `json:"token,omitempty"`
+	Fee         any             `json:"fee,omitempty"`
+	FeeToken    int64           `json:"feeToken,omitempty"`
+	OneValue    string          `json:"oneValue,omitempty"`
+	OneToken    int64           `json:"oneToken,omitempty"`
+	OneFee      any             `json:"oneFee,omitempty"`
+	OneFeeToken int64           `json:"oneFeeToken,omitempty"`
+	Type        string          `json:"type,omitempty"`
+	Index       uint16          `json:"index"`
+	Raw         json.RawMessage `json:"raw,omitempty"`
 }
 
 type Transfer struct {
@@ -78,8 +81,7 @@ type Mint struct {
 	Fee        string `json:"fee.amount,omitempty"`
 	FeeToken   int64  `json:"fee.tokenId,omitempty"`
 	Type       string `json:"txType,omitempty"`
-
-	Index uint16 `json:"index"`
+	Index      uint16 `json:"index"`
 }
 
 type NftData struct {
@@ -92,10 +94,23 @@ type NftData struct {
 	Index      uint16 `json:"index"`
 }
 
-func (l *Loopring) SwapToTx(swap Swap) Tx {
+type SpotTrade struct {
+	Zero      int64  `json:"orderA.accountID"`
+	ZeroValue string `json:"orderA.filledS"`
+	ZeroToken int64  `json:"orderB.tokenB"`
+	One       int64  `json:"orderB.accountID"`
+	OneValue  string `json:"orderB.filledS"`
+	OneToken  int64  `json:"orderA.tokenB"`
+	ZeroFee   int64  `json:"orderA.feeBips"`
+	OneFee    int64  `json:"orderB.feeBips"`
+	Type      string `json:"txType,omitempty"`
+	Index     uint16 `json:"index"`
+}
+
+func (l *Loopring) SwapToTx(swap SpotTrade) Tx {
 	return Tx{
-		Zero:        swap.ZeroId,
-		One:         swap.OneId,
+		Zero:        swap.Zero,
+		One:         swap.One,
 		Value:       swap.ZeroValue,
 		Token:       swap.ZeroToken,
 		OneValue:    swap.OneValue,
