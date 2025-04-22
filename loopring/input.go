@@ -91,11 +91,25 @@ func (l *Loopring) ProcessTransactions() error {
 					if err := mapToStruct(txMap, &mint); err == nil {
 						processedTx = l.MintToTx(mint)
 					}
+				case "AccountUpdate":
+					var accountUpdate AccountUpdate
+					if err := mapToStruct(txMap, &accountUpdate); err == nil {
+						processedTx = l.AccountUpdateToTx(accountUpdate)
+					}
+				case "NftData":
+					var nftData NftData
+					if err := mapToStruct(txMap, &nftData); err == nil {
+						processedTx = l.NftDataToTx(nftData)
+					}
+				case "AmmUpdate":
+					var ammUpdate AmmUpdate
+					if err := mapToStruct(txMap, &ammUpdate); err == nil {
+						processedTx = l.AmmUpdateToTx(ammUpdate)
+					}
 				default:
 					fmt.Printf("Unknown transaction type: %s\n", txType)
 					continue
 				}
-				// Assign the index to the transaction
 				processedTx.Index = uint16(i + 1)
 				processedTxs = append(processedTxs, processedTx)
 			}
