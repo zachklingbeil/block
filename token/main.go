@@ -3,6 +3,7 @@ package token
 import (
 	_ "embed"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"github.com/zachklingbeil/factory"
@@ -39,14 +40,10 @@ func NewTokens(factory *factory.Factory) {
 			continue
 		}
 		err = factory.Db.Rdb.SAdd(factory.Ctx, "tokens", tokenJSON).Err()
-		// err = factory.Db.Rdb.RPush(factory.Ctx, "tokens", tokenJSON).Err()
 		if err != nil {
 			failed++
 		}
 	}
-
-	// Log the result
 	total := len(tokensData)
-	success := total - failed - skipped
-	log.Printf("Completed storing tokens in Redis: %d succeeded, %d failed, %d skipped\n", success, failed, skipped)
+	fmt.Printf("%d tokens\n", total)
 }

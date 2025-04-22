@@ -32,7 +32,6 @@ func HelloPeers(factory *factory.Factory) *Peers {
 	if err := peers.LoadPeers(); err != nil {
 		fmt.Printf("Error loading peers: %v\n", err)
 	}
-
 	return peers
 }
 

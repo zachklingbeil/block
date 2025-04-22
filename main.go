@@ -3,16 +3,17 @@ package main
 import (
 	"time"
 
-	"github.com/zachklingbeil/block/loopring"
+	"github.com/zachklingbeil/block/peer"
+	"github.com/zachklingbeil/block/token"
 	"github.com/zachklingbeil/factory"
 )
 
 func main() {
 	factory := factory.Assemble("timefactory", 10*time.Second)
-	// peer.HelloPeers(factory)
+	peer.HelloPeers(factory)
+	token.NewTokens(factory)
 
-	// token.NewTokens(factory)
-	loop := loopring.Connect(factory)
-	loop.Loop()
+	// loop := loopring.Connect(factory)
+	// loop.Loop()
 	select {}
 }

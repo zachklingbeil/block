@@ -12,9 +12,10 @@ import (
 type Loopring struct {
 	Factory *factory.Factory
 	Block   *Block
+	Raw     *Raw
 }
 
-type Block struct {
+type Raw struct {
 	Number       int64   `json:"blockId"`
 	Timestamp    int64   `json:"createdAt"`
 	Size         int64   `json:"blockSize"`
@@ -22,26 +23,28 @@ type Block struct {
 	Transactions []any   `json:"transactions"`
 }
 
+type Block struct {
+	Coord        fx.Zero `json:"coordinate"`
+	Transactions []Tx    `json:"transactions"`
+}
+
 func Connect(factory *factory.Factory) *Loopring {
 	loop := &Loopring{
 		Factory: factory,
-		Block:   &Block{},
 	}
 	return loop
 }
 
 func (l *Loopring) Loop() error {
-	past, _ := l.Distance()
-	current := l.currentBlock()
+	past, distance, err := l.Distance()
+	if err != nil {
+		log.Error("Failed to calculate block distance: %v", err)
+		return err
+	}
 
-	for blockNumber := past + 1; blockNumber <= current; blockNumber++ {
+	for blockNumber := past + 1; blockNumber <= past+distance; blockNumber++ {
 		if err := l.FetchBlock(blockNumber); err != nil {
 			log.Error("Failed to fetch block %d: %v", blockNumber, err)
-			continue
-		}
-		l.Coordinates()
-		if err := l.Index(); err != nil {
-			log.Error("Failed to index block %d: %v", blockNumber, err)
 			continue
 		}
 		l.ProcessTransactions()
@@ -57,7 +60,6 @@ func (l *Loopring) Loop() error {
 			fmt.Printf("%d\n", blockNumber)
 		}
 	}
-
 	return nil
 }
 
@@ -87,7 +89,7 @@ func (l *Loopring) getHistory() (int64, error) {
 	}
 	past := int64(0)
 	for _, blockJSON := range blockJSONs {
-		var block Block
+		var block Raw
 		if err := json.Unmarshal([]byte(blockJSON), &block); err != nil {
 			log.Error("Failed to deserialize block JSON: %v", err)
 			continue
@@ -98,15 +100,17 @@ func (l *Loopring) getHistory() (int64, error) {
 	}
 	return past, nil
 }
-func (l *Loopring) Distance() (int64, error) {
+
+func (l *Loopring) Distance() (int64, int64, error) {
 	current := l.currentBlock()
 	past, err := l.getHistory()
 	if err != nil {
-		return 0, fmt.Errorf("failed to get highest block from Redis: %w", err)
+		return 0, 0, fmt.Errorf("failed to get highest block from Redis: %w", err)
 	}
 
-	if current > past {
-		return current, nil
+	distance := current - past
+	if distance > 0 {
+		return past, distance, nil
 	}
-	return past, nil
+	return past, 0, nil
 }

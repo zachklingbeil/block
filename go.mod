@@ -7,7 +7,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/lib/pq v1.10.9
 	github.com/wealdtech/go-ens/v3 v3.6.0
-	github.com/zachklingbeil/factory v1.1.4
+	github.com/zachklingbeil/factory v1.1.6
 )
 
 require (

@@ -21,7 +21,6 @@ type Tx struct {
 	OneFee      any             `json:"oneFee,omitempty"`
 	OneFeeToken int64           `json:"oneFeeToken,omitempty"`
 	Type        string          `json:"type,omitempty"`
-	Coordinates fx.Zero         `json:"coordinates"`
 	Index       uint16          `json:"index"`
 	Raw         json.RawMessage `json:"raw,omitempty"`
 }
@@ -34,41 +33,19 @@ func (l *Loopring) FetchBlock(number int64) error {
 		return nil
 	}
 
-	var block Block
+	var block Raw
 	if err := json.Unmarshal(response, &block); err != nil {
 		log.Error("Failed to parse block data: %v", err)
 		return nil
 	}
-	l.Block = &block
+	l.Raw = &block
 	return nil
 }
 
-func (l *Loopring) Index() error {
-	for i, transaction := range l.Block.Transactions {
-		if txMap, ok := transaction.(map[string]any); ok {
-			txMap["coordinate"] = fx.Zero{
-				Block:       l.Block.Coord.Block,
-				Year:        l.Block.Coord.Year,
-				Month:       l.Block.Coord.Month,
-				Day:         l.Block.Coord.Day,
-				Hour:        l.Block.Coord.Hour,
-				Minute:      l.Block.Coord.Minute,
-				Second:      l.Block.Coord.Second,
-				Millisecond: l.Block.Coord.Millisecond,
-				Index:       uint16(i + 1),
-			}
-			l.Block.Transactions[i] = txMap
-		} else {
-			return fmt.Errorf("transaction at index %d is not a map", i)
-		}
-	}
-	return nil
-}
-
-func (l *Loopring) Coordinates() error {
-	t := time.UnixMilli(l.Block.Timestamp)
-	l.Block.Coord = fx.Zero{
-		Block:       l.Block.Number,
+func (l *Loopring) Coordinates() fx.Zero {
+	t := time.UnixMilli(l.Raw.Timestamp)
+	return fx.Zero{
+		Block:       l.Raw.Number,
 		Year:        uint8(t.Year() - 2015),
 		Month:       uint8(t.Month()),
 		Day:         uint8(t.Day()),
@@ -78,65 +55,65 @@ func (l *Loopring) Coordinates() error {
 		Millisecond: uint16(t.Nanosecond() / 1e6),
 		Index:       0,
 	}
-	return nil
 }
 
-func (l *Loopring) ProcessTransactions() {
-	var fx []Tx
+func (l *Loopring) ProcessTransactions() error {
+	coord := l.Coordinates() // Get the block's coordinates
+	var processedTxs []Tx
 
-	for _, tx := range l.Block.Transactions {
+	for i, tx := range l.Raw.Transactions {
 		if txMap, ok := tx.(map[string]any); ok {
 			if txType, ok := txMap["txType"].(string); ok {
+				var processedTx Tx
 				switch txType {
 				case "Deposit":
-					var deposit DW
+					var deposit Deposit
 					if err := mapToStruct(txMap, &deposit); err == nil {
-						fx = append(fx, l.DepositToTx(deposit))
+						processedTx = l.DepositToTx(deposit)
 					}
 				case "Withdraw":
-					var withdrawal DW
+					var withdrawal Withdrawal
 					if err := mapToStruct(txMap, &withdrawal); err == nil {
-						fx = append(fx, l.WithdrawToTx(withdrawal))
+						processedTx = l.WithdrawToTx(withdrawal)
 					}
 				case "SpotTrade":
 					var swap Swap
 					if err := mapToStruct(txMap, &swap); err == nil {
-						fx = append(fx, l.SwapToTx(swap))
+						processedTx = l.SwapToTx(swap)
 					}
 				case "Transfer":
 					var transfer Transfer
 					if err := mapToStruct(txMap, &transfer); err == nil {
-						fx = append(fx, l.TransferToTx(transfer))
+						processedTx = l.TransferToTx(transfer)
 					}
 				case "NftMint":
 					var mint Mint
 					if err := mapToStruct(txMap, &mint); err == nil {
-						fx = append(fx, l.MintToTx(mint))
-					}
-				case "AccountUpdate":
-					var accountUpdate AccountUpdate
-					if err := mapToStruct(txMap, &accountUpdate); err == nil {
-						fx = append(fx, l.AccountUpdateToTx(accountUpdate))
-					}
-				case "AmmUpdate":
-					var ammUpdate AmmUpdate
-					if err := mapToStruct(txMap, &ammUpdate); err == nil {
-						fx = append(fx, l.AmmUpdateToTx(ammUpdate))
-					}
-				case "NftData":
-					var nftData NftData
-					if err := mapToStruct(txMap, &nftData); err == nil {
-						fx = append(fx, l.NftDataToTx(nftData))
+						processedTx = l.MintToTx(mint)
 					}
 				default:
 					fmt.Printf("Unknown transaction type: %s\n", txType)
+					continue
 				}
+				// Assign the index to the transaction
+				processedTx.Index = uint16(i + 1)
+				processedTxs = append(processedTxs, processedTx)
 			}
 		}
 	}
-	l.Block.Transactions = make([]any, len(fx))
-	for i, tx := range fx {
-		l.Block.Transactions[i] = tx
+	l.Block = &Block{
+		Coord:        coord,
+		Transactions: processedTxs,
+	}
+	return nil
+}
+
+func (l *Loopring) ToMap() map[fx.Zero][]Tx {
+	if l.Block == nil {
+		return nil
+	}
+	return map[fx.Zero][]Tx{
+		l.Block.Coord: l.Block.Transactions,
 	}
 }
 
