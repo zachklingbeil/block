@@ -3,16 +3,19 @@ package loopring
 import (
 	"encoding/json"
 	"fmt"
+	"math/big"
+
+	"github.com/ethereum/go-ethereum/log"
 )
 
 type Tx struct {
 	Zero        any             `json:"zero,omitempty"`
 	One         any             `json:"one,omitempty"`
-	Value       string          `json:"value,omitempty"`
+	Value       any             `json:"value,omitempty"`
 	Token       any             `json:"token,omitempty"`
 	Fee         any             `json:"fee,omitempty"`
 	FeeToken    int64           `json:"feeToken,omitempty"`
-	OneValue    string          `json:"oneValue,omitempty"`
+	OneValue    any             `json:"oneValue,omitempty"`
 	OneToken    int64           `json:"oneToken,omitempty"`
 	OneFee      any             `json:"oneFee,omitempty"`
 	OneFeeToken int64           `json:"oneFeeToken,omitempty"`
@@ -107,6 +110,14 @@ type SpotTrade struct {
 	Index     uint16 `json:"index"`
 }
 
+func Int(value string) *big.Int {
+	bigIntValue := new(big.Int)
+	if _, ok := bigIntValue.SetString(value, 10); !ok {
+		log.Error("Failed to convert string to big.Int: %s", value)
+	}
+	return bigIntValue
+}
+
 func mapToStruct(data any, target any) error {
 	bytes, err := json.Marshal(data)
 	if err != nil {
@@ -117,6 +128,7 @@ func mapToStruct(data any, target any) error {
 	}
 	return nil
 }
+
 func (l *Loopring) SwapToTx(transaction any) Tx {
 	var swap SpotTrade
 	if err := mapToStruct(transaction, &swap); err != nil {
@@ -127,9 +139,9 @@ func (l *Loopring) SwapToTx(transaction any) Tx {
 	return Tx{
 		Zero:        swap.Zero,
 		One:         swap.One,
-		Value:       swap.ZeroValue,
+		Value:       Int(swap.ZeroValue),
 		Token:       swap.ZeroToken,
-		OneValue:    swap.OneValue,
+		OneValue:    Int(swap.OneValue),
 		OneToken:    swap.OneToken,
 		Fee:         swap.ZeroFee,
 		OneFeeToken: swap.OneFee,
@@ -148,9 +160,9 @@ func (l *Loopring) TransferToTx(transaction any) Tx {
 	return Tx{
 		Zero:     transfer.ZeroId,
 		One:      transfer.One,
-		Value:    transfer.Value,
+		Value:    Int(transfer.Value),
 		Token:    transfer.Token,
-		Fee:      transfer.Fee,
+		Fee:      Int(transfer.Fee),
 		FeeToken: transfer.FeeToken,
 		Type:     "transfer",
 		Index:    transfer.Index,
@@ -167,7 +179,7 @@ func (l *Loopring) DepositToTx(transaction any) Tx {
 	return Tx{
 		Zero:  deposit.ZeroId,
 		One:   deposit.One,
-		Value: deposit.Value,
+		Value: Int(deposit.Value),
 		Token: deposit.Token,
 		Type:  "deposit",
 		Index: deposit.Index,
@@ -184,9 +196,9 @@ func (l *Loopring) WithdrawToTx(transaction any) Tx {
 	return Tx{
 		Zero:     withdrawal.ZeroId,
 		One:      withdrawal.One,
-		Value:    withdrawal.Value,
+		Value:    Int(withdrawal.Value),
 		Token:    withdrawal.Token,
-		Fee:      withdrawal.Fee,
+		Fee:      Int(withdrawal.Fee),
 		FeeToken: withdrawal.FeeToken,
 		Type:     "withdraw",
 		Index:    withdrawal.Index,
@@ -232,7 +244,7 @@ func (l *Loopring) MintToTx(transaction any) Tx {
 		Zero:     mint.Zero,
 		Value:    mint.Quantity,
 		Token:    mint.NftAddress,
-		Fee:      mint.Fee,
+		Fee:      Int(mint.Fee),
 		FeeToken: mint.FeeToken,
 		Type:     "mint",
 		Index:    mint.Index,

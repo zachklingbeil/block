@@ -5,12 +5,13 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/zachklingbeil/block/circuit"
 	"github.com/zachklingbeil/factory"
-	"github.com/zachklingbeil/factory/fx"
 )
 
 type Loopring struct {
 	Factory *factory.Factory
+	Circuit *circuit.Circuit
 	Block   *Block
 	Raw     *Raw
 }
@@ -120,13 +121,4 @@ func (l *Loopring) Distance() (int64, int64, error) {
 		return past, distance, nil
 	}
 	return past, 0, nil
-}
-
-func (l *Loopring) ToMap() map[fx.Zero][]Tx {
-	if l.Block == nil {
-		return nil
-	}
-	return map[fx.Zero][]Tx{
-		l.Block.Coord: l.Block.Transactions,
-	}
 }
