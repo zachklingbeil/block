@@ -62,37 +62,24 @@ func (p *Peers) GetLoopringENS(peer *Peer, address string) *Peer {
 
 // hex -> LoopringId or -1
 func (p *Peers) GetLoopringID(peer *Peer, address string) *Peer {
-	const maxRetries = 3
 	url := fmt.Sprintf(byAddress, address)
+	var response struct {
+		ID int64 `json:"accountId"`
+	}
 
-	for attempt := 1; attempt <= maxRetries; attempt++ {
-		var response struct {
-			ID int64 `json:"accountId"`
-		}
-		if !common.IsHexAddress(address) {
-			fmt.Printf("Invalid address format: %s\n", address)
-			peer.LoopringID = -1
-			return peer
-		}
-
-		data, err := p.Factory.Json.In(url, p.LoopringApiKey)
-		if err != nil {
-			fmt.Printf("Attempt %d: Failed to fetch LoopringID for address %s (error: %v)\n", attempt, address, err)
-			continue
-		}
-
-		if json.Unmarshal(data, &response) != nil || response.ID == 0 {
-			fmt.Printf("Attempt %d: Unexpected response for address %s: %s\n", attempt, address, string(data))
-			continue
-		}
-
-		peer.LoopringID = response.ID
+	data, err := p.Factory.Json.In(url, p.LoopringApiKey)
+	if err != nil {
+		fmt.Printf("Failed to fetch LoopringID for address %s (error: %v)\n", address, err)
+		peer.LoopringID = -1
 		return peer
 	}
 
-	// If all retries fail, assign -1 and log the failure
-	fmt.Printf("Failed to fetch LoopringID for address %s after %d attempts\n", address, maxRetries)
-	peer.LoopringID = -1
+	if err := json.Unmarshal(data, &response); err != nil || response.ID == 0 {
+		fmt.Printf("Unexpected response for address %s: %s\n", address, string(data))
+		peer.LoopringID = -1
+		return peer
+	}
+	peer.LoopringID = response.ID
 	return peer
 }
 

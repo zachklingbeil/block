@@ -1,5 +1,38 @@
 package circuit
 
+func (c *Circuit) Keys() []any {
+	keys := make([]any, 0, len(c.Map))
+	for key := range c.Map {
+		keys = append(keys, key)
+	}
+	return keys
+}
+
+func (c *Circuit) GetString(key string) any {
+	c.Factory.Rw.Lock()
+	defer c.Factory.Rw.Unlock()
+	if value, ok := c.String[key]; ok {
+		return value
+	}
+	return nil
+}
+
+func (c *Circuit) GetInt(key int64) any {
+	c.Factory.Rw.Lock()
+	defer c.Factory.Rw.Unlock()
+	if value, ok := c.Int[key]; ok {
+		return value
+	}
+	return nil
+}
+
+func (c *Circuit) Values() []any {
+	values := make([]any, 0, len(c.Map))
+	for _, value := range c.Map {
+		values = append(values, value)
+	}
+	return values
+}
 func (c *Circuit) Remove(key any) {
 	delete(c.Map, key)
 }
@@ -13,20 +46,7 @@ func (c *Circuit) Contains(key any) bool {
 	_, ok := c.Map[key]
 	return ok
 }
-func (c *Circuit) Keys() []any {
-	keys := make([]any, 0, len(c.Map))
-	for key := range c.Map {
-		keys = append(keys, key)
-	}
-	return keys
-}
-func (c *Circuit) Values() []any {
-	values := make([]any, 0, len(c.Map))
-	for _, value := range c.Map {
-		values = append(values, value)
-	}
-	return values
-}
+
 func (c *Circuit) ForEach(fn func(key any, value any)) {
 	for key, value := range c.Map {
 		fn(key, value)

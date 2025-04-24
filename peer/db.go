@@ -14,15 +14,28 @@ func (p *Peers) LoadPeers() error {
 	p.Factory.Mu.Lock()
 	defer p.Factory.Mu.Unlock()
 
-	for _, peerJSON := range peerJSONs {
+	// Use factory.Math.Down to count down as peers are added
+	go p.Factory.Math.Down(int64(len(peerJSONs)), func(count int64) {
+		index := len(peerJSONs) - int(count) // Calculate the index from the count
+		if index < 0 || index >= len(peerJSONs) {
+			return // Skip invalid indices
+		}
+
+		peerJSON := peerJSONs[index]
 		var peer Peer
 		if err := json.Unmarshal([]byte(peerJSON), &peer); err != nil {
-			return fmt.Errorf("failed to deserialize peer JSON: %w", err)
+			fmt.Printf("Failed to deserialize peer JSON: %v\n", err)
+			return
 		}
-		p.Map[peer.Address] = &peer
-	}
+		p.Circuit.AddString(peer.Address, peer)
+		p.Circuit.AddString(peer.ENS, peer)
+		p.Circuit.AddString(peer.LoopringENS, peer)
+		p.Circuit.AddInt(peer.LoopringID, peer)
 
-	fmt.Printf("%d peers\n", len(p.Map))
+		fmt.Printf("Processed peer %d %s\n", count, peer.Address)
+	})
+
+	fmt.Printf("%d peers\n", len(peerJSONs))
 	return nil
 }
 
@@ -59,11 +72,11 @@ func (p *Peers) LoadPeer() error {
 		if err := rows.Scan(&peer.Address, &peer.ENS, &peer.LoopringENS, &peer.LoopringID); err != nil {
 			return fmt.Errorf("failed to scan peer row: %w", err)
 		}
-		p.Map[peer.Address] = &peer
+		p.Circuit.AddString(peer.Address, peer)
 	}
 	if err := rows.Err(); err != nil {
 		return fmt.Errorf("error iterating over peer rows: %w", err)
 	}
-	p.SavePeers()
+	// p.SavePeers()
 	return nil
 }
