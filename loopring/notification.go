@@ -51,9 +51,7 @@ func (l *Loopring) Listen() {
 			}
 			for _, block := range resp.Data {
 				fmt.Printf("%d\n", block.Number)
-				if err := l.BlockByBlock(block.Number); err != nil {
-					fmt.Printf("Error processing block %d: %v\n", block.Number, err)
-				}
+				l.BlockByBlock(block.Number)
 			}
 		}
 	}

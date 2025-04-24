@@ -85,9 +85,6 @@ func (p *Peers) LoadPeers() error {
 			return fmt.Errorf("failed to deserialize peer JSON: %w", err)
 		}
 		p.Map[peer.Address] = &peer
-		p.Map[peer.ENS] = &peer
-		p.Map[peer.LoopringENS] = &peer
-		p.Map[peer.LoopringID] = &peer
 	}
 
 	fmt.Printf("%d peers\n", len(p.Map))
