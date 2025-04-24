@@ -21,29 +21,14 @@ type Token struct {
 }
 
 func NewTokens(factory *factory.Factory) {
-	var tokensData []Token
-	if err := json.Unmarshal(tokens, &tokensData); err != nil {
+	var in []Token
+	if err := json.Unmarshal(tokens, &in); err != nil {
 		log.Fatalf("Failed to unmarshal tokens: %v", err)
 	}
 
-	var failed, skipped int
-
-	for _, token := range tokensData {
-		if token.Address == "" {
-			skipped++
-			continue
-		}
-
-		tokenJSON, err := json.Marshal(token)
-		if err != nil {
-			failed++
-			continue
-		}
-		err = factory.Redis.SAdd(factory.Ctx, "tokens", tokenJSON).Err()
-		if err != nil {
-			failed++
-		}
+	for _, token := range in {
+		tokenJSON, _ := json.Marshal(token)
+		factory.Redis.SAdd(factory.Ctx, "tokens", tokenJSON).Err()
 	}
-	total := len(tokensData)
-	fmt.Printf("%d tokens\n", total)
+	fmt.Printf("%d tokens\n", (len(in)))
 }

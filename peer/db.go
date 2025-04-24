@@ -11,9 +11,7 @@ func (p *Peers) LoadPeer() error {
 		return fmt.Errorf("failed to load peers from database: %w", err)
 	}
 	defer rows.Close()
-
 	p.Factory.Mu.Lock()
-
 	defer p.Factory.Mu.Unlock()
 	for rows.Next() {
 		var peer Peer
@@ -25,8 +23,6 @@ func (p *Peers) LoadPeer() error {
 	if err := rows.Err(); err != nil {
 		return fmt.Errorf("error iterating over peer rows: %w", err)
 	}
-
-	fmt.Printf("%d peers\n", len(p.Map))
 	p.SavePeers()
 	return nil
 }
