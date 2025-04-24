@@ -2,15 +2,20 @@ package circuit
 
 import (
 	"encoding/json"
-	"maps"
 	"time"
 
 	"github.com/zachklingbeil/factory"
 )
 
 type Circuit struct {
-	One     map[any]any
 	Factory *factory.Factory
+}
+
+type Raw struct {
+	Number       int64 `json:"blockId"`
+	Timestamp    int64 `json:"createdAt"`
+	Size         int64 `json:"blockSize"`
+	Transactions []any `json:"transactions"`
 }
 
 type Block struct {
@@ -28,55 +33,37 @@ type Block struct {
 }
 
 type Tx struct {
-	Zero        any             `json:"zero,omitempty"`
-	One         any             `json:"one,omitempty"`
-	Value       string          `json:"value,omitempty"`
-	Token       any             `json:"token,omitempty"`
-	Fee         any             `json:"fee,omitempty"`
-	FeeToken    int64           `json:"feeToken,omitempty"`
-	OneValue    string          `json:"oneValue,omitempty"`
-	OneToken    int64           `json:"oneToken,omitempty"`
-	OneFee      any             `json:"oneFee,omitempty"`
-	OneFeeToken int64           `json:"oneFeeToken,omitempty"`
-	Type        string          `json:"type,omitempty"`
-	Index       uint16          `json:"index"`
-	Raw         json.RawMessage `json:"raw,omitempty"`
+	Zero     any `json:"zero,omitempty"`
+	One      any `json:"one,omitempty"`
+	Value    any `json:"value,omitempty"`
+	Token    any `json:"token,omitempty"`
+	Fee      any `json:"fee,omitempty"`
+	FeeToken any `json:"feeToken,omitempty"`
+	// Type     string          `json:"type,omitempty"`
+	Index uint16          `json:"index"`
+	Raw   json.RawMessage `json:"raw,omitempty"`
 }
 
 func NewCircuit(factory *factory.Factory) *Circuit {
 	circuit := &Circuit{
-		One:     make(map[any]any),
 		Factory: factory,
 	}
 	return circuit
 }
 
-// Add safely adds one to Circuit.One
-func (c *Circuit) Add(one map[any]any) {
-	c.Factory.Mu.Lock()
-	defer c.Factory.Mu.Unlock()
-	maps.Copy(c.One, one)
-}
-
-func (c *Circuit) Read(zero Block) any {
-	c.Factory.Mu.Lock()
-	defer c.Factory.Mu.Unlock()
-	value := c.One[zero]
-	return value
-}
-
-func (c *Circuit) Coordinates(blockNumber, timestamp int64, ones []any) (*Block, error) {
-	for i := range ones {
-		if tx, ok := ones[i].(map[string]any); ok {
+func (c *Circuit) Coordinates(input *Raw) ([]any, *Block, error) {
+	for i := range input.Transactions {
+		if tx, ok := input.Transactions[i].(map[string]any); ok {
 			tx["index"] = i + 1
 		}
 	}
 
-	count := len(ones)
-	c.Factory.Json.Simplify(ones, "")
+	count := len(input.Transactions)
+	transactions := c.Factory.Json.Simplify(input.Transactions, "")
 
-	t := time.UnixMilli(timestamp)
+	t := time.UnixMilli(input.Timestamp)
 	block := &Block{
+		Number:      input.Number,
 		Year:        uint8(t.Year() - 2015),
 		Month:       uint8(t.Month()),
 		Day:         uint8(t.Day()),
@@ -84,10 +71,8 @@ func (c *Circuit) Coordinates(blockNumber, timestamp int64, ones []any) (*Block,
 		Minute:      uint8(t.Minute()),
 		Second:      uint8(t.Second()),
 		Millisecond: uint16(t.Nanosecond() / 1e6),
-		Number:      blockNumber,
 		Index:       0,
 		Count:       uint16(count),
-		Txs:         make([]Tx, count),
 	}
-	return block, nil
+	return transactions, block, nil
 }

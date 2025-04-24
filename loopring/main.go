@@ -12,33 +12,46 @@ import (
 type Loopring struct {
 	Factory *factory.Factory
 	Circuit *circuit.Circuit
-	Block   *Block
-	Raw     *Raw
 }
 
-func Connect(factory *factory.Factory) *Loopring {
+func Connect(factory *factory.Factory, circuit *circuit.Circuit) *Loopring {
 	loop := &Loopring{
 		Factory: factory,
+		Circuit: circuit,
 	}
 	return loop
 }
 
 func (l *Loopring) BlockByBlock(blockNumber int64) error {
-	coord, transactions, err := l.FetchBlock(blockNumber)
+	input, err := l.FetchBlock(blockNumber)
 	if err != nil {
 		log.Error("Failed to fetch block %d: %v", blockNumber, err)
 		return err
 	}
+	transactions, b, err := l.Circuit.Coordinates(input)
+	if err != nil {
+		log.Error("Failed to get coordinates: %v", err)
+		return err
+	}
 
-	txs, err := l.ProcessTransactions(transactions)
+	txs, err := l.ProcessBlock(transactions)
 	if err != nil {
 		log.Error("Failed to process transactions for block %d: %v", blockNumber, err)
 		return err
 	}
 
-	block := &Block{
-		Coord:        coord,
-		Transactions: txs,
+	block := &circuit.Block{
+		Number:      b.Number,
+		Year:        b.Year,
+		Month:       b.Month,
+		Day:         b.Day,
+		Hour:        b.Hour,
+		Minute:      b.Minute,
+		Second:      b.Second,
+		Millisecond: b.Millisecond,
+		Index:       b.Index,
+		Count:       uint16(len(transactions)),
+		Txs:         txs,
 	}
 
 	blockJSON, err := json.Marshal(block)
@@ -47,7 +60,7 @@ func (l *Loopring) BlockByBlock(blockNumber int64) error {
 		return err
 	}
 
-	err = l.Factory.Db.Rdb.SAdd(l.Factory.Ctx, "blocks", blockJSON).Err()
+	err = l.Factory.Redis.SAdd(l.Factory.Ctx, "blocks", blockJSON).Err()
 	if err != nil {
 		log.Error("Failed to store block %d in Redis: %v", blockNumber, err)
 		return err
@@ -56,69 +69,59 @@ func (l *Loopring) BlockByBlock(blockNumber int64) error {
 	return nil
 }
 
-func (l *Loopring) Loop() error {
-	past, distance, err := l.Distance()
+func (l *Loopring) FetchBlock(number int64) (*circuit.Raw, error) {
+	url := fmt.Sprintf("https://api3.loopring.io/api/v3/block/getBlock?id=%d", number)
+	response, err := l.Factory.Json.In(url, "")
 	if err != nil {
-		log.Error("Failed to calculate block distance: %v", err)
-		return err
+		log.Error("Failed to fetch block data: %v", err)
+		return nil, err
 	}
-
-	for blockNumber := past + distance; blockNumber > past; blockNumber-- {
-		if err := l.BlockByBlock(blockNumber); err != nil {
-			log.Error("Error processing block %d: %v", blockNumber, err)
-		}
+	var input *circuit.Raw
+	if err := json.Unmarshal(response, &input); err != nil {
+		log.Error("Failed to parse block data: %v", err)
+		return nil, err
 	}
-	return nil
+	return input, nil
 }
 
-// Simplified GetCurrentBlockNumber
-func (l *Loopring) currentBlock() int64 {
-	data, err := l.Factory.Json.In("https://api3.loopring.io/api/v3/block/getBlock", "")
-	if err != nil {
-		fmt.Printf("Failed to fetch block data: %v\n", err)
-		return 0
-	}
-	var block struct {
-		Number int64 `json:"blockId"`
-	}
-	err = json.Unmarshal(data, &block)
-	if err != nil {
-		fmt.Printf("Failed to parse block data: %v\n", err)
-		return 0
-	}
-	return block.Number
-}
+func (l *Loopring) ProcessBlock(transactions []any) ([]circuit.Tx, error) {
+	var txs []circuit.Tx
 
-// getHistory retrieves the highest block number from the Redis set
-func (l *Loopring) getHistory() (int64, error) {
-	blockJSONs, err := l.Factory.Db.Rdb.SMembers(l.Factory.Ctx, "blocks").Result()
-	if err != nil {
-		return 0, fmt.Errorf("failed to retrieve blocks from Redis: %w", err)
-	}
-	past := int64(0)
-	for _, blockJSON := range blockJSONs {
-		var block Raw
-		if err := json.Unmarshal([]byte(blockJSON), &block); err != nil {
-			log.Error("Failed to deserialize block JSON: %v", err)
+	for _, tx := range transactions {
+		txMap, ok := tx.(map[string]any)
+		if !ok {
+			log.Error("Invalid transaction format: %v", tx)
 			continue
 		}
-		if block.Number > past {
-			past = block.Number
+
+		txType, ok := txMap["txType"].(string)
+		if !ok {
+			log.Error("Transaction missing txType field: %v", tx)
+			continue
+		}
+
+		switch txType {
+		case "Deposit":
+			txs = append(txs, l.DepositToTx(txMap))
+		case "Withdraw":
+			txs = append(txs, l.WithdrawToTx(txMap))
+		case "SpotTrade":
+			spotTxs := l.SwapToTx(txMap)
+			txs = append(txs, spotTxs...)
+		case "Transfer":
+			txs = append(txs, l.TransferToTx(txMap))
+		case "NftMint":
+			txs = append(txs, l.MintToTx(txMap))
+		case "AccountUpdate":
+			txs = append(txs, l.AccountUpdateToTx(txMap))
+		case "AmmUpdate":
+			txs = append(txs, l.AmmUpdateToTx(txMap))
+		case "NftData":
+			txs = append(txs, l.NftDataToTx(txMap))
+		default:
+			log.Warn("Unhandled transaction type: %s", txType)
+			continue
 		}
 	}
-	return past, nil
-}
-
-func (l *Loopring) Distance() (int64, int64, error) {
-	current := l.currentBlock()
-	past, err := l.getHistory()
-	if err != nil {
-		return 0, 0, fmt.Errorf("failed to get highest block from Redis: %w", err)
-	}
-
-	distance := current - past
-	if distance > 0 {
-		return past, distance, nil
-	}
-	return past, 0, nil
+	return txs, nil
 }

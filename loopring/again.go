@@ -5,41 +5,72 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/zachklingbeil/factory/fx"
+	"github.com/zachklingbeil/block/circuit"
 )
 
-type Raw struct {
-	Number       int64   `json:"blockId"`
-	Timestamp    int64   `json:"createdAt"`
-	Size         int64   `json:"blockSize"`
-	Coord        fx.Zero `json:"coordinate"`
-	Transactions []any   `json:"transactions"`
+func (l *Loopring) Loop() error {
+	past, distance, err := l.Distance()
+	if err != nil {
+		log.Error("Failed to calculate block distance: %v", err)
+		return err
+	}
+
+	for blockNumber := past + distance; blockNumber > past; blockNumber-- {
+		if err := l.BlockByBlock(blockNumber); err != nil {
+			log.Error("Error processing block %d: %v", blockNumber, err)
+		}
+	}
+	return nil
 }
 
-type Block struct {
-	Coord        fx.Zero `json:"coordinate"`
-	Transactions []Tx    `json:"transactions"`
+// Simplified GetCurrentBlockNumber
+func (l *Loopring) currentBlock() int64 {
+	data, err := l.Factory.Json.In("https://api3.loopring.io/api/v3/block/getBlock", "")
+	if err != nil {
+		fmt.Printf("Failed to fetch block data: %v\n", err)
+		return 0
+	}
+	var block struct {
+		Number int64 `json:"blockId"`
+	}
+	err = json.Unmarshal(data, &block)
+	if err != nil {
+		fmt.Printf("Failed to parse block data: %v\n", err)
+		return 0
+	}
+	return block.Number
 }
 
-func (l *Loopring) FetchBlock(number int64) (fx.Zero, []any, error) {
-	url := fmt.Sprintf("https://api3.loopring.io/api/v3/block/getBlock?id=%d", number)
-	response, err := l.Factory.Json.In(url, "")
+// getHistory retrieves the highest block number from the Redis set
+func (l *Loopring) getHistory() (int64, error) {
+	blockJSONs, err := l.Factory.Redis.SMembers(l.Factory.Ctx, "blocks").Result()
 	if err != nil {
-		log.Error("Failed to fetch block data: %v", err)
-		return fx.Zero{}, nil, err
+		return 0, fmt.Errorf("failed to retrieve blocks from Redis: %w", err)
 	}
-
-	var block Raw
-	if err := json.Unmarshal(response, &block); err != nil {
-		log.Error("Failed to parse block data: %v", err)
-		return fx.Zero{}, nil, err
+	past := int64(0)
+	for _, blockJSON := range blockJSONs {
+		var block circuit.Raw
+		if err := json.Unmarshal([]byte(blockJSON), &block); err != nil {
+			log.Error("Failed to deserialize block JSON: %v", err)
+			continue
+		}
+		if block.Number > past {
+			past = block.Number
+		}
 	}
+	return past, nil
+}
 
-	coord, txs, err := l.Factory.Circuit.Coordinates(block.Number, block.Timestamp, block.Transactions)
+func (l *Loopring) Distance() (int64, int64, error) {
+	current := l.currentBlock()
+	past, err := l.getHistory()
 	if err != nil {
-		log.Error("Failed to get coordinates: %v", err)
-		return fx.Zero{}, nil, err
+		return 0, 0, fmt.Errorf("failed to get highest block from Redis: %w", err)
 	}
 
-	return coord, l.Factory.Json.Simplify(txs, ""), nil
+	distance := current - past
+	if distance > 0 {
+		return past, distance, nil
+	}
+	return past, 0, nil
 }

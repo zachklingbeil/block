@@ -39,7 +39,7 @@ func NewTokens(factory *factory.Factory) {
 			failed++
 			continue
 		}
-		err = factory.Db.Rdb.SAdd(factory.Ctx, "tokens", tokenJSON).Err()
+		err = factory.Redis.SAdd(factory.Ctx, "tokens", tokenJSON).Err()
 		if err != nil {
 			failed++
 		}

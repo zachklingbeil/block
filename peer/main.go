@@ -71,7 +71,7 @@ func (p *Peers) processPeer(peer *Peer) {
 }
 
 func (p *Peers) LoadPeers() error {
-	peerJSONs, err := p.Factory.Db.Rdb.SMembers(p.Factory.Ctx, "peers").Result()
+	peerJSONs, err := p.Factory.Redis.SMembers(p.Factory.Ctx, "peers").Result()
 	if err != nil {
 		return fmt.Errorf("failed to retrieve peers from Redis: %w", err)
 	}
@@ -101,7 +101,7 @@ func (p *Peers) SavePeers() error {
 			return fmt.Errorf("failed to serialize peer (address: %s): %w", address, err)
 		}
 
-		err = p.Factory.Db.Rdb.SAdd(p.Factory.Ctx, "peers", peerJSON).Err()
+		err = p.Factory.Redis.SAdd(p.Factory.Ctx, "peers", peerJSON).Err()
 
 		if err != nil {
 			return fmt.Errorf("failed to store peer in Redis (address: %s): %w", address, err)
