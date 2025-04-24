@@ -2,84 +2,124 @@ package circuit
 
 import (
 	"encoding/json"
-	"time"
+	"fmt"
+	"strconv"
 
 	"github.com/zachklingbeil/factory"
 )
 
 type Circuit struct {
 	Factory *factory.Factory
-}
-
-type Raw struct {
-	Number       int64 `json:"blockId"`
-	Timestamp    int64 `json:"createdAt"`
-	Size         int64 `json:"blockSize"`
-	Transactions []any `json:"transactions"`
-}
-
-type Block struct {
-	Number int64      `json:"block"`
-	Depth  uint16     `json:"depth"`
-	Zero   Coordinate `json:"zero"`
-	Ones   []Tx       `json:"one"`
-}
-
-type Coordinate struct {
-	Year        uint8  `json:"year"`
-	Month       uint8  `json:"month"`
-	Day         uint8  `json:"day"`
-	Hour        uint8  `json:"hour"`
-	Minute      uint8  `json:"minute"`
-	Second      uint8  `json:"second"`
-	Millisecond uint16 `json:"millisecond"`
-	Index       uint16 `json:"index"`
-}
-
-type Tx struct {
-	Zero     any             `json:"zero,omitempty"`
-	One      any             `json:"one,omitempty"`
-	Value    any             `json:"value,omitempty"`
-	Token    any             `json:"token,omitempty"`
-	Fee      any             `json:"fee,omitempty"`
-	FeeToken any             `json:"feeToken,omitempty"`
-	Type     string          `json:"type,omitempty"`
-	Index    uint16          `json:"index"`
-	Raw      json.RawMessage `json:"raw,omitempty"`
+	Map     map[any]any
+	String  map[string]any
+	Int     map[int]any
 }
 
 func NewCircuit(factory *factory.Factory) *Circuit {
 	circuit := &Circuit{
 		Factory: factory,
+		Map:     make(map[any]any),
+		String:  make(map[string]any),
+		Int:     make(map[int]any),
 	}
 	return circuit
 }
 
-func (c *Circuit) Coordinates(input *Raw) ([]any, *Block) {
-	for i := range input.Transactions {
-		if tx, ok := input.Transactions[i].(map[string]any); ok {
-			tx["index"] = i + 1
+func (c *Circuit) AddString(key string, value any) {
+	c.Factory.Mu.Lock()
+	defer c.Factory.Mu.Unlock()
+	c.String[key] = value
+}
+
+func (c *Circuit) AddInt(key int, value any) {
+	c.Factory.Mu.Lock()
+	defer c.Factory.Mu.Unlock()
+	c.Int[key] = value
+}
+
+func (c *Circuit) GetString(key string) any {
+	c.Factory.Rw.Lock()
+	defer c.Factory.Rw.Unlock()
+	if value, ok := c.String[key]; ok {
+		return value
+	}
+	return nil
+}
+
+func (c *Circuit) GetInt(key int) any {
+	c.Factory.Rw.Lock()
+	defer c.Factory.Rw.Unlock()
+	if value, ok := c.Int[key]; ok {
+		return value
+	}
+	return nil
+}
+
+func (c *Circuit) SaveStrings(stringKey string) error {
+	c.Factory.Mu.Lock()
+	defer c.Factory.Mu.Unlock()
+
+	for key, value := range c.String {
+		valueJSON, err := json.Marshal(value)
+		if err != nil {
+			return err
+		}
+		err = c.Factory.Redis.HSet(c.Factory.Ctx, stringKey, key, valueJSON).Err()
+		if err != nil {
+			return err
 		}
 	}
-	transactions := c.Factory.Json.Simplify(input.Transactions, "")
+	return nil
+}
 
-	t := time.UnixMilli(input.Timestamp)
-	coordinate := Coordinate{
-		Year:        uint8(t.Year() - 2015),
-		Month:       uint8(t.Month()),
-		Day:         uint8(t.Day()),
-		Hour:        uint8(t.Hour()),
-		Minute:      uint8(t.Minute()),
-		Second:      uint8(t.Second()),
-		Millisecond: uint16(t.Nanosecond() / 1e6),
-		Index:       0,
+func (c *Circuit) SaveInts(intKey string) error {
+	c.Factory.Mu.Lock()
+	defer c.Factory.Mu.Unlock()
+
+	for key, value := range c.Int {
+		valueJSON, err := json.Marshal(value)
+		if err != nil {
+			return err
+		}
+		err = c.Factory.Redis.HSet(c.Factory.Ctx, intKey, fmt.Sprintf("%d", key), valueJSON).Err()
+		if err != nil {
+			return err
+		}
 	}
-	depth := uint16(len(transactions))
-	block := &Block{
-		Number: input.Number,
-		Depth:  depth,
-		Zero:   coordinate,
-		Ones:   make([]Tx, depth),
+	return nil
+}
+
+func (c *Circuit) Continue(stringKey, intKey string) error {
+	c.Factory.Mu.Lock()
+	defer c.Factory.Mu.Unlock()
+	stringEntries, err := c.Factory.Redis.HGetAll(c.Factory.Ctx, stringKey).Result()
+	if err != nil {
+		return err
 	}
-	return transactions, block
+	for key, valueJSON := range stringEntries {
+		var value any
+		err := json.Unmarshal([]byte(valueJSON), &value)
+		if err != nil {
+			return err
+		}
+		c.String[key] = value
+	}
+
+	intEntries, err := c.Factory.Redis.HGetAll(c.Factory.Ctx, intKey).Result()
+	if err != nil {
+		return err
+	}
+	for key, valueJSON := range intEntries {
+		var value any
+		err := json.Unmarshal([]byte(valueJSON), &value)
+		if err != nil {
+			return err
+		}
+		intKey, err := strconv.Atoi(key)
+		if err != nil {
+			return err
+		}
+		c.Int[intKey] = value
+	}
+	return nil
 }
