@@ -14,11 +14,11 @@ import (
 var tokens []byte
 
 type Token struct {
-	Symbol    string `json:"symbol,omitempty"`
 	Address   string `json:"address,omitempty"`
+	AccountID int64  `json:"accountId,omitempty"`
+	Symbol    string `json:"symbol,omitempty"`
 	TokenId   int64  `json:"tokenId,omitempty"`
 	Decimals  int    `json:"decimals,omitempty"`
-	AccountID int64  `json:"accountId,omitempty"`
 }
 
 func NewTokens(factory *factory.Factory, circuit *circuit.Circuit) {
@@ -26,9 +26,14 @@ func NewTokens(factory *factory.Factory, circuit *circuit.Circuit) {
 	if err := json.Unmarshal(tokens, &in); err != nil {
 		log.Fatalf("Failed to unmarshal tokens: %v", err)
 	}
-
 	for _, token := range in {
-		circuit.AddString(token.Address, token)
+		tokenJSON, _ := json.Marshal(token)
+		factory.Redis.SAdd(factory.Ctx, "tokens", tokenJSON).Err()
+	}
+	for _, token := range in {
+		circuit.AddString(token.Symbol, token)
+		circuit.AddInt(token.AccountID, token)
+		circuit.AddInt(token.TokenId, token)
 	}
 	fmt.Printf("%d tokens\n", len(in))
 }

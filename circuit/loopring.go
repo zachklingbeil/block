@@ -6,3 +6,10 @@ type Raw struct {
 	Size         int64 `json:"blockSize"`
 	Transactions []any `json:"transactions"`
 }
+type Token struct {
+	Symbol    string `json:"symbol,omitempty"`
+	Address   string `json:"address,omitempty"`
+	TokenId   int64  `json:"tokenId,omitempty"`
+	Decimals  int    `json:"decimals,omitempty"`
+	AccountID int64  `json:"accountId,omitempty"`
+}

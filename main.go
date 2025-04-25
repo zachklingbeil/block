@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	factory := factory.Assemble("timefactory", 1)
+	factory := factory.Assemble("timefactory", 0)
 	circuit := circuit.NewCircuit(factory)
 
 	token.NewTokens(factory, circuit)
