@@ -8,24 +8,6 @@ func (c *Circuit) Keys() []any {
 	return keys
 }
 
-func (c *Circuit) GetString(key string) any {
-	c.Factory.Rw.Lock()
-	defer c.Factory.Rw.Unlock()
-	if value, ok := c.String[key]; ok {
-		return value
-	}
-	return nil
-}
-
-func (c *Circuit) GetInt(key int64) any {
-	c.Factory.Rw.Lock()
-	defer c.Factory.Rw.Unlock()
-	if value, ok := c.Int[key]; ok {
-		return value
-	}
-	return nil
-}
-
 func (c *Circuit) Values() []any {
 	values := make([]any, 0, len(c.Map))
 	for _, value := range c.Map {

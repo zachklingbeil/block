@@ -11,5 +11,5 @@ type Token struct {
 	Address   string `json:"address,omitempty"`
 	TokenId   int64  `json:"tokenId,omitempty"`
 	Decimals  int    `json:"decimals,omitempty"`
-	AccountID int64  `json:"accountId,omitempty"`
+	AccountID int64  `json:"accountId"`
 }

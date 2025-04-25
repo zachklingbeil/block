@@ -1,14 +1,50 @@
-package peer
+package circuit
 
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	ens "github.com/wealdtech/go-ens/v3"
+	"github.com/zachklingbeil/factory"
 )
+
+type Peers struct {
+	Factory        *factory.Factory
+	Circuit        *Circuit
+	Slice          []Peer
+	LoopringApiKey string
+}
+
+type Peer struct {
+	Address     string `json:"address"`
+	ENS         string `json:"ens"`
+	LoopringENS string `json:"loopringEns"`
+	LoopringID  int64  `json:"loopringId"`
+}
+
+func HelloPeers(factory *factory.Factory, circuit *Circuit) *Peers {
+	peers := &Peers{
+		Factory:        factory,
+		LoopringApiKey: os.Getenv("LOOPRING_API_KEY"),
+		Circuit:        circuit,
+		Slice:          make([]Peer, 240000),
+	}
+
+	total := len(peers.Slice)
+	for i, peer := range peers.Slice {
+		if peer.Address != "" {
+			circuit.AddString(peer.ENS, peer)
+			circuit.AddString(peer.LoopringENS, peer)
+			circuit.AddInt(peer.LoopringID, peer)
+			fmt.Printf("%d\n", total-i)
+		}
+	}
+	return peers
+}
 
 const (
 	byAddress = "https://api3.loopring.io/api/v3/account?owner=%s"
