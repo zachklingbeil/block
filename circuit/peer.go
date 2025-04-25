@@ -10,10 +10,47 @@ import (
 	ens "github.com/wealdtech/go-ens/v3"
 )
 
+type Peer struct {
+	ENS         string `json:"ens"`
+	LoopringENS string `json:"loopringEns"`
+	LoopringID  string `json:"loopringId"`
+	Address     string `json:"address"`
+}
+
 const (
 	byAddress = "https://api3.loopring.io/api/v3/account?owner=%s"
 	byId      = "https://api3.loopring.io/api/v3/account?accountId=%d"
 )
+
+// func (c *Circuit) HelloUniverse(address any) *Peer {
+// 	c.Factory.Rw.RLock()
+// 	var peer *Peer
+// 	var ok bool
+
+// 	switch addr := address.(type) {
+// 	case string:
+// 		peer, ok = c.Map[addr].(*Peer)
+// 	case int64:
+// 		peer, ok = c.Map[addr].(*Peer)
+// 	default:
+// 		c.Factory.Rw.RUnlock()
+// 		fmt.Printf("Unsupported address type: %T\n", address)
+// 		return nil
+// 	}
+// 	c.Factory.Rw.RUnlock()
+
+// 	if !ok || peer == nil {
+// 		fmt.Printf("Peer not found for address: %v\n", address)
+// 		return nil
+// 	}
+
+// 	c.GetENS(peer, peer.Address)
+// 	c.GetLoopringENS(peer, peer.Address)
+// 	c.GetLoopringID(peer, peer.Address)
+
+// 	fmt.Printf("%s %s %d\n", peer.ENS, peer.LoopringENS, peer.LoopringID)
+// 	return peer
+// }
 
 func (c *Circuit) Format(address string) string {
 	address = strings.ToLower(address)
@@ -70,16 +107,17 @@ func (c *Circuit) GetLoopringID(peer *Peer, address string) *Peer {
 	data, err := c.Factory.Json.In(url, c.LoopringApiKey)
 	if err != nil {
 		fmt.Printf("Failed to fetch LoopringID for address %s (error: %v)\n", address, err)
-		peer.LoopringID = -1
+		peer.LoopringID = "."
 		return peer
 	}
 
 	if err := json.Unmarshal(data, &response); err != nil || response.ID == 0 {
 		fmt.Printf("Unexpected response for address %s: %s\n", address, string(data))
-		peer.LoopringID = -1
+		peer.LoopringID = "."
 		return peer
 	}
-	peer.LoopringID = response.ID
+	id := strconv.FormatInt(response.ID, 10)
+	peer.LoopringID = id
 	return peer
 }
 

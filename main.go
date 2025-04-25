@@ -9,15 +9,21 @@ func main() {
 	factory := factory.Assemble("timefactory", 0)
 	circuit := circuit.NewCircuit(factory)
 
-	circuit.Get("zachklingbeil.eth")
-	circuit.Get("eTH")
-	circuit.Get("LRC")
-	circuit.Get(35773)
-	circuit.Get(69)
-	circuit.Get(-1)
-	circuit.Get("friction")
+	circuit.Continue()
+
 	select {}
 	// loop := loopring.Connect(factory, circuit)
 	// loop.Loop()
 	// loop.BlockByBlock(55555)
+
+	// factory.Json.Print(circuit.Get("0")) // empty
+	// factory.Json.Print(circuit.Get("zachklingbeil.eth"))
+	// factory.Json.Print(circuit.Get("35773"))
+	// factory.Json.Print(circuit.Get("eTh"))
+	// factory.Json.Print(circuit.Get("Lrc"))
+	// factory.Json.Print(circuit.Get("friction"))
+	// factory.Json.Print(circuit.Get(0))
+	// factory.Json.Print(circuit.Get(1))
+	// factory.Json.Print(circuit.Get("30"))
+	// factory.Json.Print(circuit.Get(30))
 }

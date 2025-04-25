@@ -2,6 +2,7 @@ package loopring
 
 import (
 	"encoding/json"
+	"strconv"
 
 	"github.com/zachklingbeil/block/circuit"
 )
@@ -101,8 +102,8 @@ func (l *Loopring) SwapToTx(transaction any) []circuit.Tx {
 	var s SpotTrade
 	mapToStruct(transaction, &s)
 	zero := circuit.Tx{
-		Zero:  s.Zero,
-		One:   s.One,
+		Zero:  strconv.FormatInt(s.Zero, 10),
+		One:   strconv.FormatInt(s.One, 10),
 		Value: s.ZeroValue,
 		Token: s.ZeroToken,
 		Fee:   s.ZeroFee,
@@ -111,8 +112,8 @@ func (l *Loopring) SwapToTx(transaction any) []circuit.Tx {
 	}
 
 	one := circuit.Tx{
-		Zero:  s.One,
-		One:   s.Zero,
+		Zero:  strconv.FormatInt(s.Zero, 10),
+		One:   strconv.FormatInt(s.One, 10),
 		Value: s.OneValue,
 		Token: s.OneToken,
 		Fee:   s.OneFee,
@@ -127,7 +128,7 @@ func (l *Loopring) TransferToTx(transaction any) circuit.Tx {
 	mapToStruct(transaction, &t)
 
 	return circuit.Tx{
-		Zero:     t.ZeroId,
+		Zero:     strconv.FormatInt(t.ZeroId, 10),
 		One:      t.One,
 		Value:    t.Value,
 		Token:    t.Token,
@@ -142,7 +143,7 @@ func (l *Loopring) DepositToTx(transaction any) circuit.Tx {
 	var d Deposit
 	mapToStruct(transaction, &d)
 	return circuit.Tx{
-		Zero:  d.ZeroId,
+		Zero:  strconv.FormatInt(d.ZeroId, 10),
 		One:   d.One,
 		Value: d.Value,
 		Token: d.Token,
@@ -155,7 +156,7 @@ func (l *Loopring) WithdrawToTx(transaction any) circuit.Tx {
 	var w Withdrawal
 	mapToStruct(transaction, &w)
 	return circuit.Tx{
-		Zero:     w.ZeroId,
+		Zero:     strconv.FormatInt(w.ZeroId, 10),
 		One:      w.One,
 		Value:    w.Value,
 		Token:    w.Token,
@@ -170,7 +171,7 @@ func (l *Loopring) AccountUpdateToTx(transaction any) circuit.Tx {
 	var a AccountUpdate
 	mapToStruct(transaction, &a)
 	return circuit.Tx{
-		Zero:  a.ZeroId,
+		Zero:  strconv.FormatInt(a.ZeroId, 10),
 		Type:  "accountUpdate",
 		Index: a.Index,
 	}
@@ -180,7 +181,7 @@ func (l *Loopring) AmmUpdateToTx(transaction any) circuit.Tx {
 	var a AmmUpdate
 	mapToStruct(transaction, &a)
 	return circuit.Tx{
-		Zero:  a.ZeroId,
+		Zero:  strconv.FormatInt(a.ZeroId, 10),
 		Type:  "ammUpdate",
 		Index: a.Index,
 	}
@@ -203,7 +204,7 @@ func (l *Loopring) NftDataToTx(transaction any) circuit.Tx {
 	var n NftData
 	mapToStruct(transaction, &n)
 	return circuit.Tx{
-		Zero:  n.ZeroId,
+		Zero:  strconv.FormatInt(n.ZeroId, 10),
 		Type:  "nft",
 		Index: n.Index,
 	}

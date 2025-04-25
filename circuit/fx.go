@@ -15,16 +15,16 @@ func (c *Circuit) Values() []any {
 	}
 	return values
 }
-func (c *Circuit) Remove(key any) {
+func (c *Circuit) Remove(key string) {
 	delete(c.Map, key)
 }
 func (c *Circuit) Clear() {
-	c.Map = make(map[any]any)
+	c.Map = make(map[string]any)
 }
 func (c *Circuit) Size() int {
 	return len(c.Map)
 }
-func (c *Circuit) Contains(key any) bool {
+func (c *Circuit) Contains(key string) bool {
 	_, ok := c.Map[key]
 	return ok
 }
