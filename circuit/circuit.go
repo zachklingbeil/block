@@ -10,10 +10,12 @@ import (
 )
 
 type Circuit struct {
-	Factory *factory.Factory
-	Map     map[any]any
-	String  map[string]any
-	Int     map[int64]any
+	Factory        *factory.Factory
+	Map            map[any]any
+	String         map[string]any
+	Int            map[int64]any
+	Peers          []Peer
+	LoopringApiKey string
 }
 
 func NewCircuit(factory *factory.Factory) *Circuit {
@@ -22,6 +24,7 @@ func NewCircuit(factory *factory.Factory) *Circuit {
 		Map:     make(map[any]any),
 		String:  make(map[string]any),
 		Int:     make(map[int64]any),
+		Peers:   make([]Peer, 240000),
 	}
 	circuit.Continue()
 	return circuit

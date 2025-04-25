@@ -84,18 +84,6 @@ func mapToStruct(data any, target any) {
 	json.Unmarshal(bytes, target)
 }
 
-type Tx struct {
-	Zero     any             `json:"zero,omitempty"`
-	One      any             `json:"one,omitempty"`
-	Value    any             `json:"value,omitempty"`
-	Token    any             `json:"token,omitempty"`
-	Fee      any             `json:"fee,omitempty"`
-	FeeToken int64           `json:"feeToken,omitempty"`
-	Type     string          `json:"type,omitempty"`
-	Index    uint16          `json:"index"`
-	Raw      json.RawMessage `json:"raw,omitempty"`
-}
-
 type SpotTrade struct {
 	Zero      int64  `json:"orderA.accountID"`
 	ZeroValue string `json:"orderA.filledS"`

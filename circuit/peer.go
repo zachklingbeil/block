@@ -3,55 +3,19 @@ package circuit
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	ens "github.com/wealdtech/go-ens/v3"
-	"github.com/zachklingbeil/factory"
 )
-
-type Peers struct {
-	Factory        *factory.Factory
-	Circuit        *Circuit
-	Slice          []Peer
-	LoopringApiKey string
-}
-
-type Peer struct {
-	Address     string `json:"address"`
-	ENS         string `json:"ens"`
-	LoopringENS string `json:"loopringEns"`
-	LoopringID  int64  `json:"loopringId"`
-}
-
-func HelloPeers(factory *factory.Factory, circuit *Circuit) *Peers {
-	peers := &Peers{
-		Factory:        factory,
-		LoopringApiKey: os.Getenv("LOOPRING_API_KEY"),
-		Circuit:        circuit,
-		Slice:          make([]Peer, 240000),
-	}
-
-	total := len(peers.Slice)
-	for i, peer := range peers.Slice {
-		if peer.Address != "" {
-			circuit.AddString(peer.ENS, peer)
-			circuit.AddString(peer.LoopringENS, peer)
-			circuit.AddInt(peer.LoopringID, peer)
-			fmt.Printf("%d\n", total-i)
-		}
-	}
-	return peers
-}
 
 const (
 	byAddress = "https://api3.loopring.io/api/v3/account?owner=%s"
 	byId      = "https://api3.loopring.io/api/v3/account?accountId=%d"
 )
 
-func (p *Peers) Format(address string) string {
+func (c *Circuit) Format(address string) string {
 	address = strings.ToLower(address)
 	if strings.HasPrefix(address, "0x") || strings.HasSuffix(address, ".eth") {
 		return address
@@ -60,50 +24,50 @@ func (p *Peers) Format(address string) string {
 }
 
 // ENS -> hex
-func (p *Peers) GetAddress(peer *Peer, dotEth string) *Peer {
-	address, err := ens.Resolve(p.Factory.Eth, dotEth)
+func (c *Circuit) GetAddress(peer *Peer, dotEth string) *Peer {
+	address, err := ens.Resolve(c.Factory.Eth, dotEth)
 	if err != nil {
 		peer.Address = dotEth
 		return peer
 	}
-	peer.Address = p.Format(address.Hex())
+	peer.Address = c.Format(address.Hex())
 	return peer
 }
 
 // hex -> ENS [.eth] or "."
-func (p *Peers) GetENS(peer *Peer, address string) *Peer {
+func (c *Circuit) GetENS(peer *Peer, address string) *Peer {
 	addr := common.HexToAddress(address)
-	if ensName, err := ens.ReverseResolve(p.Factory.Eth, addr); err != nil || ensName == "" {
+	if ensName, err := ens.ReverseResolve(c.Factory.Eth, addr); err != nil || ensName == "" {
 		peer.ENS = "."
 	} else {
-		peer.ENS = p.Format(ensName)
+		peer.ENS = c.Format(ensName)
 	}
 	return peer
 }
 
 // hex -> LoopringENS [.loopring.eth] or "."
-func (p *Peers) GetLoopringENS(peer *Peer, address string) *Peer {
+func (c *Circuit) GetLoopringENS(peer *Peer, address string) *Peer {
 	url := fmt.Sprintf(byAddress, address)
 	var response struct {
 		Loopring string `json:"data"`
 	}
-	data, err := p.Factory.Json.In(url, p.LoopringApiKey)
+	data, err := c.Factory.Json.In(url, c.LoopringApiKey)
 	if err != nil || json.Unmarshal(data, &response) != nil || response.Loopring == "" {
 		peer.LoopringENS = "."
 		return peer
 	}
-	peer.LoopringENS = p.Format(response.Loopring)
+	peer.LoopringENS = c.Format(response.Loopring)
 	return peer
 }
 
 // hex -> LoopringId or -1
-func (p *Peers) GetLoopringID(peer *Peer, address string) *Peer {
+func (c *Circuit) GetLoopringID(peer *Peer, address string) *Peer {
 	url := fmt.Sprintf(byAddress, address)
 	var response struct {
 		ID int64 `json:"accountId"`
 	}
 
-	data, err := p.Factory.Json.In(url, p.LoopringApiKey)
+	data, err := c.Factory.Json.In(url, c.LoopringApiKey)
 	if err != nil {
 		fmt.Printf("Failed to fetch LoopringID for address %s (error: %v)\n", address, err)
 		peer.LoopringID = -1
@@ -120,7 +84,7 @@ func (p *Peers) GetLoopringID(peer *Peer, address string) *Peer {
 }
 
 // LoopringId -> hex
-func (p *Peers) GetLoopringAddress(peer *Peer, id string) *Peer {
+func (c *Circuit) GetLoopringAddress(peer *Peer, id string) *Peer {
 	accountID, err := strconv.Atoi(id)
 	if err != nil {
 		return peer
@@ -129,8 +93,8 @@ func (p *Peers) GetLoopringAddress(peer *Peer, id string) *Peer {
 	var response struct {
 		Address string `json:"owner"`
 	}
-	if data, err := p.Factory.Json.In(url, p.LoopringApiKey); err == nil && json.Unmarshal(data, &response) == nil {
-		peer.Address = p.Format(response.Address)
+	if data, err := c.Factory.Json.In(url, c.LoopringApiKey); err == nil && json.Unmarshal(data, &response) == nil {
+		peer.Address = c.Format(response.Address)
 	} else {
 		peer.Address = "!"
 	}
