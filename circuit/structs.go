@@ -42,12 +42,17 @@ type Tx struct {
 	Raw      json.RawMessage `json:"raw,omitempty"`
 }
 
-type Value struct {
-	Symbol      string `json:"symbol,omitempty"`
-	ENS         string `json:"ens,omitempty"`
-	LoopringENS string `json:"loopringEns,omitempty"`
-	Address     string `json:"address,omitempty"`
-	LoopringID  string `json:"loopringId,omitempty"`
-	Token       string `json:"token,omitempty"`
-	Decimals    string `json:"decimals,omitempty"`
+type Token struct {
+	Token      string `json:"token"`
+	TokenId    int64  `json:"tokenId"`
+	LoopringID int64  `json:"loopringId,omitempty"`
+	Decimals   int64  `json:"decimals"`
+	Address    string `json:"address"`
+}
+
+type Peer struct {
+	ENS         string `json:"ens"`
+	LoopringENS string `json:"loopringEns"`
+	LoopringID  string `json:"loopringId"`
+	Address     string `json:"address"`
 }

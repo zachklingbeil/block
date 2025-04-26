@@ -3,10 +3,10 @@ module github.com/zachklingbeil/block
 go 1.24.2
 
 require (
-	github.com/ethereum/go-ethereum v1.15.9
+	github.com/ethereum/go-ethereum v1.15.10
 	github.com/gorilla/websocket v1.5.3
 	github.com/wealdtech/go-ens/v3 v3.6.0
-	github.com/zachklingbeil/factory v1.1.22
+	github.com/zachklingbeil/factory v1.1.24
 )
 
 require (
