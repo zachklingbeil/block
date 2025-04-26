@@ -25,32 +25,28 @@ type Token struct {
 func NewTokens(factory *factory.Factory) *Tokens {
 	t := &Tokens{
 		Factory: factory,
-		Slice:   []Token{},
+		Slice:   make([]Token, 270),
 		ID:      make(map[int64]*Token),
 		LP:      make(map[int64]*Token),
 	}
-	redisTokens, err := factory.Redis.SMembers(factory.Ctx, "tokens").Result()
+
+	source, err := factory.Redis.SMembers(factory.Ctx, "tokens").Result()
 	if err != nil {
 		log.Fatalf("Failed to fetch tokens from Redis: %v", err)
 	}
-	for _, tokenJSON := range redisTokens {
+
+	for _, tokenJSON := range source {
 		var token Token
 		if err := json.Unmarshal([]byte(tokenJSON), &token); err != nil {
-			log.Printf("Skipping invalid token: %v", err)
+			log.Printf("Skipping invalid token: %v (data: %s)", err, tokenJSON)
 			continue
 		}
 		t.Slice = append(t.Slice, token)
+		t.ID[token.TokenId] = &t.Slice[len(t.Slice)-1]
+		t.LP[token.LoopringID] = &t.Slice[len(t.Slice)-1]
 	}
-
-	t.CreateIDMaps()
+	log.Printf("%d tokens", len(t.Slice))
 	return t
-}
-
-func (t *Tokens) CreateIDMaps() {
-	for _, token := range t.Slice {
-		t.ID[token.TokenId] = &token
-		t.LP[token.LoopringID] = &token
-	}
 }
 
 func (t *Tokens) GetToken(tokenId int64) *Token {

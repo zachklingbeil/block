@@ -1,5 +1,49 @@
 package circuit
 
+import (
+	"fmt"
+	"strconv"
+	"strings"
+)
+
+func (c *Circuit) Get(key any) any {
+	c.Factory.Rw.Lock()
+	defer c.Factory.Rw.Unlock()
+
+	switch k := key.(type) {
+	case string:
+		if value, ok := c.Map[strings.ToLower(k)]; ok {
+			return value
+		}
+		fmt.Printf("Key not found: %v (string)\n", k)
+	case int:
+		strKey := strconv.Itoa(k)
+		if value, ok := c.Map[strKey]; ok {
+			return value
+		}
+		fmt.Printf("Key not found: %v (int as string)\n", k)
+	default:
+		fmt.Printf("Unsupported key type: %T\n", key)
+	}
+
+	return nil
+}
+
+func (c *Circuit) Add(key any, value any) {
+	c.Factory.Mu.Lock()
+	defer c.Factory.Mu.Unlock()
+
+	switch k := key.(type) {
+	case string:
+		c.Map[strings.ToLower(k)] = value
+	case int:
+		strKey := strconv.Itoa(k)
+		c.Map[strKey] = value
+	default:
+		fmt.Printf("Unsupported key type: %T\n", key)
+	}
+}
+
 func (c *Circuit) Keys() []any {
 	keys := make([]any, 0, len(c.Map))
 	for key := range c.Map {

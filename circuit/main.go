@@ -3,7 +3,25 @@ package circuit
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/zachklingbeil/factory"
 )
+
+type Circuit struct {
+	Factory        *factory.Factory
+	Map            map[string]any
+	Values         []Value
+	LoopringApiKey string
+}
+
+func NewCircuit(factory *factory.Factory) *Circuit {
+	circuit := &Circuit{
+		Factory: factory,
+		Map:     make(map[string]any),
+	}
+
+	return circuit
+}
 
 func (c *Circuit) Continue() error {
 	c.Factory.Mu.Lock()
