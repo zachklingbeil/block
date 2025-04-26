@@ -11,16 +11,14 @@ import (
 type Circuit struct {
 	Factory        *factory.Factory
 	Map            map[string]any
-	TokenMap       map[int64]*Token
 	Values         []Value
 	LoopringApiKey string
 }
 
 func NewCircuit(factory *factory.Factory) *Circuit {
 	circuit := &Circuit{
-		Factory:  factory,
-		Map:      make(map[string]any),
-		TokenMap: make(map[int64]*Token),
+		Factory: factory,
+		Map:     make(map[string]any),
 	}
 
 	return circuit
@@ -36,7 +34,7 @@ func (c *Circuit) Get(key any) any {
 		}
 		fmt.Printf("Key not found: %v (string)\n", k)
 	case int:
-		strKey := strconv.Itoa(k) // Convert int to string
+		strKey := strconv.Itoa(k)
 		if value, ok := c.Map[strKey]; ok {
 			return value
 		}
@@ -56,10 +54,9 @@ func (c *Circuit) Add(key any, value any) {
 	case string:
 		c.Map[strings.ToLower(k)] = value
 	case int:
-		int64Key := int64(k)
-		c.TokenMap[int64Key] = value.(*Token)
+		strKey := strconv.Itoa(k)
+		c.Map[strKey] = value
 	default:
 		fmt.Printf("Unsupported key type: %T\n", key)
-		return
 	}
 }

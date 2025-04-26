@@ -8,35 +8,6 @@ import (
 func (c *Circuit) Continue() error {
 	c.Factory.Mu.Lock()
 	defer c.Factory.Mu.Unlock()
-
-	if err := c.SourceValues(); err != nil {
-		return fmt.Errorf("failed to source values: %w", err)
-	}
-
-	// if err := c.SourceTokens(); err != nil {
-	// 	return fmt.Errorf("failed to source tokens: %w", err)
-	// }
-	fmt.Printf("%d\n", len(c.Map))
-	return nil
-}
-
-// func (c *Circuit) SourceTokens() error {
-// 	source, err := c.Factory.Redis.SMembers(c.Factory.Ctx, "tokens").Result()
-// 	if err != nil {
-// 		return fmt.Errorf("failed to load tokens from Redis: %w", err)
-// 	}
-
-// 	for _, i := range source {
-// 		var token Token
-// 		if err := json.Unmarshal([]byte(i), &token); err != nil {
-// 			return fmt.Errorf("failed to unmarshal token: %w", err)
-// 		}
-// 		c.TokenMap[token.TokenId] = &token
-// 	}
-// 	return nil
-// }
-
-func (c *Circuit) SourceValues() error {
 	source, err := c.Factory.Redis.SMembers(c.Factory.Ctx, "value").Result()
 	if err != nil {
 		return fmt.Errorf("failed to load values from Redis: %w", err)
@@ -58,6 +29,6 @@ func (c *Circuit) SourceValues() error {
 		c.Map[value.Token] = &value
 		c.Values = append(c.Values, value)
 	}
-
+	fmt.Printf("%d\n", len(c.Map))
 	return nil
 }
