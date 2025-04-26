@@ -8,13 +8,13 @@ func (c *Circuit) Keys() []any {
 	return keys
 }
 
-func (c *Circuit) Values() []any {
-	values := make([]any, 0, len(c.Map))
-	for _, value := range c.Map {
-		values = append(values, value)
-	}
-	return values
-}
+//	func (c *Circuit) Values() []any {
+//		values := make([]any, 0, len(c.Map))
+//		for _, value := range c.Map {
+//			values = append(values, value)
+//		}
+//		return values
+//	}
 func (c *Circuit) Remove(key string) {
 	delete(c.Map, key)
 }

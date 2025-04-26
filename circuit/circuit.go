@@ -13,6 +13,7 @@ type Circuit struct {
 	TokenMap       map[int64]*Token
 	Tokens         []Token
 	Peers          []Peer
+	Values         []Value
 	LoopringApiKey string
 }
 
