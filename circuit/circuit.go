@@ -2,6 +2,7 @@ package circuit
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/zachklingbeil/factory"
@@ -11,8 +12,6 @@ type Circuit struct {
 	Factory        *factory.Factory
 	Map            map[string]any
 	TokenMap       map[int64]*Token
-	Tokens         []Token
-	Peers          []Peer
 	Values         []Value
 	LoopringApiKey string
 }
@@ -37,11 +36,11 @@ func (c *Circuit) Get(key any) any {
 		}
 		fmt.Printf("Key not found: %v (string)\n", k)
 	case int:
-		int64Key := int64(k)
-		if value, ok := c.TokenMap[int64Key]; ok {
+		strKey := strconv.Itoa(k) // Convert int to string
+		if value, ok := c.Map[strKey]; ok {
 			return value
 		}
-		fmt.Printf("Key not found: %v (int)\n", k)
+		fmt.Printf("Key not found: %v (int as string)\n", k)
 	default:
 		fmt.Printf("Unsupported key type: %T\n", key)
 	}
