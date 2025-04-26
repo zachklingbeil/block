@@ -1,97 +1,107 @@
 package token
 
 import (
-	_ "embed"
 	"encoding/json"
-	"fmt"
 	"log"
-	"strconv"
 
 	"github.com/zachklingbeil/factory"
 )
 
-//go:embed tokens.json
-var tokens []byte
-
-type TokenIn struct {
-	Symbol     string `json:"symbol"`
-	Address    string `json:"address"`
-	Token      int64  `json:"tokenId"`
-	LoopringID string `json:"accountId,omitempty"`
-	Decimals   int    `json:"decimals"`
+type Tokens struct {
+	Factory *factory.Factory
+	Slice   []Token
+	ID      map[int64]*Token
+	LP      map[int64]*Token
 }
+
 type Token struct {
-	Symbol     string `json:"symbol"`
-	Address    string `json:"address"`
-	Token      int64  `json:"tokenId"`
-	LoopringID int64  `json:"accountId,omitempty"`
+	Token      string `json:"token"`
+	TokenId    int64  `json:"tokenId"`
+	LoopringID int64  `json:"loopringId,omitempty"`
 	Decimals   int64  `json:"decimals"`
+	Address    string `json:"address"`
 }
 
-func NewTokens(factory *factory.Factory) {
-	var in []TokenIn
-	if err := json.Unmarshal(tokens, &in); err != nil {
-		log.Fatalf("Failed to unmarshal tokens: %v", err)
+func NewTokens(factory *factory.Factory) *Tokens {
+	t := &Tokens{
+		Factory: factory,
+		Slice:   []Token{},
+		ID:      make(map[int64]*Token),
+		LP:      make(map[int64]*Token),
 	}
-
-	// Separate maps for LoopringID keys and TokenID keys
-	loopringIDMap := make(map[int64]Token)
-	tokenIDMap := make(map[int64]Token)
-
-	for _, tokenIn := range in {
-		// Convert TokenIn to Token
-		token := Token{
-			Symbol:   tokenIn.Symbol,
-			Address:  tokenIn.Address,
-			Token:    tokenIn.Token,
-			Decimals: int64(tokenIn.Decimals),
-		}
-
-		// Convert LoopringID (string) to int64 if valid
-		if tokenIn.LoopringID != "" {
-			loopringID, err := strconv.ParseInt(tokenIn.LoopringID, 10, 64)
-			if err != nil {
-				log.Printf("Failed to parse LoopringID '%s' for token '%s': %v", tokenIn.LoopringID, tokenIn.Symbol, err)
-			} else {
-				token.LoopringID = loopringID
-				// Add to LoopringID map
-				loopringIDMap[loopringID] = token
-			}
-		}
-
-		// Add to TokenID map
-		tokenIDMap[token.Token] = token
+	redisTokens, err := factory.Redis.SMembers(factory.Ctx, "tokens").Result()
+	if err != nil {
+		log.Fatalf("Failed to fetch tokens from Redis: %v", err)
 	}
-
-	// Store LoopringID map in Redis
-	for key, token := range loopringIDMap {
-		tokenJSON, err := json.Marshal(token)
-		if err != nil {
-			log.Printf("Failed to marshal token for LoopringID key %d: %v", key, err)
+	for _, tokenJSON := range redisTokens {
+		var token Token
+		if err := json.Unmarshal([]byte(tokenJSON), &token); err != nil {
+			log.Printf("Skipping invalid token: %v", err)
 			continue
 		}
-
-		// Use HSet to store the key-value pair in the Redis hash "loopringIDMap"
-		err = factory.Redis.HSet(factory.Ctx, "loopringIDMap", fmt.Sprintf("%d", key), tokenJSON).Err()
-		if err != nil {
-			log.Printf("Failed to store token in Redis for LoopringID key %d: %v", key, err)
-		}
+		t.Slice = append(t.Slice, token)
 	}
 
-	// Store TokenID map in Redis
-	for key, token := range tokenIDMap {
-		tokenJSON, err := json.Marshal(token)
-		if err != nil {
-			log.Printf("Failed to marshal token for TokenID key %d: %v", key, err)
-			continue
-		}
-
-		// Use HSet to store the key-value pair in the Redis hash "tokenIDMap"
-		err = factory.Redis.HSet(factory.Ctx, "tokenIDMap", fmt.Sprintf("%d", key), tokenJSON).Err()
-		if err != nil {
-			log.Printf("Failed to store token in Redis for TokenID key %d: %v", key, err)
-		}
-	}
-
-	fmt.Printf("%d tokens processed\n", len(in))
+	t.CreateIDMaps()
+	return t
 }
+
+func (t *Tokens) CreateIDMaps() {
+	for _, token := range t.Slice {
+		t.ID[token.TokenId] = &token
+		t.LP[token.LoopringID] = &token
+	}
+}
+
+func (t *Tokens) GetToken(tokenId int64) *Token {
+	if token, exists := t.ID[tokenId]; exists {
+		return token
+	}
+	return nil
+}
+
+func (t *Tokens) GetLP(loopringId int64) *Token {
+	if token, exists := t.LP[loopringId]; exists {
+		return token
+	}
+	return nil
+}
+
+// package token
+
+// import (
+// 	_ "embed"
+// 	"encoding/json"
+// 	"fmt"
+// 	"log"
+
+// 	"github.com/zachklingbeil/factory"
+// )
+
+// type Tokens struct {
+// 	Factory *factory.Factory
+// }
+
+// type Token struct {
+// 	Token      string `json:"token"`
+// 	TokenId    int64  `json:"tokenId"`
+// 	LoopringID int64  `json:"loopringId,omitempty"`
+// 	Decimals   int64  `json:"decimals"`
+// 	Address    string `json:"address"`
+// }
+
+// //go:embed tokens.json
+// var tokens []byte
+
+// func NewTokens(factory *factory.Factory) {
+// 	var in []Token
+// 	if err := json.Unmarshal(tokens, &in); err != nil {
+// 		log.Fatalf("Failed to unmarshal tokens: %v", err)
+// 	}
+// 	for _, token := range in {
+// 		tokenJSON, _ := json.Marshal(token)
+// 		factory.Redis.SAdd(factory.Ctx, "tokens", tokenJSON).Err()
+// 	}
+
+// 	fmt.Printf("%d tokens\n", len(in))
+// }
