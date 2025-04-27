@@ -12,29 +12,17 @@ type Circuit struct {
 	Factory *factory.Factory
 	Map     map[string]any
 	Value   []Value
-	Peers   []Peer  `json:"peers,omitempty"`
-	Tokens  []Token `json:"tokens,omitempty"`
-	PeerMap map[string]*Peer
-	IDMap   map[int64]*Token
-	ApiKey  string
-}
-
-type Value struct {
-	Peer       *Peer       `json:"peer,omitempty"`
-	Token      *Token      `json:"token,omitempty"`
-	Block      *Block      `json:"block,omitempty"`
-	Coordinate *Coordinate `json:"coordinate,omitempty"`
-	Tx         *Tx         `json:"tx,omitempty"`
+	// Peers   *peer.Peers
+	// Tokens  *token.Tokens
+	ApiKey string
 }
 
 func NewCircuit(factory *factory.Factory) *Circuit {
 	circuit := &Circuit{
 		Factory: factory,
 		Map:     make(map[string]any),
-		Tokens:  make([]Token, 270),
-		Peers:   make([]Peer, 0),
-		IDMap:   make(map[int64]*Token),
-		PeerMap: make(map[string]*Peer),
+		// Tokens:  token.NewTokens(factory),
+		// Peers:   peer.NewPeers(factory),
 	}
 	// circuit.Load()
 	// fmt.Printf("%d tokens\n", len(circuit.Tokens))

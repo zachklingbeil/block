@@ -1,15 +1,8 @@
 package main
 
-import (
-	"github.com/zachklingbeil/block/circuit"
-	"github.com/zachklingbeil/factory"
-)
-
 func main() {
-	factory := factory.Assemble()
+	// factory := factory.Assemble()
 	// circuit := circuit.NewCircuit(factory)
-	circuit.NewCircuit(factory)
-
 	// circuit.Continue()
 	select {}
 }
@@ -29,3 +22,6 @@ func main() {
 // factory.Json.Print(circuit.Get("1"))
 // factory.Json.Print(circuit.Get("30"))
 // factory.Json.Print(circuit.Get(30))
+
+// manual.NewLP(factory)
+// manual.NewTokens(factory)
