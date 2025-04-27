@@ -29,7 +29,7 @@ func (l *Loopring) BlockByBlock(blockNumber int64) {
 	txs := l.ProcessBlock(transactions)
 	block.Ones = txs
 	blockJSON, _ := json.Marshal(block)
-	l.Factory.Redis.SAdd(l.Factory.Ctx, "blocks", blockJSON).Err()
+	l.Factory.Data.RB.SAdd(l.Factory.Ctx, "blocks", blockJSON).Err()
 	fmt.Printf("%d\n", blockNumber)
 }
 
@@ -70,7 +70,7 @@ func (l *Loopring) currentBlock() int64 {
 
 // getHistory retrieves the lowest block number from the Redis set
 func (l *Loopring) getHistory() (int64, error) {
-	blockJSONs, err := l.Factory.Redis.SMembers(l.Factory.Ctx, "blocks").Result()
+	blockJSONs, err := l.Factory.Data.RB.SMembers(l.Factory.Ctx, "blocks").Result()
 	if err != nil {
 		return 0, fmt.Errorf("failed to retrieve blocks from Redis: %w", err)
 	}

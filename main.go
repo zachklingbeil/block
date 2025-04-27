@@ -6,10 +6,11 @@ import (
 )
 
 func main() {
-	factory := factory.Assemble("timefactory", 0)
-	circuit := circuit.NewCircuit(factory)
+	factory := factory.Assemble()
+	// circuit := circuit.NewCircuit(factory)
+	circuit.NewCircuit(factory)
 
-	circuit.Continue()
+	// circuit.Continue()
 	select {}
 }
 

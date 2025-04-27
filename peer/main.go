@@ -75,7 +75,7 @@ func (p *Peers) Process(address string) {
 }
 
 func (p *Peers) LoadPeers() error {
-	source, err := p.Factory.Redis.SMembers(p.Factory.Ctx, "peers").Result()
+	source, err := p.Factory.Data.RB.SMembers(p.Factory.Ctx, "peers").Result()
 	if err != nil {
 		return err
 	}

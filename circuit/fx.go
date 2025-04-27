@@ -44,6 +44,20 @@ func (c *Circuit) Add(key any, value any) {
 	}
 }
 
+func (c *Circuit) GetToken(tokenId int64) *Token {
+	if token, exists := c.IDMap[tokenId]; exists {
+		return token
+	}
+	return nil
+}
+
+func (c *Circuit) GetLP(loopringId int64) *Token {
+	if token, exists := c.LPMap[loopringId]; exists {
+		return token
+	}
+	return nil
+}
+
 func (c *Circuit) Keys() []any {
 	keys := make([]any, 0, len(c.Map))
 	for key := range c.Map {

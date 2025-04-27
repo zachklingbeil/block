@@ -32,20 +32,21 @@ func NewCircuit(factory *factory.Factory) *Circuit {
 		Factory: factory,
 		Map:     make(map[string]any),
 		Tokens:  make([]Token, 270),
-		Peers:   make([]Peer, 300000),
+		Peers:   make([]Peer, 0),
 		IDMap:   make(map[int64]*Token),
 		LPMap:   make(map[int64]*Token),
 		PeerMap: make(map[string]*Peer),
 	}
-	circuit.LoadPeers()
-	circuit.LoadTokens()
+	circuit.Load()
+	// fmt.Printf("%d tokens\n", len(circuit.Tokens))
+
 	return circuit
 }
 
 func (c *Circuit) Continue() error {
 	c.Factory.Mu.Lock()
 	defer c.Factory.Mu.Unlock()
-	source, err := c.Factory.Redis.SMembers(c.Factory.Ctx, "value").Result()
+	source, err := c.Factory.Data.RB.SMembers(c.Factory.Ctx, "value").Result()
 	if err != nil {
 		return fmt.Errorf("failed to load values from Redis: %w", err)
 	}
