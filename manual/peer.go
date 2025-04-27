@@ -9,7 +9,7 @@ import (
 	"github.com/zachklingbeil/factory"
 )
 
-//go:embed peers.json
+//go:embed peer.json
 var peers []byte
 
 type LP struct {
@@ -31,7 +31,7 @@ func NewLP(factory *factory.Factory) {
 			continue
 		}
 
-		if err := factory.Data.RB.SAdd(factory.Ctx, "lp", tokenJSON).Err(); err != nil {
+		if err := factory.Data.RB.SAdd(factory.Ctx, "peer", tokenJSON).Err(); err != nil {
 			log.Printf("Failed to add token to Redis: %v", err)
 		}
 	}

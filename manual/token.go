@@ -9,15 +9,15 @@ import (
 	"github.com/zachklingbeil/factory"
 )
 
-//go:embed tokens.json
+//go:embed token.json
 var tokens []byte
 
 type Token struct {
 	Token    string `json:"token,omitempty"`
 	Address  string `json:"address,omitempty"`
+	Decimals string `json:"decimals,omitempty"`
 	TokenId  string `json:"tokenId,omitempty"`
 	TokenInt int64  `json:"tokenInt,omitempty"`
-	Decimals int64  `json:"decimals,omitempty"`
 }
 
 func NewTokens(factory *factory.Factory) {
@@ -36,5 +36,6 @@ func NewTokens(factory *factory.Factory) {
 			log.Printf("Failed to add token to Redis: %v", err)
 		}
 	}
+	factory.State.Add("tokens", len(tokensData))
 	fmt.Printf("%d tokens\n", len(tokensData))
 }

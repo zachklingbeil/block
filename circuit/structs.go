@@ -2,6 +2,8 @@ package circuit
 
 import (
 	"encoding/json"
+
+	"github.com/zachklingbeil/block/circuit/value"
 )
 
 // Loopring
@@ -42,16 +44,10 @@ type Tx struct {
 	Raw      json.RawMessage `json:"raw,omitempty"`
 }
 
-type Value struct {
-	ENS         any `json:"ens,omitempty"`
-	LoopringENS any `json:"loopringEns,omitempty"`
-	LoopringID  any `json:"loopId,omitempty"`
-	Address     any `json:"address,omitempty"`
-	Decimals    any `json:"decimals,omitempty"`
-}
-
-type Types struct {
-	Block      *Block      `json:"block,omitempty"`
-	Coordinate *Coordinate `json:"coordinate,omitempty"`
-	Tx         *Tx         `json:"tx,omitempty"`
+type One struct {
+	Peer       *value.Peer  `json:"peer,omitempty"`
+	Token      *value.Token `json:"token,omitempty"`
+	Block      *Block       `json:"block,omitempty"`
+	Coordinate *Coordinate  `json:"coordinate,omitempty"`
+	Tx         *Tx          `json:"tx,omitempty"`
 }
