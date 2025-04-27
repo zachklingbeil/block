@@ -3,7 +3,7 @@ package circuit
 import (
 	"encoding/json"
 
-	"github.com/zachklingbeil/block/circuit/value"
+	"github.com/zachklingbeil/block/value"
 )
 
 // Loopring

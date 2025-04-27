@@ -1,15 +1,17 @@
 package main
 
 import (
-	"github.com/zachklingbeil/block/manual"
+	"github.com/zachklingbeil/block/value"
 	"github.com/zachklingbeil/factory"
 )
 
 func main() {
 	factory := factory.Assemble()
 	// circuit := circuit.NewCircuit(factory)
-	manual.NewLP(factory)
-	manual.NewTokens(factory)
+	value.NewValue(factory)
+
+	// manual.NewLP(factory)
+	// manual.NewTokens(factory)
 	// circuit.Continue()
 	select {}
 }

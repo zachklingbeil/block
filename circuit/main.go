@@ -3,7 +3,7 @@ package circuit
 import (
 	"time"
 
-	"github.com/zachklingbeil/block/circuit/value"
+	"github.com/zachklingbeil/block/value"
 	"github.com/zachklingbeil/factory"
 )
 
