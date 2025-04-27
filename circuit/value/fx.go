@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/wealdtech/go-ens"
+	"github.com/wealdtech/go-ens/v3"
 )
 
 const (
@@ -31,8 +31,7 @@ func (v *Value) GetENS(peer *Peer) *Peer {
 		// Return immediately if ENS is already set or marked as checked
 		return peer
 	}
-	address := common.HexToAddress(peer.Address)
-	ensName, err := ens.ReverseResolve(v.Factory.Eth, &address)
+	ensName, err := ens.ReverseResolve(v.Factory.Eth, common.HexToAddress(peer.Address))
 	if err != nil || ensName == "" {
 		peer.ENS = "." // Mark as checked with no ENS
 		return peer

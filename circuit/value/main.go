@@ -8,9 +8,10 @@ import (
 
 type Value struct {
 	Factory *factory.Factory
-	Map     map[string]*Peer
 	Peers   []Peer
 	Tokens  []Token
+	Map     map[string]*Peer
+	State   map[string]any
 }
 
 func NewValue(factory *factory.Factory) *Value {
