@@ -11,7 +11,6 @@ type Tokens struct {
 	Factory *factory.Factory
 	Slice   []Token
 	ID      map[int64]*Token
-	LP      map[int64]*Token
 }
 
 type Token struct {
@@ -27,7 +26,6 @@ func NewTokens(factory *factory.Factory) *Tokens {
 		Factory: factory,
 		Slice:   make([]Token, 270),
 		ID:      make(map[int64]*Token),
-		LP:      make(map[int64]*Token),
 	}
 
 	source, err := factory.Data.RB.SMembers(factory.Ctx, "tokens").Result()
@@ -43,7 +41,6 @@ func NewTokens(factory *factory.Factory) *Tokens {
 		}
 		t.Slice = append(t.Slice, token)
 		t.ID[token.TokenId] = &t.Slice[len(t.Slice)-1]
-		t.LP[token.LoopringID] = &t.Slice[len(t.Slice)-1]
 	}
 	log.Printf("%d tokens", len(t.Slice))
 	return t

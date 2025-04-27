@@ -3,6 +3,7 @@ package circuit
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/zachklingbeil/factory"
 )
@@ -15,7 +16,6 @@ type Circuit struct {
 	Tokens  []Token `json:"tokens,omitempty"`
 	PeerMap map[string]*Peer
 	IDMap   map[int64]*Token
-	LPMap   map[int64]*Token
 	ApiKey  string
 }
 
@@ -34,7 +34,6 @@ func NewCircuit(factory *factory.Factory) *Circuit {
 		Tokens:  make([]Token, 270),
 		Peers:   make([]Peer, 0),
 		IDMap:   make(map[int64]*Token),
-		LPMap:   make(map[int64]*Token),
 		PeerMap: make(map[string]*Peer),
 	}
 	// circuit.Load()
@@ -67,4 +66,34 @@ func (c *Circuit) Continue() error {
 	}
 	fmt.Printf("%d\n", len(c.Map))
 	return nil
+}
+func (c *Circuit) Coordinates(input *Raw) ([]any, *Block) {
+	for i := range input.Transactions {
+		if tx, ok := input.Transactions[i].(map[string]any); ok {
+			tx["index"] = i + 1
+		}
+	}
+
+	transactions := c.Factory.Json.Simplify(input.Transactions, "")
+	depth := uint16(len(transactions))
+
+	t := time.UnixMilli(input.Timestamp)
+	coordinate := Coordinate{
+		Year:        uint8(t.Year() - 2015),
+		Month:       uint8(t.Month()),
+		Day:         uint8(t.Day()),
+		Hour:        uint8(t.Hour()),
+		Minute:      uint8(t.Minute()),
+		Second:      uint8(t.Second()),
+		Millisecond: uint16(t.Nanosecond() / 1e6),
+		Index:       0,
+		Depth:       depth,
+	}
+
+	block := &Block{
+		Number: input.Number,
+		Zero:   coordinate,
+		Ones:   make([]Tx, depth),
+	}
+	return transactions, block
 }
