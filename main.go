@@ -8,8 +8,8 @@ import (
 func main() {
 	factory := factory.Assemble()
 	// circuit := circuit.NewCircuit(factory)
-	circuit.NewCircuit(factory)
-
+	c := circuit.NewCircuit(factory)
+	c.Load()
 	// circuit.Continue()
 	select {}
 }

@@ -37,9 +37,8 @@ func NewCircuit(factory *factory.Factory) *Circuit {
 		LPMap:   make(map[int64]*Token),
 		PeerMap: make(map[string]*Peer),
 	}
-	circuit.Load()
+	// circuit.Load()
 	// fmt.Printf("%d tokens\n", len(circuit.Tokens))
-
 	return circuit
 }
 
