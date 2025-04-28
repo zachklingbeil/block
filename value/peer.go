@@ -3,12 +3,18 @@ package value
 import (
 	"encoding/json"
 	"fmt"
-	"os"
+	"log"
 	"strconv"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/wealdtech/go-ens/v3"
+)
+
+const (
+	byAddress = "https://api3.loopring.io/api/v3/account?owner=%s"
+	byId      = "https://api3.loopring.io/api/v3/account?accountId=%d"
+	dotLoop   = "https://api3.loopring.io/api/wallet/v3/resolveName?owner=%s"
 )
 
 type Peer struct {
@@ -18,11 +24,23 @@ type Peer struct {
 	Address     string `json:"address"`
 }
 
-const (
-	byAddress = "https://api3.loopring.io/api/v3/account?owner=%s"
-	byId      = "https://api3.loopring.io/api/v3/account?accountId=%d"
-	dotLoop   = "https://api3.loopring.io/api/wallet/v3/resolveName?owner=%s"
-)
+func (v *Value) LoadPeers() error {
+	source, err := v.Factory.Data.RB.SMembers(v.Factory.Ctx, "peers").Result()
+	if err != nil {
+		return err
+	}
+
+	for _, peerJSON := range source {
+		var peer Peer
+		if err := json.Unmarshal([]byte(peerJSON), &peer); err != nil {
+			log.Printf("Skipping invalid peer: %v", err)
+			continue
+		}
+		v.Peers = append(v.Peers, peer)
+	}
+	v.Factory.State.Add("peers", len(v.Peers))
+	return nil
+}
 
 func (v *Value) HelloUniverse(address string) {
 	peer := v.GetPeer(address)
@@ -73,12 +91,11 @@ func (v *Value) Format(address string) string {
 // hex -> .eth
 func (v *Value) GetENS(peer *Peer) *Peer {
 	if peer.ENS == "." || (peer.ENS != "" && peer.ENS != "!") {
-		// Return immediately if ENS is already set or marked as checked
 		return peer
 	}
 	ensName, err := ens.ReverseResolve(v.Factory.Eth, common.HexToAddress(peer.Address))
 	if err != nil || ensName == "" {
-		peer.ENS = "." // Mark as checked with no ENS
+		peer.ENS = "."
 		return peer
 	}
 	peer.ENS = v.Format(ensName)
@@ -99,7 +116,6 @@ func (v *Value) GetAddress(peer *Peer) *Peer {
 // hex -> LoopringENS [.loopring.eth] or "."
 func (v *Value) GetLoopringENS(peer *Peer) *Peer {
 	if peer.LoopringENS == "." || (peer.LoopringENS != "" && peer.LoopringENS != "!") {
-		// Return immediately if LoopringENS is already set or marked as checked
 		return peer
 	}
 
@@ -108,9 +124,9 @@ func (v *Value) GetLoopringENS(peer *Peer) *Peer {
 		Loopring string `json:"data"`
 	}
 
-	data, err := v.Factory.Json.In(url, os.Getenv("LOOPRING_API_KEY"))
+	data, err := v.Factory.Json.In(url, "")
 	if err != nil || json.Unmarshal(data, &response) != nil || response.Loopring == "" {
-		peer.LoopringENS = "." // Mark as checked with no valid LoopringENS
+		peer.LoopringENS = "."
 		return peer
 	}
 
@@ -128,7 +144,7 @@ func (v *Value) GetLoopringID(peer *Peer) *Peer {
 		ID int64 `json:"accountId"`
 	}
 
-	data, err := v.Factory.Json.In(url, os.Getenv("LOOPRING_API_KEY"))
+	data, err := v.Factory.Json.In(url, "")
 	if err != nil || json.Unmarshal(data, &response) != nil || response.ID == 0 {
 		peer.LoopringID = "."
 		return peer
@@ -144,7 +160,7 @@ func (v *Value) GetLoopringAddress(peer *Peer) *Peer {
 	}
 	accountID, err := strconv.Atoi(peer.LoopringID)
 	if err != nil {
-		peer.Address = "." // Mark as checked with no valid Address
+		peer.Address = "."
 		return peer
 	}
 
@@ -153,9 +169,9 @@ func (v *Value) GetLoopringAddress(peer *Peer) *Peer {
 		Address string `json:"owner"`
 	}
 
-	data, err := v.Factory.Json.In(url, os.Getenv("LOOPRING_API_KEY"))
+	data, err := v.Factory.Json.In(url, "")
 	if err != nil || json.Unmarshal(data, &response) != nil || response.Address == "" {
-		peer.Address = "." // Mark as checked with no valid Address
+		peer.Address = "."
 		return peer
 	}
 	peer.Address = v.Format(response.Address)

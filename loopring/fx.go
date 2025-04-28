@@ -2,122 +2,141 @@ package loopring
 
 import (
 	"encoding/json"
-	"strconv"
+	"fmt"
+	"time"
+
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/redis/go-redis/v9"
 )
 
-func mapToStruct(data any, target any) {
-	bytes, _ := json.Marshal(data)
-	json.Unmarshal(bytes, target)
+func (l *Loopring) BlockByBlock(blockNumber int64) error {
+	input := l.FetchBlock(blockNumber)
+	transactions, block := l.Coordinates(input)
+	txs := l.ProcessBlock(transactions)
+	block.Ones = txs
+
+	if err := l.StoreBlock(blockNumber, block); err != nil {
+		return fmt.Errorf("failed to store block: %w", err)
+	}
+	return nil
 }
 
-func (l *Loopring) SwapToTx(transaction any) []Tx {
-	var s SpotTrade
-	mapToStruct(transaction, &s)
-	zero := Tx{
-		Zero:  strconv.FormatInt(s.Zero, 10),
-		One:   strconv.FormatInt(s.One, 10),
-		Value: s.ZeroValue,
-		Token: s.ZeroToken,
-		Fee:   s.ZeroFee,
-		Type:  "swap",
-		Index: s.Index,
+func (l *Loopring) CurrentBlock() int64 {
+	data, err := l.Factory.Json.In("https://api3.loopring.io/api/v3/block/getBlock", "")
+	if err != nil {
+		fmt.Printf("Failed to fetch block data: %v\n", err)
+		return 0
 	}
-
-	one := Tx{
-		Zero:  strconv.FormatInt(s.Zero, 10),
-		One:   strconv.FormatInt(s.One, 10),
-		Value: s.OneValue,
-		Token: s.OneToken,
-		Fee:   s.OneFee,
-		Type:  "swap",
-		Index: s.Index,
+	var block struct {
+		Number int64 `json:"blockId"`
 	}
-	return []Tx{zero, one}
+	err = json.Unmarshal(data, &block)
+	if err != nil {
+		fmt.Printf("Failed to parse block data: %v\n", err)
+		return 0
+	}
+	return block.Number
 }
 
-func (l *Loopring) TransferToTx(transaction any) Tx {
-	var t Transfer
-	mapToStruct(transaction, &t)
-
-	return Tx{
-		Zero:     strconv.FormatInt(t.ZeroId, 10),
-		One:      t.One,
-		Value:    t.Value,
-		Token:    t.Token,
-		Fee:      t.Fee,
-		FeeToken: t.FeeToken,
-		// Type:     "transfer",
-		Index: t.Index,
+func (l *Loopring) FetchBlock(number int64) *Raw {
+	url := fmt.Sprintf("https://api3.loopring.io/api/v3/block/getBlock?id=%d", number)
+	response, err := l.Factory.Json.In(url, "")
+	if err != nil {
+		log.Error("Failed to fetch block data: %v", err)
+		return nil
 	}
+	var input *Raw
+	if err := json.Unmarshal(response, &input); err != nil {
+		log.Error("Failed to parse block data: %v", err)
+		return nil
+	}
+	return input
 }
 
-func (l *Loopring) DepositToTx(transaction any) Tx {
-	var d Deposit
-	mapToStruct(transaction, &d)
-	return Tx{
-		Zero:  strconv.FormatInt(d.ZeroId, 10),
-		One:   d.One,
-		Value: d.Value,
-		Token: d.Token,
-		Type:  "deposit",
-		Index: d.Index,
+func (l *Loopring) Coordinates(loop *Raw) ([]any, *Block) {
+	for i := range loop.Transactions {
+		if tx, ok := loop.Transactions[i].(map[string]any); ok {
+			tx["index"] = i + 1
+		}
 	}
+	transactions := l.Factory.Json.Simplify(loop.Transactions, "")
+	depth := uint16(len(transactions))
+
+	t := time.UnixMilli(loop.Timestamp)
+	coordinate := Coordinate{
+		Year:        uint8(t.Year() - 2015),
+		Month:       uint8(t.Month()),
+		Day:         uint8(t.Day()),
+		Hour:        uint8(t.Hour()),
+		Minute:      uint8(t.Minute()),
+		Second:      uint8(t.Second()),
+		Millisecond: uint16(t.Nanosecond() / 1e6),
+		Index:       0,
+		Depth:       depth,
+	}
+
+	block := &Block{
+		Number: loop.Number,
+		Zero:   coordinate,
+		Ones:   make([]Tx, depth),
+	}
+	return transactions, block
 }
 
-func (l *Loopring) WithdrawToTx(transaction any) Tx {
-	var w Withdrawal
-	mapToStruct(transaction, &w)
-	return Tx{
-		Zero:     strconv.FormatInt(w.ZeroId, 10),
-		One:      w.One,
-		Value:    w.Value,
-		Token:    w.Token,
-		Fee:      w.Fee,
-		FeeToken: w.FeeToken,
-		Type:     "withdraw",
-		Index:    w.Index,
+func (l *Loopring) ProcessBlock(transactions []any) []Tx {
+	var txs []Tx
+
+	for _, tx := range transactions {
+		txMap, ok := tx.(map[string]any)
+		if !ok {
+			log.Error("Invalid transaction format: %v", tx)
+			continue
+		}
+
+		txType, ok := txMap["txType"].(string)
+		if !ok {
+			log.Error("Transaction missing txType field: %v", tx)
+			continue
+		}
+
+		switch txType {
+		case "Deposit":
+			txs = append(txs, l.DepositToTx(txMap))
+		case "Withdraw":
+			txs = append(txs, l.WithdrawToTx(txMap))
+		case "SpotTrade":
+			spotTxs := l.SwapToTx(txMap)
+			txs = append(txs, spotTxs...)
+		case "Transfer":
+			txs = append(txs, l.TransferToTx(txMap))
+		case "NftMint":
+			txs = append(txs, l.MintToTx(txMap))
+		case "AccountUpdate":
+			txs = append(txs, l.AccountUpdateToTx(txMap))
+		case "AmmUpdate":
+			txs = append(txs, l.AmmUpdateToTx(txMap))
+		case "NftData":
+			txs = append(txs, l.NftDataToTx(txMap))
+		default:
+			log.Warn("Unhandled type: %s", txType)
+			continue
+		}
 	}
+	return txs
 }
 
-func (l *Loopring) AccountUpdateToTx(transaction any) Tx {
-	var a AccountUpdate
-	mapToStruct(transaction, &a)
-	return Tx{
-		Zero:  strconv.FormatInt(a.ZeroId, 10),
-		Type:  "accountUpdate",
-		Index: a.Index,
+func (l *Loopring) StoreBlock(blockNumber int64, block any) error {
+	blockJSON, err := json.Marshal(block)
+	if err != nil {
+		return fmt.Errorf("failed to marshal block: %w", err)
 	}
-}
-
-func (l *Loopring) AmmUpdateToTx(transaction any) Tx {
-	var a AmmUpdate
-	mapToStruct(transaction, &a)
-	return Tx{
-		Zero:  strconv.FormatInt(a.ZeroId, 10),
-		Type:  "ammUpdate",
-		Index: a.Index,
+	score := float64(blockNumber)
+	err = l.Factory.Data.RB.ZAdd(l.Factory.Ctx, "blocks", redis.Z{
+		Score:  score,
+		Member: blockJSON,
+	}).Err()
+	if err != nil {
+		return fmt.Errorf("failed to store block in Redis: %w", err)
 	}
-}
-
-func (l *Loopring) MintToTx(transaction any) Tx {
-	var m Mint
-	mapToStruct(transaction, &m)
-	return Tx{
-		Zero:     m.Zero,
-		Value:    m.Quantity,
-		Token:    m.NftAddress,
-		Fee:      m.Fee,
-		FeeToken: m.FeeToken,
-		Type:     "mint",
-		Index:    m.Index,
-	}
-}
-func (l *Loopring) NftDataToTx(transaction any) Tx {
-	var n NftData
-	mapToStruct(transaction, &n)
-	return Tx{
-		Zero:  strconv.FormatInt(n.ZeroId, 10),
-		Type:  "nft",
-		Index: n.Index,
-	}
+	return nil
 }
