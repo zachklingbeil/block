@@ -7,7 +7,6 @@ import (
 
 func main() {
 	factory := factory.Assemble()
-	// circuit := circuit.NewCircuit(factory)
 	value.NewValue(factory)
 
 	// manual.NewLP(factory)

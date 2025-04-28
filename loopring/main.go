@@ -5,22 +5,16 @@ import (
 	"fmt"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/zachklingbeil/block/circuit"
 	"github.com/zachklingbeil/factory"
 )
 
 type Loopring struct {
-	Factory      *factory.Factory
-	Circuit      *circuit.Circuit
-	CurrentBlock int64
+	Factory *factory.Factory
 }
 
-func Connect(factory *factory.Factory, circuit *circuit.Circuit) *Loopring {
-	pb := factory.State.Get("processedBlocks")
+func Connect(factory *factory.Factory) *Loopring {
 	loop := &Loopring{
-		Factory:      factory,
-		Circuit:      circuit,
-		CurrentBlock: pb.(int64),
+		Factory: factory,
 	}
 	go loop.Listen()
 	return loop
@@ -28,7 +22,7 @@ func Connect(factory *factory.Factory, circuit *circuit.Circuit) *Loopring {
 
 func (l *Loopring) BlockByBlock(blockNumber int64) []byte {
 	input := l.FetchBlock(blockNumber)
-	transactions, block := l.Circuit.Coordinates(input)
+	transactions, block := l.Coordinates(input)
 	txs := l.ProcessBlock(transactions)
 	block.Ones = txs
 	blockJSON, _ := json.Marshal(block)
@@ -44,7 +38,6 @@ func (l *Loopring) StoreBlock(blockNumber int64, blockJSON []byte) error {
 	if err != nil {
 		return fmt.Errorf("failed to store block in Redis: %w", err)
 	}
-	l.Factory.State.Add("blockHeight", l.CurrentBlock)
 	return nil
 }
 

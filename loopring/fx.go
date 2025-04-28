@@ -3,105 +3,17 @@ package loopring
 import (
 	"encoding/json"
 	"strconv"
-
-	"github.com/zachklingbeil/block/circuit"
 )
-
-type Transfer struct {
-	ZeroId   int64  `json:"accountId"`
-	OneId    int64  `json:"toAccountId"`
-	One      string `json:"toAccountAddress"`
-	Value    string `json:"token.amount"`
-	Token    int64  `json:"token.tokenId"`
-	Fee      string `json:"fee.amount,omitempty"`
-	FeeToken int64  `json:"fee.tokenId,omitempty"`
-	Type     string `json:"txType,omitempty"`
-	Index    uint16 `json:"index"`
-}
-
-// Depost,  Withdraw (fee)
-type Deposit struct {
-	Zero   string `json:"fromAddress"`
-	ZeroId int64  `json:"accountId"`
-	One    string `json:"toAddress"`
-	Value  string `json:"token.amount"`
-	Token  int64  `json:"token.tokenId"`
-	Type   string `json:"txType,omitempty"`
-	Index  uint16 `json:"index"`
-}
-
-type Withdrawal struct {
-	Zero     string `json:"fromAddress"`
-	ZeroId   int64  `json:"accountId"`
-	One      string `json:"toAddress"`
-	Value    string `json:"token.amount"`
-	Token    int64  `json:"token.tokenId"`
-	Fee      string `json:"fee.amount,omitempty"`
-	FeeToken int64  `json:"fee.tokenId,omitempty"`
-	Type     string `json:"txType,omitempty"`
-	Index    uint16 `json:"index"`
-}
-
-type AccountUpdate struct {
-	ZeroId int64  `json:"accountId"`
-	Type   string `json:"txType,omitempty"`
-	Index  uint16 `json:"index"`
-}
-
-type AmmUpdate struct {
-	Zero   string `json:"owner"`
-	ZeroId int64  `json:"accountId"`
-	Nonce  int64  `json:"nonce"`
-	Type   string `json:"txType,omitempty"`
-	Index  uint16 `json:"index"`
-}
-
-type Mint struct {
-	ZeroId     int64  `json:"minterAccountId"`
-	Zero       string `json:"toAccountAddress"`
-	Nft        any    `json:"toToken.tokenId"`
-	NftId      string `json:"nftToken.nftId"`
-	NftData    string `json:"nftToken.nftData"`
-	NftAddress string `json:"nftToken.tokenAddress"`
-	Quantity   string `json:"nftToken.amount"`
-	Fee        string `json:"fee.amount,omitempty"`
-	FeeToken   int64  `json:"fee.tokenId,omitempty"`
-	Type       string `json:"txType,omitempty"`
-	Index      uint16 `json:"index"`
-}
-
-type NftData struct {
-	ZeroId     int64  `json:"accountId"`
-	One        string `json:"minter"`
-	NftId      string `json:"nftToken.nftId"`
-	NftData    string `json:"nftToken.nftData,omitempty"`
-	NftAddress string `json:"nftToken.tokenAddress"`
-	Type       string `json:"txType,omitempty"`
-	Index      uint16 `json:"index"`
-}
 
 func mapToStruct(data any, target any) {
 	bytes, _ := json.Marshal(data)
 	json.Unmarshal(bytes, target)
 }
 
-type SpotTrade struct {
-	Zero      int64  `json:"orderA.accountID"`
-	ZeroValue string `json:"orderA.filledS"`
-	ZeroToken int64  `json:"orderB.tokenB"`
-	One       int64  `json:"orderB.accountID"`
-	OneValue  string `json:"orderB.filledS"`
-	OneToken  int64  `json:"orderA.tokenB"`
-	ZeroFee   int64  `json:"orderA.feeBips"`
-	OneFee    int64  `json:"orderB.feeBips"`
-	Type      string `json:"txType,omitempty"`
-	Index     uint16 `json:"index"`
-}
-
-func (l *Loopring) SwapToTx(transaction any) []circuit.Tx {
+func (l *Loopring) SwapToTx(transaction any) []Tx {
 	var s SpotTrade
 	mapToStruct(transaction, &s)
-	zero := circuit.Tx{
+	zero := Tx{
 		Zero:  strconv.FormatInt(s.Zero, 10),
 		One:   strconv.FormatInt(s.One, 10),
 		Value: s.ZeroValue,
@@ -111,7 +23,7 @@ func (l *Loopring) SwapToTx(transaction any) []circuit.Tx {
 		Index: s.Index,
 	}
 
-	one := circuit.Tx{
+	one := Tx{
 		Zero:  strconv.FormatInt(s.Zero, 10),
 		One:   strconv.FormatInt(s.One, 10),
 		Value: s.OneValue,
@@ -120,14 +32,14 @@ func (l *Loopring) SwapToTx(transaction any) []circuit.Tx {
 		Type:  "swap",
 		Index: s.Index,
 	}
-	return []circuit.Tx{zero, one}
+	return []Tx{zero, one}
 }
 
-func (l *Loopring) TransferToTx(transaction any) circuit.Tx {
+func (l *Loopring) TransferToTx(transaction any) Tx {
 	var t Transfer
 	mapToStruct(transaction, &t)
 
-	return circuit.Tx{
+	return Tx{
 		Zero:     strconv.FormatInt(t.ZeroId, 10),
 		One:      t.One,
 		Value:    t.Value,
@@ -139,10 +51,10 @@ func (l *Loopring) TransferToTx(transaction any) circuit.Tx {
 	}
 }
 
-func (l *Loopring) DepositToTx(transaction any) circuit.Tx {
+func (l *Loopring) DepositToTx(transaction any) Tx {
 	var d Deposit
 	mapToStruct(transaction, &d)
-	return circuit.Tx{
+	return Tx{
 		Zero:  strconv.FormatInt(d.ZeroId, 10),
 		One:   d.One,
 		Value: d.Value,
@@ -152,10 +64,10 @@ func (l *Loopring) DepositToTx(transaction any) circuit.Tx {
 	}
 }
 
-func (l *Loopring) WithdrawToTx(transaction any) circuit.Tx {
+func (l *Loopring) WithdrawToTx(transaction any) Tx {
 	var w Withdrawal
 	mapToStruct(transaction, &w)
-	return circuit.Tx{
+	return Tx{
 		Zero:     strconv.FormatInt(w.ZeroId, 10),
 		One:      w.One,
 		Value:    w.Value,
@@ -167,30 +79,30 @@ func (l *Loopring) WithdrawToTx(transaction any) circuit.Tx {
 	}
 }
 
-func (l *Loopring) AccountUpdateToTx(transaction any) circuit.Tx {
+func (l *Loopring) AccountUpdateToTx(transaction any) Tx {
 	var a AccountUpdate
 	mapToStruct(transaction, &a)
-	return circuit.Tx{
+	return Tx{
 		Zero:  strconv.FormatInt(a.ZeroId, 10),
 		Type:  "accountUpdate",
 		Index: a.Index,
 	}
 }
 
-func (l *Loopring) AmmUpdateToTx(transaction any) circuit.Tx {
+func (l *Loopring) AmmUpdateToTx(transaction any) Tx {
 	var a AmmUpdate
 	mapToStruct(transaction, &a)
-	return circuit.Tx{
+	return Tx{
 		Zero:  strconv.FormatInt(a.ZeroId, 10),
 		Type:  "ammUpdate",
 		Index: a.Index,
 	}
 }
 
-func (l *Loopring) MintToTx(transaction any) circuit.Tx {
+func (l *Loopring) MintToTx(transaction any) Tx {
 	var m Mint
 	mapToStruct(transaction, &m)
-	return circuit.Tx{
+	return Tx{
 		Zero:     m.Zero,
 		Value:    m.Quantity,
 		Token:    m.NftAddress,
@@ -200,39 +112,12 @@ func (l *Loopring) MintToTx(transaction any) circuit.Tx {
 		Index:    m.Index,
 	}
 }
-func (l *Loopring) NftDataToTx(transaction any) circuit.Tx {
+func (l *Loopring) NftDataToTx(transaction any) Tx {
 	var n NftData
 	mapToStruct(transaction, &n)
-	return circuit.Tx{
+	return Tx{
 		Zero:  strconv.FormatInt(n.ZeroId, 10),
 		Type:  "nft",
 		Index: n.Index,
 	}
 }
-
-// func (l *Loopring) NftDataToTx(nftData NftData) circuit.Tx {
-// 	raw, err := json.Marshal(nftData)
-// 	if err != nil {
-// 		fmt.Printf("Error marshaling NftData to raw JSON: %v\n", err)
-// 	}
-
-// 	var rawMap map[string]any
-// 	if err := json.Unmarshal(raw, &rawMap); err != nil {
-// 		fmt.Printf("Error unmarshaling NftData to map: %v\n", err)
-// 	}
-
-// 	delete(rawMap, "accountId")
-// 	delete(rawMap, "txType")
-// 	delete(rawMap, "coordinates")
-
-// 	filteredRaw, err := json.Marshal(rawMap)
-// 	if err != nil {
-// 		fmt.Printf("Error marshaling filtered raw map to JSON: %v\n", err)
-// 	}
-// 	return circuit.Tx{
-// 		Zero:  nftData.ZeroId,
-// 		Type:  "nftData",
-// 		Raw:   filteredRaw,
-// 		Index: nftData.Index,
-// 	}
-// }

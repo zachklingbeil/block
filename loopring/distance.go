@@ -30,6 +30,6 @@ func (l *Loopring) currentBlock() int64 {
 		fmt.Printf("Failed to parse block data: %v\n", err)
 		return 0
 	}
-	l.CurrentBlock = block.Number
+
 	return block.Number
 }

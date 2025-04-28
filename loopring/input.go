@@ -3,19 +3,19 @@ package loopring
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/zachklingbeil/block/circuit"
 )
 
-func (l *Loopring) FetchBlock(number int64) *circuit.Raw {
+func (l *Loopring) FetchBlock(number int64) *Raw {
 	url := fmt.Sprintf("https://api3.loopring.io/api/v3/block/getBlock?id=%d", number)
 	response, err := l.Factory.Json.In(url, "")
 	if err != nil {
 		log.Error("Failed to fetch block data: %v", err)
 		return nil
 	}
-	var input *circuit.Raw
+	var input *Raw
 	if err := json.Unmarshal(response, &input); err != nil {
 		log.Error("Failed to parse block data: %v", err)
 		return nil
@@ -23,8 +23,38 @@ func (l *Loopring) FetchBlock(number int64) *circuit.Raw {
 	return input
 }
 
-func (l *Loopring) ProcessBlock(transactions []any) []circuit.Tx {
-	var txs []circuit.Tx
+func (l *Loopring) Coordinates(loop *Raw) ([]any, *Block) {
+	for i := range loop.Transactions {
+		if tx, ok := loop.Transactions[i].(map[string]any); ok {
+			tx["index"] = i + 1
+		}
+	}
+	transactions := l.Factory.Json.Simplify(loop.Transactions, "")
+	depth := uint16(len(transactions))
+
+	t := time.UnixMilli(loop.Timestamp)
+	coordinate := Coordinate{
+		Year:        uint8(t.Year() - 2015),
+		Month:       uint8(t.Month()),
+		Day:         uint8(t.Day()),
+		Hour:        uint8(t.Hour()),
+		Minute:      uint8(t.Minute()),
+		Second:      uint8(t.Second()),
+		Millisecond: uint16(t.Nanosecond() / 1e6),
+		Index:       0,
+		Depth:       depth,
+	}
+
+	block := &Block{
+		Number: loop.Number,
+		Zero:   coordinate,
+		Ones:   make([]Tx, depth),
+	}
+	return transactions, block
+}
+
+func (l *Loopring) ProcessBlock(transactions []any) []Tx {
+	var txs []Tx
 
 	for _, tx := range transactions {
 		txMap, ok := tx.(map[string]any)

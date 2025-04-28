@@ -11,6 +11,13 @@ import (
 	"github.com/wealdtech/go-ens/v3"
 )
 
+type Peer struct {
+	ENS         string `json:"ens"`
+	LoopringENS string `json:"loopringEns"`
+	LoopringID  string `json:"loopringId"`
+	Address     string `json:"address"`
+}
+
 const (
 	byAddress = "https://api3.loopring.io/api/v3/account?owner=%s"
 	byId      = "https://api3.loopring.io/api/v3/account?accountId=%d"

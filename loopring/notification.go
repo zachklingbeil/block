@@ -50,8 +50,7 @@ func (l *Loopring) Listen() {
 				continue
 			}
 			for _, block := range resp.Data {
-				l.CurrentBlock = block.Number
-				fmt.Printf("%d\n", l.CurrentBlock)
+				fmt.Printf("%d\n", block.Number)
 				l.BlockByBlock(block.Number)
 			}
 		}
