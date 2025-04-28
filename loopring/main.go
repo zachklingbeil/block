@@ -4,89 +4,72 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/ethereum/go-ethereum/log"
+	"github.com/redis/go-redis/v9"
 	"github.com/zachklingbeil/block/circuit"
 	"github.com/zachklingbeil/factory"
 )
 
 type Loopring struct {
-	Factory *factory.Factory
-	Circuit *circuit.Circuit
+	Factory      *factory.Factory
+	Circuit      *circuit.Circuit
+	CurrentBlock int64
 }
 
 func Connect(factory *factory.Factory, circuit *circuit.Circuit) *Loopring {
+	pb := factory.State.Get("processedBlocks")
 	loop := &Loopring{
-		Factory: factory,
-		Circuit: circuit,
+		Factory:      factory,
+		Circuit:      circuit,
+		CurrentBlock: pb.(int64),
 	}
 	go loop.Listen()
 	return loop
 }
 
-func (l *Loopring) BlockByBlock(blockNumber int64) {
+func (l *Loopring) BlockByBlock(blockNumber int64) []byte {
 	input := l.FetchBlock(blockNumber)
 	transactions, block := l.Circuit.Coordinates(input)
 	txs := l.ProcessBlock(transactions)
 	block.Ones = txs
 	blockJSON, _ := json.Marshal(block)
-	l.Factory.Data.RB.SAdd(l.Factory.Ctx, "blocks", blockJSON).Err()
-	fmt.Printf("%d\n", blockNumber)
+	return blockJSON
+}
+
+func (l *Loopring) StoreBlock(blockNumber int64, blockJSON []byte) error {
+	score := float64(blockNumber)
+	err := l.Factory.Data.RB.ZAdd(l.Factory.Ctx, "blocks", redis.Z{
+		Score:  score,
+		Member: blockJSON,
+	}).Err()
+	if err != nil {
+		return fmt.Errorf("failed to store block in Redis: %w", err)
+	}
+	l.Factory.State.Add("blockHeight", l.CurrentBlock)
+	return nil
+}
+
+// getHistory retrieves the lowest block number from the Redis set
+func (l *Loopring) getHistory() (int64, error) {
+	result, err := l.Factory.Data.RB.ZRevRangeWithScores(l.Factory.Ctx, "blocks", 0, 0).Result()
+	if err != nil {
+		return 0, fmt.Errorf("failed to retrieve blocks from Redis: %w", err)
+	}
+
+	if len(result) == 0 {
+		return 0, nil
+	}
+
+	highestBlock := int64(result[0].Score)
+	l.Factory.State.Add("processedBlocks", highestBlock)
+	return highestBlock, nil
 }
 
 func (l *Loopring) Loop() {
 	past, distance := l.Distance()
 	for blockNumber := past + distance; blockNumber > past; blockNumber-- {
-		l.BlockByBlock(blockNumber)
-	}
-}
-
-func (l *Loopring) Distance() (int64, int64) {
-	current := l.currentBlock()
-	past, _ := l.getHistory()
-
-	distance := current - past
-	if distance > 0 {
-		return past, distance
-	}
-	return past, 0
-}
-
-func (l *Loopring) currentBlock() int64 {
-	data, err := l.Factory.Json.In("https://api3.loopring.io/api/v3/block/getBlock", "")
-	if err != nil {
-		fmt.Printf("Failed to fetch block data: %v\n", err)
-		return 0
-	}
-	var block struct {
-		Number int64 `json:"blockId"`
-	}
-	err = json.Unmarshal(data, &block)
-	if err != nil {
-		fmt.Printf("Failed to parse block data: %v\n", err)
-		return 0
-	}
-	return block.Number
-}
-
-// getHistory retrieves the lowest block number from the Redis set
-func (l *Loopring) getHistory() (int64, error) {
-	blockJSONs, err := l.Factory.Data.RB.SMembers(l.Factory.Ctx, "blocks").Result()
-	if err != nil {
-		return 0, fmt.Errorf("failed to retrieve blocks from Redis: %w", err)
-	}
-	past := int64(^uint64(0) >> 1)
-	for _, blockJSON := range blockJSONs {
-		var block circuit.Block
-		if err := json.Unmarshal([]byte(blockJSON), &block); err != nil {
-			log.Error("Failed to deserialize block JSON: %v", err)
-			continue
-		}
-		if block.Number < past {
-			past = block.Number
+		blockJSON := l.BlockByBlock(blockNumber)
+		if err := l.StoreBlock(blockNumber, blockJSON); err != nil {
+			fmt.Printf("Error storing block %d: %v\n", blockNumber, err)
 		}
 	}
-	if past == int64(^uint64(0)>>1) {
-		return 0, nil
-	}
-	return past, nil
 }

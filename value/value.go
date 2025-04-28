@@ -12,7 +12,6 @@ type Value struct {
 	Peers   []Peer
 	Tokens  []Token
 	Map     map[string]*Peer
-	State   map[string]any
 }
 
 type Peer struct {
@@ -35,21 +34,19 @@ func NewValue(factory *factory.Factory) *Value {
 		Factory: factory,
 		Map:     make(map[string]*Peer),
 		Peers:   make([]Peer, 0),
-		Tokens:  make([]Token, 0),
 	}
-	if err := v.LoadAndInsertPeers(); err != nil {
-		log.Fatalf("Failed to load peers from Redis: %v", err)
-	}
+	v.LoadPeers()
+	v.LoadTokens()
 	return v
 }
 
-func NewTokens(factory *factory.Factory) []Token {
-	var tokens []Token
-	source, err := factory.Data.RB.SMembers(factory.Ctx, "token").Result()
+func (v *Value) LoadTokens() error {
+	source, err := v.Factory.Data.RB.SMembers(v.Factory.Ctx, "token").Result()
 	if err != nil {
 		log.Fatalf("Failed to fetch tokens from Redis: %v", err)
 	}
 
+	tokens := make([]Token, 0, len(source))
 	for _, tokenJSON := range source {
 		var token Token
 		if err := json.Unmarshal([]byte(tokenJSON), &token); err != nil {
@@ -58,5 +55,25 @@ func NewTokens(factory *factory.Factory) []Token {
 		}
 		tokens = append(tokens, token)
 	}
-	return tokens
+	v.Tokens = tokens
+	v.Factory.State.Add("tokens", len(v.Tokens))
+	return nil
+}
+
+func (v *Value) LoadPeers() error {
+	source, err := v.Factory.Data.RB.SMembers(v.Factory.Ctx, "peers").Result()
+	if err != nil {
+		return err
+	}
+
+	for _, peerJSON := range source {
+		var peer Peer
+		if err := json.Unmarshal([]byte(peerJSON), &peer); err != nil {
+			log.Printf("Skipping invalid peer: %v", err)
+			continue
+		}
+		v.Peers = append(v.Peers, peer)
+	}
+	v.Factory.State.Add("peers", len(v.Peers))
+	return nil
 }

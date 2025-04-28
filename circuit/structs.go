@@ -39,8 +39,8 @@ type Tx struct {
 	Token    any             `json:"token,omitempty"`
 	Fee      any             `json:"fee,omitempty"`
 	FeeToken any             `json:"feeToken,omitempty"`
-	Type     string          `json:"type,omitempty"`
-	Index    uint16          `json:"index"`
+	Type     any             `json:"type,omitempty"`
+	Index    any             `json:"index"`
 	Raw      json.RawMessage `json:"raw,omitempty"`
 }
 

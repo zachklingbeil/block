@@ -3,170 +3,19 @@ package value
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/redis/go-redis/v9"
 	"github.com/wealdtech/go-ens/v3"
 )
 
-func (v *Value) LoadAndInsertPeers() error {
-	// Load the sorted set "merged_peers" into a slice
-	zRange, err := v.Factory.Data.RB.ZRange(v.Factory.Ctx, "merged_peers", 0, -1).Result()
-	if err != nil {
-		return fmt.Errorf("failed to load sorted set 'merged_peers': %w", err)
-	}
-
-	// Parse the sorted set into a slice of Peer
-	var peers []Peer
-	for _, peerJSON := range zRange {
-		var peer Peer
-		if err := json.Unmarshal([]byte(peerJSON), &peer); err != nil {
-			log.Printf("Skipping invalid peer in 'merged_peers': %v", err)
-			continue
-		}
-		peers = append(peers, peer)
-	}
-
-	// Insert the peers into the non-sorted set "peers"
-	for _, peer := range peers {
-		peerJSON, err := json.Marshal(peer)
-		if err != nil {
-			log.Printf("Failed to marshal peer: %v", err)
-			continue
-		}
-
-		if err := v.Factory.Data.RB.SAdd(v.Factory.Ctx, "peers", peerJSON).Err(); err != nil {
-			log.Printf("Failed to add peer to 'peers': %v", err)
-		}
-	}
-
-	return nil
-}
-
-func (v *Value) LoadPeers() error {
-	source, err := v.Factory.Data.RB.SMembers(v.Factory.Ctx, "merged_peers").Result()
-	if err != nil {
-		return err
-	}
-
-	for _, peerJSON := range source {
-		var peer Peer
-		if err := json.Unmarshal([]byte(peerJSON), &peer); err != nil {
-			log.Printf("Skipping invalid peer: %v", err)
-			continue
-		}
-		v.Peers = append(v.Peers, peer)
-	}
-	return nil
-}
-
-func (v *Value) MergePeers() error {
-	// Load peers from both sets
-	peers := make(map[string]Peer)
-
-	// Helper function to load peers from a Redis set
-	loadPeersFromSet := func(setName string, prioritize bool) error {
-		source, err := v.Factory.Data.RB.SMembers(v.Factory.Ctx, setName).Result()
-		if err != nil {
-			return fmt.Errorf("failed to load peers from set %s: %w", setName, err)
-		}
-
-		for _, peerJSON := range source {
-			var peer Peer
-			if err := json.Unmarshal([]byte(peerJSON), &peer); err != nil {
-				log.Printf("Skipping invalid peer in set %s: %v", setName, err)
-				continue
-			}
-
-			// Use Address as the unique key
-			key := strings.ToLower(peer.Address)
-			existingPeer, exists := peers[key]
-
-			if !exists || prioritize {
-				// If the peer doesn't exist or this set has priority, replace it
-				peers[key] = peer
-			} else {
-				// Merge fields from the current peer into the existing peer
-				if existingPeer.LoopringENS == "." && peer.LoopringENS != "." {
-					existingPeer.LoopringENS = peer.LoopringENS
-				}
-				if existingPeer.LoopringID == "." && peer.LoopringID != "." {
-					existingPeer.LoopringID = peer.LoopringID
-				}
-				if existingPeer.ENS == "." && peer.ENS != "." {
-					existingPeer.ENS = peer.ENS
-				}
-				peers[key] = existingPeer
-			}
-		}
-		return nil
-	}
-
-	// Load peers from both sets, prioritizing the "peer" set
-	if err := loadPeersFromSet("peer", true); err != nil {
-		return err
-	}
-	if err := loadPeersFromSet("peers", false); err != nil {
-		return err
-	}
-
-	// Convert map to slice for sorting
-	peerList := make([]Peer, 0, len(peers))
-	for _, peer := range peers {
-		peerList = append(peerList, peer)
-	}
-
-	// Sort peers by LoopringID (ascending)
-	sort.Slice(peerList, func(i, j int) bool {
-		id1, _ := strconv.Atoi(peerList[i].LoopringID)
-		id2, _ := strconv.Atoi(peerList[j].LoopringID)
-		return id1 < id2
-	})
-
-	// Add sorted peers to a new Redis sorted set
-	for _, peer := range peerList {
-		// Reset LoopringID to empty if it is "."
-		if peer.LoopringID == "." {
-			peer.LoopringID = ""
-		}
-
-		peerJSON, err := json.Marshal(peer)
-		if err != nil {
-			log.Printf("Failed to marshal peer: %v", err)
-			continue
-		}
-
-		// Determine score logic
-		var score float64
-		if peer.LoopringID != "" {
-			parsedScore, err := strconv.Atoi(peer.LoopringID)
-			if err != nil {
-				log.Printf("Invalid LoopringID for peer %s: %v", peer.Address, err)
-				continue
-			}
-			score = float64(parsedScore)
-		} else {
-			// Assign a default score (e.g., 0) for peers with no valid LoopringID
-			score = 0
-		}
-
-		member := &redis.Z{
-			Score:  score,
-			Member: peerJSON,
-		}
-
-		if err := v.Factory.Data.RB.ZAdd(v.Factory.Ctx, "merged_peers", *member).Err(); err != nil {
-			log.Printf("Failed to add peer to merged_peers: %v", err)
-		}
-	}
-
-	return nil
-}
+const (
+	byAddress = "https://api3.loopring.io/api/v3/account?owner=%s"
+	byId      = "https://api3.loopring.io/api/v3/account?accountId=%d"
+	dotLoop   = "https://api3.loopring.io/api/wallet/v3/resolveName?owner=%s"
+)
 
 func (v *Value) HelloUniverse(address string) {
 	peer := v.GetPeer(address)
@@ -205,12 +54,6 @@ func (v *Value) CreatePeer(value string) *Peer {
 	v.Peers = append(v.Peers, *new)
 	return new
 }
-
-const (
-	byAddress = "https://api3.loopring.io/api/v3/account?owner=%s"
-	byId      = "https://api3.loopring.io/api/v3/account?accountId=%d"
-	dotLoop   = "https://api3.loopring.io/api/wallet/v3/resolveName?owner=%s"
-)
 
 func (v *Value) Format(address string) string {
 	address = strings.ToLower(address)
