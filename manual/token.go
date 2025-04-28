@@ -36,6 +36,6 @@ func NewTokens(factory *factory.Factory) {
 			log.Printf("Failed to add token to Redis: %v", err)
 		}
 	}
-	factory.State.Add("tokens", len(tokensData))
+	// factory.State.Add("tokens", len(tokensData))
 	fmt.Printf("%d tokens\n", len(tokensData))
 }

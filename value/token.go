@@ -19,16 +19,14 @@ func (v *Value) LoadTokens() error {
 		log.Fatalf("Failed to fetch tokens from Redis: %v", err)
 	}
 
-	tokens := make([]Token, 0, len(source))
+	v.Tokens = make([]Token, 0, len(source))
 	for _, tokenJSON := range source {
 		var token Token
 		if err := json.Unmarshal([]byte(tokenJSON), &token); err != nil {
 			log.Printf("Skipping invalid token: %v (data: %s)", err, tokenJSON)
 			continue
 		}
-		tokens = append(tokens, token)
+		v.Tokens = append(v.Tokens, token)
 	}
-	v.Tokens = tokens
-	v.Factory.State.Add("tokens", len(v.Tokens))
 	return nil
 }

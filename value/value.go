@@ -19,5 +19,7 @@ func NewValue(factory *factory.Factory) *Value {
 	}
 	v.LoadPeers()
 	v.LoadTokens()
+	v.Factory.State.AddToPackage("value", "peers", len(v.Peers))
+	v.Factory.State.AddToPackage("value", "tokens", len(v.Tokens))
 	return v
 }

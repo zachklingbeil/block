@@ -13,7 +13,7 @@ import (
 
 const (
 	byAddress = "https://api3.loopring.io/api/v3/account?owner=%s"
-	byId      = "https://api3.loopring.io/api/v3/account?accountId=%d"
+	byId      = "https://api3.loopring.io/api/v3/account?accountId=%s"
 	dotLoop   = "https://api3.loopring.io/api/wallet/v3/resolveName?owner=%s"
 )
 
@@ -27,9 +27,10 @@ type Peer struct {
 func (v *Value) LoadPeers() error {
 	source, err := v.Factory.Data.RB.SMembers(v.Factory.Ctx, "peers").Result()
 	if err != nil {
-		return err
+		log.Fatalf("Failed to fetch peers from Redis: %v", err)
 	}
 
+	v.Peers = make([]Peer, 0, len(source))
 	for _, peerJSON := range source {
 		var peer Peer
 		if err := json.Unmarshal([]byte(peerJSON), &peer); err != nil {
@@ -38,7 +39,6 @@ func (v *Value) LoadPeers() error {
 		}
 		v.Peers = append(v.Peers, peer)
 	}
-	v.Factory.State.Add("peers", len(v.Peers))
 	return nil
 }
 
@@ -90,62 +90,84 @@ func (v *Value) Format(address string) string {
 
 // hex -> .eth
 func (v *Value) GetENS(peer *Peer) *Peer {
-	if peer.ENS == "." || (peer.ENS != "" && peer.ENS != "!") {
+	if isValidField(peer.ENS) {
 		return peer
 	}
+
 	ensName, err := ens.ReverseResolve(v.Factory.Eth, common.HexToAddress(peer.Address))
 	if err != nil || ensName == "" {
 		peer.ENS = "."
 		return peer
 	}
+
 	peer.ENS = v.Format(ensName)
 	return peer
 }
 
 // ENS -> hex
 func (v *Value) GetAddress(peer *Peer) *Peer {
-	address, err := ens.Resolve(v.Factory.Eth, peer.ENS)
-	if err != nil {
-		peer.Address = peer.ENS
+	if isValidField(peer.Address) {
 		return peer
 	}
+
+	address, err := ens.Resolve(v.Factory.Eth, peer.ENS)
+	if err != nil {
+		peer.Address = "."
+		return peer
+	}
+
 	peer.Address = v.Format(address.Hex())
 	return peer
 }
 
+// Helper function to check if a field is valid
+func isValidField(field string) bool {
+	return field != "" && field != "." && field != "!"
+}
+
+func (v *Value) input(url string, response any) error {
+	data, err := v.Factory.Json.In(url, "")
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, response)
+}
+
 // hex -> LoopringENS [.loopring.eth] or "."
 func (v *Value) GetLoopringENS(peer *Peer) *Peer {
-	if peer.LoopringENS == "." || (peer.LoopringENS != "" && peer.LoopringENS != "!") {
+	if isValidField(peer.LoopringENS) {
 		return peer
 	}
-
 	url := fmt.Sprintf(dotLoop, peer.Address)
 	var response struct {
 		Loopring string `json:"data"`
 	}
-
-	data, err := v.Factory.Json.In(url, "")
-	if err != nil || json.Unmarshal(data, &response) != nil || response.Loopring == "" {
+	if err := v.input(url, &response); err != nil {
+		peer.LoopringENS = "!"
+		return peer
+	}
+	if response.Loopring == "" {
 		peer.LoopringENS = "."
 		return peer
 	}
-
 	peer.LoopringENS = v.Format(response.Loopring)
 	return peer
 }
 
-// hex -> LoopringId or -1
+// hex -> LoopringId or "."
 func (v *Value) GetLoopringID(peer *Peer) *Peer {
-	if peer.LoopringID == "." || (peer.LoopringID != "" && peer.LoopringID != "!") {
+	if isValidField(peer.LoopringID) {
 		return peer
 	}
 	url := fmt.Sprintf(byAddress, peer.Address)
 	var response struct {
 		ID int64 `json:"accountId"`
 	}
-
-	data, err := v.Factory.Json.In(url, "")
-	if err != nil || json.Unmarshal(data, &response) != nil || response.ID == 0 {
+	if err := v.input(url, &response); err != nil {
+		peer.LoopringID = "!"
+		return peer
+	}
+	if response.ID == 0 {
 		peer.LoopringID = "."
 		return peer
 	}
@@ -155,22 +177,18 @@ func (v *Value) GetLoopringID(peer *Peer) *Peer {
 
 // LoopringId -> hex
 func (v *Value) GetLoopringAddress(peer *Peer) *Peer {
-	if peer.Address == "." || (peer.Address != "" && peer.Address != "!") {
+	if isValidField(peer.Address) {
 		return peer
 	}
-	accountID, err := strconv.Atoi(peer.LoopringID)
-	if err != nil {
-		peer.Address = "."
-		return peer
-	}
-
-	url := fmt.Sprintf(byId, accountID)
+	url := fmt.Sprintf(byId, peer.LoopringID)
 	var response struct {
 		Address string `json:"owner"`
 	}
-
-	data, err := v.Factory.Json.In(url, "")
-	if err != nil || json.Unmarshal(data, &response) != nil || response.Address == "" {
+	if err := v.input(url, &response); err != nil {
+		peer.Address = "!"
+		return peer
+	}
+	if response.Address == "" {
 		peer.Address = "."
 		return peer
 	}
