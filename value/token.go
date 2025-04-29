@@ -44,12 +44,15 @@ func (v *Value) TokenIdToString(tokenInt int64) string {
 }
 
 func (v *Value) GetTokenById(tokenInt int64) *Token {
+	if tokenInt > 1000 {
+		return nil
+	}
 	v.Factory.Rw.RLock()
 	defer v.Factory.Rw.RUnlock()
 
 	token, exists := v.TokenMap[tokenInt]
 	if !exists {
-		log.Printf("Token not found for ID: %d", tokenInt) // Log the missing tokenInt
+		log.Printf("Token not found for ID: %d", tokenInt)
 		return nil
 	}
 	return token
