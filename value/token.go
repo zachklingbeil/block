@@ -27,6 +27,30 @@ func (v *Value) LoadTokens() error {
 			continue
 		}
 		v.Tokens = append(v.Tokens, token)
+		v.TokenMap[token.TokenInt] = &token
 	}
 	return nil
+}
+
+func (v *Value) TokenIdToString(tokenInt int64) string {
+	v.Factory.Rw.RLock()
+	defer v.Factory.Rw.RUnlock()
+
+	token, exists := v.TokenMap[tokenInt]
+	if exists {
+		return token.TokenId
+	}
+	return "!"
+}
+
+func (v *Value) GetTokenById(tokenInt int64) *Token {
+	v.Factory.Rw.RLock()
+	defer v.Factory.Rw.RUnlock()
+
+	token, exists := v.TokenMap[tokenInt]
+	if !exists {
+		log.Printf("Token not found for ID: %d", tokenInt) // Log the missing tokenInt
+		return nil
+	}
+	return token
 }

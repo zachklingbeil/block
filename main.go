@@ -1,23 +1,19 @@
 package main
 
 import (
+	"github.com/zachklingbeil/block/loopring"
 	"github.com/zachklingbeil/block/value"
 	"github.com/zachklingbeil/factory"
 )
 
 func main() {
 	factory := factory.Assemble()
-	value.NewValue(factory)
+	v := value.NewValue(factory)
+	loopring.Connect(factory, v)
 
-	// manual.NewLP(factory)
-	// manual.NewTokens(factory)
-	// circuit.Continue()
+	// loop.BlockByBlock(55555)
 	select {}
 }
-
-// loop := loopring.Connect(factory, circuit)
-// loop.Loop()
-// loop.BlockByBlock(55555)
 
 // factory.Json.Print(circuit.Get("zachklingbeil.eth"))
 // factory.Json.Print(circuit.Get("35773"))

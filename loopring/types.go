@@ -1,7 +1,5 @@
 package loopring
 
-import "encoding/json"
-
 type Raw struct {
 	Number       int64 `json:"blockId"`
 	Timestamp    int64 `json:"createdAt"`
@@ -28,15 +26,15 @@ type Coordinate struct {
 }
 
 type Tx struct {
-	Zero     any             `json:"zero,omitempty"`
-	One      any             `json:"one,omitempty"`
-	Value    any             `json:"value,omitempty"`
-	Token    any             `json:"token,omitempty"`
-	Fee      any             `json:"fee,omitempty"`
-	FeeToken any             `json:"feeToken,omitempty"`
-	Type     any             `json:"type,omitempty"`
-	Index    any             `json:"index"`
-	Raw      json.RawMessage `json:"raw,omitempty"`
+	Zero     any `json:"zero,omitempty"`
+	One      any `json:"one,omitempty"`
+	Value    any `json:"value,omitempty"`
+	Token    any `json:"token,omitempty"`
+	Fee      any `json:"fee,omitempty"`
+	FeeToken any `json:"feeToken,omitempty"`
+	Type     any `json:"type,omitempty"`
+	Index    any `json:"index"`
+	// Raw      json.RawMessage `json:"raw,omitempty"`
 }
 
 type Transfer struct {
@@ -55,17 +53,17 @@ type Transfer struct {
 type Deposit struct {
 	Zero   string `json:"fromAddress"`
 	ZeroId int64  `json:"accountId"`
-	One    string `json:"toAddress"`
-	Value  string `json:"token.amount"`
-	Token  int64  `json:"token.tokenId"`
-	Type   string `json:"txType,omitempty"`
-	Index  uint16 `json:"index"`
+	// One    string `json:"toAddress,omitempty"`
+	Value string `json:"token.amount"`
+	Token int64  `json:"token.tokenId"`
+	Type  string `json:"txType,omitempty"`
+	Index uint16 `json:"index"`
 }
 
 type Withdrawal struct {
-	Zero     string `json:"fromAddress"`
-	ZeroId   int64  `json:"accountId"`
-	One      string `json:"toAddress"`
+	Zero   string `json:"fromAddress"`
+	ZeroId int64  `json:"accountId"`
+	// One      string `json:"toAddress,omitempty"`
 	Value    string `json:"token.amount"`
 	Token    int64  `json:"token.tokenId"`
 	Fee      string `json:"fee.amount,omitempty"`
@@ -113,14 +111,14 @@ type NftData struct {
 }
 
 type SpotTrade struct {
-	Zero      int64  `json:"orderA.accountID"`
-	ZeroValue string `json:"orderA.filledS"`
-	ZeroToken int64  `json:"orderB.tokenB"`
-	One       int64  `json:"orderB.accountID"`
-	OneValue  string `json:"orderB.filledS"`
-	OneToken  int64  `json:"orderA.tokenB"`
-	ZeroFee   int64  `json:"orderA.feeBips"`
-	OneFee    int64  `json:"orderB.feeBips"`
+	Zero      int64  `json:"orderA.accountID,omitempty"`
+	ZeroValue string `json:"orderA.filledS,omitempty"`
+	ZeroToken int64  `json:"orderB.tokenB,omitempty"`
+	One       int64  `json:"orderB.accountID,omitempty"`
+	OneValue  string `json:"orderB.filledS,omitempty"`
+	OneToken  int64  `json:"orderA.tokenB,omitempty"`
+	ZeroFee   int64  `json:"orderA.feeBips,omitempty"`
+	OneFee    int64  `json:"orderB.feeBips,omitempty"`
 	Type      string `json:"txType,omitempty"`
 	Index     uint16 `json:"index"`
 }

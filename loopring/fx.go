@@ -9,6 +9,29 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+func (l *Loopring) Loop() error {
+	highestBlock, _ := l.Factory.State.GetValue("loopring", "highestBlock")
+	startBlock := int64(1)
+
+	if highestBlock != nil {
+		if hb, ok := highestBlock.(float64); ok {
+			startBlock = int64(hb) + 1
+		} else {
+			log.Error("Invalid type for highestBlock: %T", highestBlock)
+			return fmt.Errorf("invalid type for highestBlock")
+		}
+	}
+
+	l.Factory.Math.Up(startBlock, func(blockNumber int64) {
+		if err := l.BlockByBlock(blockNumber); err != nil {
+			log.Error("Failed to process block %d: %v", blockNumber, err)
+			return
+		}
+		l.Factory.State.Add("loopring", "highestBlock", blockNumber)
+	})
+	return nil
+}
+
 func (l *Loopring) BlockByBlock(blockNumber int64) error {
 	input := l.FetchBlock(blockNumber)
 	transactions, block := l.Coordinates(input)
@@ -19,23 +42,6 @@ func (l *Loopring) BlockByBlock(blockNumber int64) error {
 		return fmt.Errorf("failed to store block: %w", err)
 	}
 	return nil
-}
-
-func (l *Loopring) CurrentBlock() int64 {
-	data, err := l.Factory.Json.In("https://api3.loopring.io/api/v3/block/getBlock", "")
-	if err != nil {
-		fmt.Printf("Failed to fetch block data: %v\n", err)
-		return 0
-	}
-	var block struct {
-		Number int64 `json:"blockId"`
-	}
-	err = json.Unmarshal(data, &block)
-	if err != nil {
-		fmt.Printf("Failed to parse block data: %v\n", err)
-		return 0
-	}
-	return block.Number
 }
 
 func (l *Loopring) FetchBlock(number int64) *Raw {

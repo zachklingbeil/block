@@ -7,7 +7,29 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+func (l *Loopring) CurrentBlock() int64 {
+	data, err := l.Factory.Json.In("https://api3.loopring.io/api/v3/block/getBlock", "")
+	if err != nil {
+		fmt.Printf("Failed to fetch block data: %v\n", err)
+		return 0
+	}
+	var block struct {
+		Number int64 `json:"blockId"`
+	}
+	err = json.Unmarshal(data, &block)
+	if err != nil {
+		fmt.Printf("Failed to parse block data: %v\n", err)
+		return 0
+	}
+	return block.Number
+}
+
 func (l *Loopring) Listen() {
+	currentBlock := l.CurrentBlock()
+	if currentBlock > 0 {
+		l.Factory.State.Add("loopring", "blockHeight", currentBlock)
+	}
+
 	for {
 		key := l.fetchWsApiKey()
 		if key == "" {
@@ -50,8 +72,9 @@ func (l *Loopring) Listen() {
 				continue
 			}
 			for _, block := range resp.Data {
-				fmt.Printf("%d\n", block.Number)
-				l.BlockByBlock(block.Number)
+				fmt.Printf("block %d\n", block.Number)
+				l.Factory.State.Add("loopring", "blockHeight", block.Number)
+				// l.BlockByBlock(block.Number)
 			}
 		}
 	}
