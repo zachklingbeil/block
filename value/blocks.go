@@ -3,6 +3,7 @@ package value
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -37,6 +38,30 @@ type Tx struct {
 	// Raw      json.RawMessage `json:"raw,omitempty"`
 }
 
+// ProcessBlocks orchestrates the loading, processing, and saving of blocks.
+func (v *Value) ProcessBlocks() error {
+	// Step 1: Load block
+	if err := v.LoadBlocks(); err != nil {
+		return fmt.Errorf("failed to load blocks: %w", err)
+	}
+	// // Step 2: Handle new peers
+	// if err := v.HandleNewPeers(); err != nil {
+	// 	return fmt.Errorf("failed to handle new peers: %w", err)
+	// }
+
+	// Step 3: Format transaction values
+	if err := v.FormatTxValues(); err != nil {
+		return fmt.Errorf("failed to format transaction values: %w", err)
+	}
+	log.Println("Formatted transaction values")
+	// Step 4: Save blocks
+	if err := v.SaveBlocks(); err != nil {
+		return fmt.Errorf("failed to save blocks: %w", err)
+	}
+
+	return nil
+}
+
 func (v *Value) LoadBlocks() error {
 	source, err := v.Factory.Data.RB.ZRange(v.Factory.Ctx, "blocks", 0, -1).Result()
 	if err != nil {
@@ -55,10 +80,6 @@ func (v *Value) LoadBlocks() error {
 }
 
 func (v *Value) SaveBlocks() error {
-	if v.Blocks == nil {
-		return fmt.Errorf("no blocks to save")
-	}
-
 	zAddArgs := make([]redis.Z, 0, len(v.Blocks))
 	for _, block := range v.Blocks {
 		blockJSON, err := json.Marshal(block)
@@ -87,26 +108,88 @@ func (v *Value) UpdateBlockOnes(updateFunc func(*Tx)) error {
 	return nil
 }
 
-func (v *Value) HandleNewPeers() error {
-	uniqueValues := make(map[string]struct{})
-	for _, block := range v.Blocks {
-		for _, tx := range block.Ones {
-			if zeroStr, ok := tx.Zero.(string); ok {
-				uniqueValues[zeroStr] = struct{}{}
-			}
-
-			if oneStr, ok := tx.One.(string); ok {
-				uniqueValues[oneStr] = struct{}{}
+// ProcessTxs iterates through all transactions in the blocks and applies a processing function to each Tx.
+func (v *Value) ProcessTxs(processFunc func(*Tx) error) error {
+	for i := range v.Blocks {
+		block := &v.Blocks[i]
+		for j := range block.Ones {
+			tx := &block.Ones[j]
+			if err := processFunc(tx); err != nil {
+				return fmt.Errorf("failed to process transaction in block %d: %w", block.Number, err)
 			}
 		}
 	}
-	values := make([]any, 0, len(uniqueValues))
-	for value := range uniqueValues {
-		values = append(values, value)
-	}
-	_, err := v.Factory.Data.RB.SAdd(v.Factory.Ctx, "newPeers", values...).Result()
-	if err != nil {
-		return fmt.Errorf("failed to store unique values in Redis: %w", err)
-	}
 	return nil
+}
+
+func (v *Value) FormatTxValues() error {
+	skippedCount := 0 // Counter for skipped transactions
+	v.ProcessTxs(func(tx *Tx) error {
+		if valueStr, ok := tx.Value.(string); ok {
+			formattedValue, err := v.FormatValue(valueStr, tx.Token)
+			if err != nil {
+				skippedCount++ // Increment the skipped counter
+				return nil     // Skip this transaction and continue
+			}
+			tx.Value = formattedValue // Update the Value field with the formatted value
+		}
+		return nil
+	})
+	fmt.Println("Skipped transactions:", skippedCount)
+	return nil
+}
+
+func (v *Value) HandleNewPeers() error {
+	uniqueIDs := make(map[string]struct{})     // For IDs (non-hexadecimal strings)
+	uniqueStrings := make(map[string]struct{}) // For hexadecimal strings
+
+	for _, block := range v.Blocks {
+		for _, tx := range block.Ones {
+			// Process Zero
+			if zeroStr, ok := tx.Zero.(string); ok {
+				if isHexadecimal(zeroStr) {
+					uniqueStrings[zeroStr] = struct{}{}
+				} else {
+					uniqueIDs[zeroStr] = struct{}{}
+				}
+			}
+
+			// Process One
+			if oneStr, ok := tx.One.(string); ok {
+				if isHexadecimal(oneStr) {
+					uniqueStrings[oneStr] = struct{}{}
+				} else {
+					uniqueIDs[oneStr] = struct{}{}
+				}
+			}
+		}
+	}
+
+	// Convert uniqueIDs to a slice
+	ids := make([]any, 0, len(uniqueIDs))
+	for id := range uniqueIDs {
+		ids = append(ids, id)
+	}
+
+	// Convert uniqueStrings to a slice
+	strings := make([]any, 0, len(uniqueStrings))
+	for str := range uniqueStrings {
+		strings = append(strings, str)
+	}
+
+	// Store in Redis sets
+	if _, err := v.Factory.Data.RB.SAdd(v.Factory.Ctx, "newPeersID", ids...).Result(); err != nil {
+		return fmt.Errorf("failed to store IDs in Redis: %w", err)
+	}
+
+	if _, err := v.Factory.Data.RB.SAdd(v.Factory.Ctx, "newPeersString", strings...).Result(); err != nil {
+		return fmt.Errorf("failed to store hexadecimal strings in Redis: %w", err)
+	}
+
+	return nil
+}
+
+// Helper function to check if a string is hexadecimal
+func isHexadecimal(s string) bool {
+	return len(s) > 2 && s[:2] == "0x"
 }

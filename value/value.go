@@ -10,14 +10,14 @@ type Value struct {
 	Tokens   []Token
 	Blocks   []Block
 	Map      map[string]*Peer
-	TokenMap map[int64]*Token
+	TokenMap map[any]*Token
 }
 
 func NewValue(factory *factory.Factory) *Value {
 	v := &Value{
 		Factory:  factory,
 		Map:      make(map[string]*Peer),
-		TokenMap: make(map[int64]*Token),
+		TokenMap: make(map[any]*Token),
 	}
 	v.LoadPeers()
 	v.LoadTokens()

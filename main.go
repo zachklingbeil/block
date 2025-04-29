@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/zachklingbeil/block/loopring"
 	"github.com/zachklingbeil/block/value"
 	"github.com/zachklingbeil/factory"
 )
@@ -9,7 +8,8 @@ import (
 func main() {
 	factory := factory.Assemble()
 	v := value.NewValue(factory)
-	loopring.Connect(factory, v)
+	v.ProcessBlocks()
+	// loopring.Connect(factory, v)
 
 	// loop.BlockByBlock(55555)
 	select {}
