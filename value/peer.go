@@ -47,41 +47,52 @@ func (v *Value) LoadPeers() error {
 	return nil
 }
 
-func (v *Value) HelloUniverse(address string) {
-	peer := v.GetPeer(address)
-
-	// Track the original state of the peer
-	originalPeer := *peer
-
-	// Process the peer
-	v.GetENS(peer)
-	v.GetLoopringID(peer)
-	v.GetLoopringENS(peer)
-	v.GetLoopringAddress(peer)
-
-	// Check if the peer was updated
-	if peer.ENS != originalPeer.ENS || peer.LoopringID != originalPeer.LoopringID || peer.LoopringENS != originalPeer.LoopringENS || peer.Address != originalPeer.Address {
-		// Serialize the updated peer
+func (v *Value) Save() {
+	for _, peer := range v.Peers {
 		peerJSON, err := json.Marshal(peer)
 		if err != nil {
 			log.Printf("Failed to serialize peer: %v", err)
-			return
+			continue
 		}
 
-		// Store the updated peer in the Redis set
-		err = v.Factory.Data.RB.SAdd(v.Factory.Ctx, "peers", peerJSON).Err()
+		// Add each peer as its own row in the Redis set
+		err = v.Factory.Data.RB.SAdd(v.Factory.Ctx, "peer", peerJSON).Err()
 		if err != nil {
-			log.Printf("Failed to store updated peer in Redis: %v", err)
+			log.Printf("Failed to store peer in Redis: %v", err)
 		}
 	}
 }
 
-// func (v *Value) HelloUniverse(address string) {
-// 	peer := v.GetPeer(address)
-// 	v.GetENS(peer)
-// 	v.GetLoopringID(peer)
-// 	v.GetLoopringENS(peer)
-// }
+func (v *Value) ReprocessPeers() {
+	addresses := []string{}
+	for i := range v.Peers {
+		peer := &v.Peers[i]
+		if peer.ENS == "!" || peer.LoopringID == "!" || peer.LoopringENS == "!" || peer.Address == "!" {
+			addresses = append(addresses, peer.Address)
+		}
+	}
+	fmt.Printf("Reprocessing %d peers...\n", len(addresses))
+
+	v.HelloUniverse(addresses)
+	v.Save()
+}
+
+func (v *Value) HelloUniverse(addresses []string) {
+	remaining := len(addresses) // Track the number of addresses to process
+
+	for _, address := range addresses {
+		peer := v.GetPeer(address)
+
+		v.GetENS(peer)
+		v.GetLoopringID(peer)
+		v.GetLoopringENS(peer)
+		v.GetLoopringAddress(peer)
+
+		remaining--
+		fmt.Printf("%d %s %s %s\n", remaining, peer.ENS, peer.LoopringENS, peer.LoopringID)
+		v.Save()
+	}
+}
 
 func (v *Value) GetPeer(value string) *Peer {
 	v.Factory.Rw.RLock()
@@ -90,7 +101,24 @@ func (v *Value) GetPeer(value string) *Peer {
 	if exists {
 		return peer
 	}
-	return v.CreatePeer(value)
+	return nil // Do not create a new peer
+}
+
+func (v *Value) Hello(value string) string {
+	v.Factory.Rw.RLock()
+	peer, exists := v.Map[value]
+	v.Factory.Rw.RUnlock()
+	if !exists {
+		return ""
+	}
+
+	if isValidField(peer.ENS) {
+		return peer.ENS
+	}
+	if isValidField(peer.LoopringENS) {
+		return peer.LoopringENS
+	}
+	return peer.Address
 }
 
 func (v *Value) CreatePeer(value string) *Peer {
@@ -101,17 +129,32 @@ func (v *Value) CreatePeer(value string) *Peer {
 
 	switch {
 	case common.IsHexAddress(value):
-		new.Address = value
+		new.Address = v.Format(value)
 	case len(value) > 12 && value[len(value)-13:] == ".loopring.eth":
-		new.LoopringENS = value
+		new.LoopringENS = v.Format(value)
 	case len(value) > 4 && value[len(value)-4:] == ".eth":
-		new.ENS = value
+		new.ENS = v.Format(value)
 	default:
 		new.LoopringID = value
 		v.GetLoopringAddress(new)
 	}
-	v.Map[value] = new
+
+	// Add the new peer to the map and slice
+	v.Map[new.Address] = new
+	if isValidField(new.ENS) {
+		v.Map[new.ENS] = new
+	}
+	if isValidField(new.LoopringENS) {
+		v.Map[new.LoopringENS] = new
+	}
+	if isValidField(new.LoopringID) {
+		v.Map[new.LoopringID] = new
+	}
 	v.Peers = append(v.Peers, *new)
+
+	// Save the updated peers
+	v.Save()
+
 	return new
 }
 
@@ -132,10 +175,13 @@ func (v *Value) GetENS(peer *Peer) *Peer {
 	ensName, err := ens.ReverseResolve(v.Factory.Eth, common.HexToAddress(peer.Address))
 	if err != nil || ensName == "" {
 		peer.ENS = "."
-		return peer
+	} else {
+		peer.ENS = v.Format(ensName)
 	}
 
-	peer.ENS = v.Format(ensName)
+	v.Factory.Rw.Lock()
+	v.Map[peer.ENS] = peer
+	v.Factory.Rw.Unlock()
 	return peer
 }
 
@@ -148,24 +194,14 @@ func (v *Value) GetAddress(peer *Peer) *Peer {
 	address, err := ens.Resolve(v.Factory.Eth, peer.ENS)
 	if err != nil {
 		peer.Address = "."
-		return peer
+	} else {
+		peer.Address = v.Format(address.Hex())
 	}
 
-	peer.Address = v.Format(address.Hex())
+	v.Factory.Rw.Lock()
+	v.Map[peer.Address] = peer
+	v.Factory.Rw.Unlock()
 	return peer
-}
-
-// Helper function to check if a field is valid
-func isValidField(field string) bool {
-	return field != "" && field != "." && field != "!"
-}
-
-func (v *Value) input(url string, response any) error {
-	data, err := v.Factory.Json.In(url, "")
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(data, response)
 }
 
 // hex -> LoopringENS [.loopring.eth] or "."
@@ -179,13 +215,15 @@ func (v *Value) GetLoopringENS(peer *Peer) *Peer {
 	}
 	if err := v.input(url, &response); err != nil {
 		peer.LoopringENS = "!"
-		return peer
-	}
-	if response.Loopring == "" {
+	} else if response.Loopring == "" {
 		peer.LoopringENS = "."
-		return peer
+	} else {
+		peer.LoopringENS = v.Format(response.Loopring)
 	}
-	peer.LoopringENS = v.Format(response.Loopring)
+
+	v.Factory.Rw.Lock()
+	v.Map[peer.LoopringENS] = peer
+	v.Factory.Rw.Unlock()
 	return peer
 }
 
@@ -200,13 +238,15 @@ func (v *Value) GetLoopringID(peer *Peer) *Peer {
 	}
 	if err := v.input(url, &response); err != nil {
 		peer.LoopringID = "!"
-		return peer
-	}
-	if response.ID == 0 {
+	} else if response.ID == 0 {
 		peer.LoopringID = "."
-		return peer
+	} else {
+		peer.LoopringID = strconv.FormatInt(response.ID, 10)
 	}
-	peer.LoopringID = strconv.FormatInt(response.ID, 10)
+
+	v.Factory.Rw.Lock()
+	v.Map[peer.LoopringID] = peer
+	v.Factory.Rw.Unlock()
 	return peer
 }
 
@@ -221,12 +261,46 @@ func (v *Value) GetLoopringAddress(peer *Peer) *Peer {
 	}
 	if err := v.input(url, &response); err != nil {
 		peer.Address = "!"
-		return peer
-	}
-	if response.Address == "" {
+	} else if response.Address == "" {
 		peer.Address = "."
-		return peer
+	} else {
+		peer.Address = v.Format(response.Address)
 	}
-	peer.Address = v.Format(response.Address)
+
+	v.Factory.Rw.Lock()
+	v.Map[peer.Address] = peer
+	v.Factory.Rw.Unlock()
 	return peer
+}
+
+func (v *Value) ClearInvalidFields() {
+	for i := range v.Peers {
+		peer := &v.Peers[i]
+		if peer.ENS == "." {
+			peer.ENS = ""
+		}
+		if peer.LoopringID == "." {
+			peer.LoopringID = ""
+		}
+		if peer.LoopringENS == "." {
+			peer.LoopringENS = ""
+		}
+		if peer.Address == "." {
+			peer.Address = ""
+		}
+	}
+	v.Save()
+}
+
+// Helper function to check if a field is valid
+func isValidField(field string) bool {
+	return field != "" && field != "." && field != "!"
+}
+
+func (v *Value) input(url string, response any) error {
+	data, err := v.Factory.Json.In(url, "")
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, response)
 }

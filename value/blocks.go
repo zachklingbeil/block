@@ -39,12 +39,10 @@ type Tx struct {
 
 // ProcessBlocks orchestrates the loading, processing, and saving of blocks.
 func (v *Value) ProcessBlocks() error {
-	// Step 1: Load block
 	if err := v.LoadBlocks(); err != nil {
 		return fmt.Errorf("failed to load blocks: %w", err)
 	}
 
-	// Step 4: Save blocks
 	if err := v.SaveBlocks(); err != nil {
 		return fmt.Errorf("failed to save blocks: %w", err)
 	}
@@ -72,7 +70,6 @@ func (v *Value) SaveBlocks() error {
 	zAddArgs := make([]redis.Z, 0, len(v.Blocks))
 
 	for _, block := range v.Blocks {
-		// Simplify the block before serialization
 		v.Factory.Json.Simplify([]any{block}, "")
 
 		blockJSON, err := json.Marshal(block)
@@ -87,16 +84,6 @@ func (v *Value) SaveBlocks() error {
 	_, err := v.Factory.Data.RB.ZAdd(v.Factory.Ctx, "blocks2", zAddArgs...).Result()
 	if err != nil {
 		return fmt.Errorf("failed to save blocks to Redis: %w", err)
-	}
-	return nil
-}
-
-func (v *Value) UpdateBlockOnes(updateFunc func(*Tx)) error {
-	for i := range v.Blocks {
-		block := &v.Blocks[i]
-		for j := range block.Ones {
-			updateFunc(&block.Ones[j])
-		}
 	}
 	return nil
 }
@@ -116,12 +103,11 @@ func (v *Value) ProcessTxs(processFunc func(*Tx) error) error {
 }
 
 func (v *Value) HandleNewPeers() error {
-	uniqueIDs := make(map[string]struct{})     // For IDs (non-hexadecimal strings)
-	uniqueStrings := make(map[string]struct{}) // For hexadecimal strings
+	uniqueIDs := make(map[string]struct{})
+	uniqueStrings := make(map[string]struct{})
 
 	for _, block := range v.Blocks {
 		for _, tx := range block.Ones {
-			// Process Zero
 			if zeroStr, ok := tx.Zero.(string); ok {
 				if isHexadecimal(zeroStr) {
 					uniqueStrings[zeroStr] = struct{}{}
@@ -129,8 +115,6 @@ func (v *Value) HandleNewPeers() error {
 					uniqueIDs[zeroStr] = struct{}{}
 				}
 			}
-
-			// Process One
 			if oneStr, ok := tx.One.(string); ok {
 				if isHexadecimal(oneStr) {
 					uniqueStrings[oneStr] = struct{}{}
@@ -141,19 +125,16 @@ func (v *Value) HandleNewPeers() error {
 		}
 	}
 
-	// Convert uniqueIDs to a slice
 	ids := make([]any, 0, len(uniqueIDs))
 	for id := range uniqueIDs {
 		ids = append(ids, id)
 	}
 
-	// Convert uniqueStrings to a slice
 	strings := make([]any, 0, len(uniqueStrings))
 	for str := range uniqueStrings {
 		strings = append(strings, str)
 	}
 
-	// Store in Redis sets
 	if _, err := v.Factory.Data.RB.SAdd(v.Factory.Ctx, "newPeersID", ids...).Result(); err != nil {
 		return fmt.Errorf("failed to store IDs in Redis: %w", err)
 	}
@@ -161,7 +142,6 @@ func (v *Value) HandleNewPeers() error {
 	if _, err := v.Factory.Data.RB.SAdd(v.Factory.Ctx, "newPeersString", strings...).Result(); err != nil {
 		return fmt.Errorf("failed to store hexadecimal strings in Redis: %w", err)
 	}
-
 	return nil
 }
 
