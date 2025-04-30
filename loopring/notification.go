@@ -74,7 +74,7 @@ func (l *Loopring) Listen() {
 			for _, block := range resp.Data {
 				fmt.Printf("block %d\n", block.Number)
 				l.Factory.State.Add("loopring", "blockHeight", block.Number)
-				// l.BlockByBlock(block.Number)
+				l.BlockByBlock(block.Number)
 			}
 		}
 	}

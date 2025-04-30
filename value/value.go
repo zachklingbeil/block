@@ -21,7 +21,7 @@ func NewValue(factory *factory.Factory) *Value {
 	}
 	v.LoadPeers()
 	v.LoadTokens()
-	// v.LoadBlocks()
+	v.LoadBlocks()
 	// v.HandleNewPeers()
 	v.Factory.State.Add("value", "peers", len(v.Peers))
 	v.Factory.State.Add("value", "tokens", len(v.Tokens))

@@ -3,7 +3,6 @@ package value
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -48,17 +47,22 @@ func (v *Value) ProcessBlocks() error {
 	// if err := v.HandleNewPeers(); err != nil {
 	// 	return fmt.Errorf("failed to handle new peers: %w", err)
 	// }
-
+	// Step 2: Update transaction tokens
+	if err := v.UpdateTxTokens(); err != nil {
+		return fmt.Errorf("failed to update transaction tokens: %w", err)
+	}
+	if err := v.UpdateAndFormatTxFeeTokens(); err != nil {
+		return fmt.Errorf("failed to update transaction fee tokens: %w", err)
+	}
 	// Step 3: Format transaction values
 	if err := v.FormatTxValues(); err != nil {
 		return fmt.Errorf("failed to format transaction values: %w", err)
 	}
-	log.Println("Formatted transaction values")
+
 	// Step 4: Save blocks
 	if err := v.SaveBlocks(); err != nil {
 		return fmt.Errorf("failed to save blocks: %w", err)
 	}
-
 	return nil
 }
 
@@ -81,7 +85,11 @@ func (v *Value) LoadBlocks() error {
 
 func (v *Value) SaveBlocks() error {
 	zAddArgs := make([]redis.Z, 0, len(v.Blocks))
+
 	for _, block := range v.Blocks {
+		// Simplify the block before serialization
+		v.Factory.Json.Simplify([]any{block}, "")
+
 		blockJSON, err := json.Marshal(block)
 		if err != nil {
 			return fmt.Errorf("failed to serialize block: %w", err)
@@ -122,22 +130,46 @@ func (v *Value) ProcessTxs(processFunc func(*Tx) error) error {
 	return nil
 }
 
-func (v *Value) FormatTxValues() error {
-	skippedCount := 0 // Counter for skipped transactions
-	v.ProcessTxs(func(tx *Tx) error {
-		if valueStr, ok := tx.Value.(string); ok {
-			formattedValue, err := v.FormatValue(valueStr, tx.Token)
-			if err != nil {
-				skippedCount++ // Increment the skipped counter
-				return nil     // Skip this transaction and continue
-			}
-			tx.Value = formattedValue // Update the Value field with the formatted value
-		}
-		return nil
-	})
-	fmt.Println("Skipped transactions:", skippedCount)
-	return nil
-}
+// func (v *Value) FormatTxValues() error {
+// 	skippedCount := 0 // Counter for skipped transactions
+// 	v.ProcessTxs(func(tx *Tx) error {
+// 		if valueStr, ok := tx.Value.(string); ok {
+// 			formattedValue, err := v.FormatValue(valueStr, tx.Token)
+// 			if err != nil {
+// 				// Check if the token is greater than "30000"
+// 				if tokenStr, ok := tx.Token.(string); ok {
+// 					tokenValue, convErr := strconv.Atoi(tokenStr)
+// 					if convErr == nil && tokenValue > 30000 {
+// 						return nil // Exclude from skipped count
+// 					}
+// 				}
+// 				skippedCount++ // Increment the skipped counter
+// 				return nil     // Skip this transaction and continue
+// 			}
+// 			tx.Value = formattedValue // Update the Value field with the formatted value
+// 		}
+// 		return nil
+// 	})
+// 	fmt.Println("Skipped transactions:", skippedCount)
+// 	return nil
+// }
+
+// func (v *Value) FormatTxValues() error {
+// 	skippedCount := 0 // Counter for skipped transactions
+// 	v.ProcessTxs(func(tx *Tx) error {
+// 		if valueStr, ok := tx.Value.(string); ok {
+// 			formattedValue, err := v.FormatValue(valueStr, tx.Token)
+// 			if err != nil {
+// 				skippedCount++ // Increment the skipped counter
+// 				return nil     // Skip this transaction and continue
+// 			}
+// 			tx.Value = formattedValue // Update the Value field with the formatted value
+// 		}
+// 		return nil
+// 	})
+// 	fmt.Println("Skipped transactions:", skippedCount)
+// 	return nil
+// }
 
 func (v *Value) HandleNewPeers() error {
 	uniqueIDs := make(map[string]struct{})     // For IDs (non-hexadecimal strings)

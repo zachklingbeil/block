@@ -10,25 +10,35 @@ import (
 )
 
 func (l *Loopring) Loop() error {
-	highestBlock, _ := l.Factory.State.GetValue("loopring", "highestBlock")
 	startBlock := int64(1)
-
-	if highestBlock != nil {
+	if highestBlock, _ := l.Factory.State.GetValue("loopring", "highestBlock"); highestBlock != nil {
 		if hb, ok := highestBlock.(float64); ok {
 			startBlock = int64(hb) + 1
-		} else {
-			log.Error("Invalid type for highestBlock: %T", highestBlock)
-			return fmt.Errorf("invalid type for highestBlock")
 		}
 	}
 
+	var maxBlock int64
+	if blockHeight, _ := l.Factory.State.GetValue("loopring", "blockHeight"); blockHeight != nil {
+		if bh, ok := blockHeight.(float64); ok {
+			maxBlock = int64(bh)
+		}
+	}
+
+	stop := false
 	l.Factory.Math.Up(startBlock, func(blockNumber int64) {
+		if blockNumber > maxBlock {
+			stop = true
+			return
+		}
+
 		if err := l.BlockByBlock(blockNumber); err != nil {
 			log.Error("Failed to process block %d: %v", blockNumber, err)
+			stop = true
 			return
 		}
 		l.Factory.State.Add("loopring", "highestBlock", blockNumber)
-	})
+	}, &stop)
+
 	return nil
 }
 

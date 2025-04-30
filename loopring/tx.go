@@ -13,26 +13,11 @@ func mapToStruct(data any, target any) {
 func (l *Loopring) SwapToTx(transaction any) []Tx {
 	var s SpotTrade
 	mapToStruct(transaction, &s)
-
-	// Safely resolve tokens
-	tokenZero := l.Value.GetTokenById(s.ZeroToken)
-	tokenOne := l.Value.GetTokenById(s.OneToken)
-
-	tokenZeroValue := strconv.FormatInt(s.ZeroToken, 10) // Default to original token ID
-	if tokenZero != nil {
-		tokenZeroValue = tokenZero.Token
-	}
-
-	tokenOneValue := strconv.FormatInt(s.OneToken, 10) // Default to original token ID
-	if tokenOne != nil {
-		tokenOneValue = tokenOne.Token
-	}
-
 	zero := Tx{
 		Zero:  strconv.FormatInt(s.Zero, 10),
 		One:   strconv.FormatInt(s.One, 10),
 		Value: s.ZeroValue,
-		Token: tokenZeroValue, // Use resolved token value or fallback
+		Token: l.Value.GetTokenById(s.ZeroToken),
 		Fee:   s.ZeroFee,
 		Type:  "swap",
 		Index: s.Index,
@@ -42,7 +27,7 @@ func (l *Loopring) SwapToTx(transaction any) []Tx {
 		Zero:  strconv.FormatInt(s.Zero, 10),
 		One:   strconv.FormatInt(s.One, 10),
 		Value: s.OneValue,
-		Token: tokenOneValue, // Use resolved token value or fallback
+		Token: l.Value.GetTokenById(s.OneToken),
 		Fee:   s.OneFee,
 		Type:  "swap",
 		Index: s.Index,
@@ -55,28 +40,25 @@ func (l *Loopring) TransferToTx(transaction any) Tx {
 	var t Transfer
 	mapToStruct(transaction, &t)
 
-	// Safely resolve tokens
-	token := l.Value.GetTokenById(t.Token)
-	feeToken := l.Value.GetTokenById(t.FeeToken)
-
-	tokenValue := strconv.FormatInt(t.Token, 10) // Default to original token ID
-	if token != nil {
-		tokenValue = token.Token
+	value, err := l.Value.FormatValue(t.Value, t.Token)
+	if err != nil {
+		value = t.Value
 	}
 
-	feeTokenValue := strconv.FormatInt(t.FeeToken, 10) // Default to original token ID
-	if feeToken != nil {
-		feeTokenValue = feeToken.Token
+	fee, err := l.Value.FormatValue(t.Fee, t.FeeToken)
+	if err != nil {
+		fee = t.Fee
 	}
 
 	return Tx{
 		Zero:     strconv.FormatInt(t.ZeroId, 10),
 		One:      t.One,
-		Value:    t.Value,
-		Token:    tokenValue, // Use resolved token value or fallback
-		Fee:      t.Fee,
-		FeeToken: feeTokenValue, // Use resolved fee token value or fallback
+		Value:    value,
+		Token:    l.Value.GetTokenById(t.Token),
+		Fee:      fee,
+		FeeToken: l.Value.GetTokenById(t.FeeToken),
 		Index:    t.Index,
+		Type:     "transfer",
 	}
 }
 
@@ -84,19 +66,15 @@ func (l *Loopring) DepositToTx(transaction any) Tx {
 	var d Deposit
 	mapToStruct(transaction, &d)
 
-	// Safely resolve the token
-	token := l.Value.GetTokenById(d.Token)
-
-	tokenValue := strconv.FormatInt(d.Token, 10) // Default to original token ID
-	if token != nil {
-		tokenValue = token.Token
+	value, err := l.Value.FormatValue(d.Value, d.Token)
+	if err != nil {
+		value = d.Value
 	}
 
 	return Tx{
-		Zero: strconv.FormatInt(d.ZeroId, 10),
-		// One:   d.One,
-		Value: d.Value,    // Use resolved token value or fallback
-		Token: tokenValue, // Use resolved token value or fallback
+		Zero:  strconv.FormatInt(d.ZeroId, 10),
+		Value: value,
+		Token: l.Value.GetTokenById(d.Token),
 		Type:  "deposit",
 		Index: d.Index,
 	}
@@ -106,27 +84,21 @@ func (l *Loopring) WithdrawToTx(transaction any) Tx {
 	var w Withdrawal
 	mapToStruct(transaction, &w)
 
-	// Safely resolve tokens
-	token := l.Value.GetTokenById(w.Token)
-	feeToken := l.Value.GetTokenById(w.FeeToken)
-
-	tokenValue := strconv.FormatInt(w.Token, 10) // Default to original token ID
-	if token != nil {
-		tokenValue = token.Token
+	value, err := l.Value.FormatValue(w.Value, w.Token)
+	if err != nil {
+		value = w.Value
 	}
 
-	feeTokenValue := strconv.FormatInt(w.FeeToken, 10) // Default to original token ID
-	if feeToken != nil {
-		feeTokenValue = feeToken.Token
+	fee, err := l.Value.FormatValue(w.Fee, w.FeeToken)
+	if err != nil {
+		fee = w.Fee
 	}
-
 	return Tx{
-		Zero: strconv.FormatInt(w.ZeroId, 10),
-		// One:      w.One,
-		Value:    w.Value,
-		Token:    tokenValue, // Use resolved token value or fallback
-		Fee:      w.Fee,
-		FeeToken: feeTokenValue, // Use resolved fee token value or fallback
+		Zero:     strconv.FormatInt(w.ZeroId, 10),
+		Value:    value,
+		Token:    l.Value.GetTokenById(w.Token),
+		Fee:      fee,
+		FeeToken: l.Value.GetTokenById(w.FeeToken),
 		Type:     "withdraw",
 		Index:    w.Index,
 	}
@@ -155,22 +127,22 @@ func (l *Loopring) AmmUpdateToTx(transaction any) Tx {
 func (l *Loopring) MintToTx(transaction any) Tx {
 	var m Mint
 	mapToStruct(transaction, &m)
-	feeToken := l.Value.GetTokenById(m.FeeToken)
-	feeTokenValue := strconv.FormatInt(m.FeeToken, 10) // Default to original token ID
-	if feeToken != nil {
-		feeTokenValue = feeToken.Token
+	fee, err := l.Value.FormatValue(m.Fee, m.FeeToken)
+	if err != nil {
+		fee = m.Fee
 	}
 
 	return Tx{
 		Zero:     m.Zero,
 		Value:    m.Quantity,
 		Token:    m.NftAddress,
-		Fee:      m.Fee,
-		FeeToken: feeTokenValue, // Use resolved fee token value or fallback
+		Fee:      fee,
+		FeeToken: l.Value.GetTokenById(m.FeeToken),
 		Type:     "mint",
 		Index:    m.Index,
 	}
 }
+
 func (l *Loopring) NftDataToTx(transaction any) Tx {
 	var n NftData
 	mapToStruct(transaction, &n)
