@@ -18,11 +18,10 @@ type Token struct {
 }
 
 func (v *Value) LoadTokens() error {
-	source, err := v.Factory.Data.RB.SMembers(v.Factory.Ctx, "token").Result()
+	source, err := v.Factory.Data.RB.ZRange(v.Factory.Ctx, "tokens", 0, -1).Result()
 	if err != nil {
-		log.Fatalf("Failed to fetch tokens from Redis: %v", err)
+		log.Fatalf("Failed to fetch tokens from Redis sorted set: %v", err)
 	}
-
 	v.Tokens = make([]Token, 0, len(source))
 	for _, tokenJSON := range source {
 		var token Token
@@ -44,7 +43,6 @@ func (v *Value) GetTokenById(tokenId any) *Token {
 
 	var token *Token
 	var exists bool
-
 	switch id := tokenId.(type) {
 	case int64:
 		token, exists = v.TokenMap[id]
@@ -54,7 +52,6 @@ func (v *Value) GetTokenById(tokenId any) *Token {
 		// log.Printf("Unsupported token ID type: %T", tokenId)
 		return &Token{Token: fmt.Sprintf("%v", tokenId)} // Return a default token with the ID as a string
 	}
-
 	if !exists {
 		// log.Printf("Token not found for ID: %v", tokenId)
 		return &Token{Token: fmt.Sprintf("%v", tokenId)} // Return a default token with the ID as a string
