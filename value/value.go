@@ -19,10 +19,9 @@ func NewValue(factory *factory.Factory) *Value {
 		Map:      make(map[string]*Peer),
 		TokenMap: make(map[any]*Token),
 	}
-	v.LoadPeers()
 	v.LoadTokens()
-	v.LoadBlocks()
-	// v.HandleNewPeers()
+	v.LoadPeers()
+	// v.LoadBlocks()
 	v.Factory.State.Add("value", "peers", len(v.Peers))
 	v.Factory.State.Add("value", "tokens", len(v.Tokens))
 	// v.Factory.State.Add("value", "blocks", len(v.Blocks))

@@ -7,7 +7,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/redis/go-redis/v9 v9.7.3
 	github.com/wealdtech/go-ens/v3 v3.6.0
-	github.com/zachklingbeil/factory v1.1.38
+	github.com/zachklingbeil/factory v1.1.39
 )
 
 require (

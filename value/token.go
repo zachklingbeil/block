@@ -63,30 +63,30 @@ func (v *Value) GetTokenById(tokenId any) *Token {
 }
 
 // FormatValue formats a string input as a decimal string based on the token's decimals.
-func (v *Value) FormatValue(input string, key any) (string, error) {
+func (v *Value) FormatValue(input string, key any) string {
 	v.Factory.Rw.RLock()
 	token, exists := v.TokenMap[key]
 	v.Factory.Rw.RUnlock()
 	if !exists {
-		return "", fmt.Errorf("token not found for key: %v", key)
+		return input
 	}
 
 	value := new(big.Int)
 	_, ok := value.SetString(input, 10)
 	if !ok {
-		return "", fmt.Errorf("invalid input string: %s", input)
+		return input
 	}
 
 	decimals, err := strconv.Atoi(token.Decimals)
 	if err != nil {
-		return "", fmt.Errorf("invalid decimals value in token: %v", err)
+		return input
 	}
 
 	valueStr := value.String()
 	if len(valueStr) <= decimals {
 		paddedValue := strings.Repeat("0", decimals-len(valueStr)+1) + valueStr
 		result := "0." + paddedValue
-		return strings.TrimRight(result, "0"), nil
+		return strings.TrimRight(result, "0")
 	}
 
 	intPart := valueStr[:len(valueStr)-decimals]
@@ -94,7 +94,7 @@ func (v *Value) FormatValue(input string, key any) (string, error) {
 	result := intPart + "." + fracPart
 	result = strings.TrimRight(result, "0")
 	result = strings.TrimSuffix(result, ".")
-	return result, nil
+	return result
 }
 
 // //go:embed token.json

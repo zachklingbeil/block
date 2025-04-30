@@ -13,24 +13,32 @@ func mapToStruct(data any, target any) {
 func (l *Loopring) SwapToTx(transaction any) []Tx {
 	var s SpotTrade
 	mapToStruct(transaction, &s)
+	tokenZero := l.Value.GetTokenById(s.ZeroToken).Token
 	zero := Tx{
 		Zero:  strconv.FormatInt(s.Zero, 10),
 		One:   strconv.FormatInt(s.One, 10),
-		Value: s.ZeroValue,
-		Token: l.Value.GetTokenById(s.ZeroToken),
-		Fee:   s.ZeroFee,
+		Value: l.Value.FormatValue(s.ZeroValue, tokenZero),
+		Token: tokenZero,
 		Type:  "swap",
 		Index: s.Index,
 	}
 
+	if s.ZeroFee != 0 {
+		zero.Fee = s.ZeroFee
+	}
+
+	tokenOne := l.Value.GetTokenById(s.OneToken).Token
 	one := Tx{
 		Zero:  strconv.FormatInt(s.Zero, 10),
 		One:   strconv.FormatInt(s.One, 10),
-		Value: s.OneValue,
-		Token: l.Value.GetTokenById(s.OneToken),
-		Fee:   s.OneFee,
+		Value: l.Value.FormatValue(s.OneValue, tokenOne),
+		Token: tokenOne,
 		Type:  "swap",
 		Index: s.Index,
+	}
+
+	if s.OneFee != 0 {
+		one.Fee = s.OneFee
 	}
 
 	return []Tx{zero, one}
@@ -39,42 +47,36 @@ func (l *Loopring) SwapToTx(transaction any) []Tx {
 func (l *Loopring) TransferToTx(transaction any) Tx {
 	var t Transfer
 	mapToStruct(transaction, &t)
+	token := l.Value.GetTokenById(t.Token).Token
+	feeToken := l.Value.GetTokenById(t.FeeToken).Token
 
-	value, err := l.Value.FormatValue(t.Value, t.Token)
-	if err != nil {
-		value = t.Value
+	tx := Tx{
+		Zero:  strconv.FormatInt(t.ZeroId, 10),
+		One:   t.One,
+		Value: l.Value.FormatValue(t.Value, token),
+		Token: token,
+		Index: t.Index,
+		Type:  "transfer",
 	}
 
-	fee, err := l.Value.FormatValue(t.Fee, t.FeeToken)
-	if err != nil {
-		fee = t.Fee
+	// Conditionally include Fee and FeeToken
+	if t.Fee != "0" {
+		tx.Fee = l.Value.FormatValue(t.Fee, feeToken)
+		tx.FeeToken = feeToken
 	}
 
-	return Tx{
-		Zero:     strconv.FormatInt(t.ZeroId, 10),
-		One:      t.One,
-		Value:    value,
-		Token:    l.Value.GetTokenById(t.Token),
-		Fee:      fee,
-		FeeToken: l.Value.GetTokenById(t.FeeToken),
-		Index:    t.Index,
-		Type:     "transfer",
-	}
+	return tx
 }
 
 func (l *Loopring) DepositToTx(transaction any) Tx {
 	var d Deposit
 	mapToStruct(transaction, &d)
-
-	value, err := l.Value.FormatValue(d.Value, d.Token)
-	if err != nil {
-		value = d.Value
-	}
+	token := l.Value.GetTokenById(d.Token).Token
 
 	return Tx{
 		Zero:  strconv.FormatInt(d.ZeroId, 10),
-		Value: value,
-		Token: l.Value.GetTokenById(d.Token),
+		Value: l.Value.FormatValue(d.Value, token),
+		Token: token,
 		Type:  "deposit",
 		Index: d.Index,
 	}
@@ -83,25 +85,24 @@ func (l *Loopring) DepositToTx(transaction any) Tx {
 func (l *Loopring) WithdrawToTx(transaction any) Tx {
 	var w Withdrawal
 	mapToStruct(transaction, &w)
+	token := l.Value.GetTokenById(w.Token).Token
+	feeToken := l.Value.GetTokenById(w.FeeToken).Token
 
-	value, err := l.Value.FormatValue(w.Value, w.Token)
-	if err != nil {
-		value = w.Value
+	tx := Tx{
+		Zero:  strconv.FormatInt(w.ZeroId, 10),
+		Value: l.Value.FormatValue(w.Value, token),
+		Token: token,
+		Type:  "withdraw",
+		Index: w.Index,
 	}
 
-	fee, err := l.Value.FormatValue(w.Fee, w.FeeToken)
-	if err != nil {
-		fee = w.Fee
+	// Conditionally include Fee and FeeToken
+	if w.Fee != "0" {
+		tx.Fee = l.Value.FormatValue(w.Fee, feeToken)
+		tx.FeeToken = feeToken
 	}
-	return Tx{
-		Zero:     strconv.FormatInt(w.ZeroId, 10),
-		Value:    value,
-		Token:    l.Value.GetTokenById(w.Token),
-		Fee:      fee,
-		FeeToken: l.Value.GetTokenById(w.FeeToken),
-		Type:     "withdraw",
-		Index:    w.Index,
-	}
+
+	return tx
 }
 
 func (l *Loopring) AccountUpdateToTx(transaction any) Tx {
@@ -127,20 +128,23 @@ func (l *Loopring) AmmUpdateToTx(transaction any) Tx {
 func (l *Loopring) MintToTx(transaction any) Tx {
 	var m Mint
 	mapToStruct(transaction, &m)
-	fee, err := l.Value.FormatValue(m.Fee, m.FeeToken)
-	if err != nil {
-		fee = m.Fee
+	feeToken := l.Value.GetTokenById(m.FeeToken).Token
+
+	tx := Tx{
+		Zero:  m.Zero,
+		Value: m.Quantity,
+		Token: m.NftAddress,
+		Type:  "mint",
+		Index: m.Index,
 	}
 
-	return Tx{
-		Zero:     m.Zero,
-		Value:    m.Quantity,
-		Token:    m.NftAddress,
-		Fee:      fee,
-		FeeToken: l.Value.GetTokenById(m.FeeToken),
-		Type:     "mint",
-		Index:    m.Index,
+	// Conditionally include Fee and FeeToken
+	if m.Fee != "0" {
+		tx.Fee = l.Value.FormatValue(m.Fee, feeToken)
+		tx.FeeToken = feeToken
 	}
+
+	return tx
 }
 
 func (l *Loopring) NftDataToTx(transaction any) Tx {

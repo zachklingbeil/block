@@ -216,10 +216,8 @@ github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 h1:gEOO8jv9F4OT7lGC
 github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1/go.mod h1:Ohn+xnUBiLI6FVj/9LpzZWtj1/D6lUovWYBkxHVV3aM=
 github.com/yusufpapurcu/wmi v1.2.4 h1:zFUKzehAFReQwLys1b/iSMl+JQGSCSjtVqQn9bBrPo0=
 github.com/yusufpapurcu/wmi v1.2.4/go.mod h1:SBZ9tNy3G9/m5Oi98Zks0QjeHVDvuK0qfxQmPyzfmi0=
-github.com/zachklingbeil/factory v1.1.37 h1:RaowAL2AHU/Lp39q9og42UcQkoKru6vLBDK4r0h94xM=
-github.com/zachklingbeil/factory v1.1.37/go.mod h1:QNLy0vboezZb3GuIjXrf6z/kVakLVpqU9PVxUyfLaVY=
-github.com/zachklingbeil/factory v1.1.38 h1:SX5kk0AHzuTi9B3LJMTDWipiz/OmtZOaKC9pfkTh7bc=
-github.com/zachklingbeil/factory v1.1.38/go.mod h1:QNLy0vboezZb3GuIjXrf6z/kVakLVpqU9PVxUyfLaVY=
+github.com/zachklingbeil/factory v1.1.39 h1:yzWQj9mqTAWbgWP5dPZgWzIlPXvaMmWZNAhgoGKDBx8=
+github.com/zachklingbeil/factory v1.1.39/go.mod h1:QNLy0vboezZb3GuIjXrf6z/kVakLVpqU9PVxUyfLaVY=
 golang.org/x/crypto v0.37.0 h1:kJNSjF/Xp7kU0iB2Z+9viTPMW4EqqsrywMXLJOOsXSE=
 golang.org/x/crypto v0.37.0/go.mod h1:vg+k43peMZ0pUMhYmVAWysMK35e6ioLh3wB8ZCAfbVc=
 golang.org/x/exp v0.0.0-20230810033253-352e893a4cad h1:g0bG7Z4uG+OgH2QDODnjp6ggkk1bJDsINcuWmJN1iJU=

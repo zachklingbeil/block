@@ -25,7 +25,7 @@ type Peer struct {
 }
 
 func (v *Value) LoadPeers() error {
-	source, err := v.Factory.Data.RB.SMembers(v.Factory.Ctx, "peers").Result()
+	source, err := v.Factory.Data.RB.SMembers(v.Factory.Ctx, "peer").Result()
 	if err != nil {
 		log.Fatalf("Failed to fetch peers from Redis: %v", err)
 	}
@@ -38,16 +38,50 @@ func (v *Value) LoadPeers() error {
 			continue
 		}
 		v.Peers = append(v.Peers, peer)
+		v.Map[peer.Address] = &peer
+		v.Map[peer.ENS] = &peer
+		v.Map[peer.LoopringENS] = &peer
+		v.Map[peer.LoopringID] = &peer
 	}
+	v.Factory.State.Add("value", "peers", len(v.Peers))
 	return nil
 }
 
 func (v *Value) HelloUniverse(address string) {
 	peer := v.GetPeer(address)
+
+	// Track the original state of the peer
+	originalPeer := *peer
+
+	// Process the peer
 	v.GetENS(peer)
 	v.GetLoopringID(peer)
 	v.GetLoopringENS(peer)
+	v.GetLoopringAddress(peer)
+
+	// Check if the peer was updated
+	if peer.ENS != originalPeer.ENS || peer.LoopringID != originalPeer.LoopringID || peer.LoopringENS != originalPeer.LoopringENS || peer.Address != originalPeer.Address {
+		// Serialize the updated peer
+		peerJSON, err := json.Marshal(peer)
+		if err != nil {
+			log.Printf("Failed to serialize peer: %v", err)
+			return
+		}
+
+		// Store the updated peer in the Redis set
+		err = v.Factory.Data.RB.SAdd(v.Factory.Ctx, "peers", peerJSON).Err()
+		if err != nil {
+			log.Printf("Failed to store updated peer in Redis: %v", err)
+		}
+	}
 }
+
+// func (v *Value) HelloUniverse(address string) {
+// 	peer := v.GetPeer(address)
+// 	v.GetENS(peer)
+// 	v.GetLoopringID(peer)
+// 	v.GetLoopringENS(peer)
+// }
 
 func (v *Value) GetPeer(value string) *Peer {
 	v.Factory.Rw.RLock()
@@ -74,6 +108,7 @@ func (v *Value) CreatePeer(value string) *Peer {
 		new.ENS = value
 	default:
 		new.LoopringID = value
+		v.GetLoopringAddress(new)
 	}
 	v.Map[value] = new
 	v.Peers = append(v.Peers, *new)
