@@ -1,6 +1,6 @@
 services:
-    block:
-        container_name: block
+    blocks:
+        container_name: blocks
         image: docker.zachklingbeil.com/block
         volumes:
             - ethereum:/ethereum

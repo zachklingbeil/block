@@ -49,7 +49,6 @@ func (l *Loopring) TransferToTx(transaction any) Tx {
 	mapToStruct(transaction, &t)
 	token := l.Value.GetTokenById(t.Token).Token
 	feeToken := l.Value.GetTokenById(t.FeeToken).Token
-
 	tx := Tx{
 		Zero:  l.Value.Hello(strconv.FormatInt(t.ZeroId, 10)),
 		One:   l.Value.Hello(t.One),
@@ -62,7 +61,6 @@ func (l *Loopring) TransferToTx(transaction any) Tx {
 		tx.Fee = l.Value.FormatValue(t.Fee, feeToken)
 		tx.FeeToken = feeToken
 	}
-
 	return tx
 }
 
@@ -70,7 +68,6 @@ func (l *Loopring) DepositToTx(transaction any) Tx {
 	var d Deposit
 	mapToStruct(transaction, &d)
 	token := l.Value.GetTokenById(d.Token).Token
-
 	return Tx{
 		Zero:  l.Value.Hello(strconv.FormatInt(d.ZeroId, 10)),
 		Value: l.Value.FormatValue(d.Value, token),

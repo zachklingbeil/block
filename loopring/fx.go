@@ -138,7 +138,7 @@ func (l *Loopring) StoreBlock(blockNumber int64, block any) error {
 	}
 
 	// Define the Redis hash key for storing blocks
-	hashKey := "block"
+	hashKey := "loopring"
 
 	// Use the blockNumber as the field in the Redis hash
 	err = l.Factory.Data.RB.HSet(l.Factory.Ctx, hashKey, fmt.Sprintf("%d", blockNumber), blockJSON).Err()
