@@ -13,20 +13,6 @@ const (
 	dotLoop   = "https://api3.loopring.io/api/wallet/v3/resolveName?owner=%s"
 )
 
-func (v *Value) Refresh() {
-	for i := range v.Peers {
-		fmt.Printf("%d", i)
-		peer := v.Peers[i]
-		if peer.LoopringID == "." || peer.LoopringID == "!" {
-			peer.LoopringID = ""
-		}
-		if peer.LoopringENS == "." || peer.LoopringENS == "!" {
-			peer.LoopringENS = ""
-		}
-		v.HelloUniverse(peer.Address)
-	}
-}
-
 func (v *Value) LoadPeers() error {
 	v.Factory.Rw.Lock()
 	defer v.Factory.Rw.Unlock()
@@ -62,28 +48,34 @@ func (v *Value) Save(peer *Peer) error {
 	return nil
 }
 
-func (v *Value) Hello(value string) string {
-	v.Factory.Rw.RLock()
-	peer, exists := v.Map[value]
-	v.Factory.Rw.RUnlock()
-	if !exists {
-		return ""
-	}
-	if peer.ENS != "" && peer.ENS != "." && peer.ENS != "!" {
-		return peer.ENS
-	}
-	if peer.LoopringENS != "" && peer.LoopringENS != "." && peer.LoopringENS != ".." && peer.LoopringENS != "!" {
-		return peer.LoopringENS
-	}
-	return peer.Address
-}
-
 func (v *Value) Format(address string) string {
 	address = strings.ToLower(address)
 	if strings.HasPrefix(address, "0x") || strings.HasSuffix(address, ".eth") {
 		return address
 	}
 	return address
+}
+
+// Helper function to rebuild the map from v.Peers
+func (v *Value) rebuildMap() {
+	v.Factory.Rw.Lock()
+	defer v.Factory.Rw.Unlock()
+
+	v.Map = make(map[string]*Peer)
+	for _, p := range v.Peers {
+		if p.Address != "" && p.Address != "." && p.Address != "!" {
+			v.Map[p.Address] = p
+		}
+		if p.ENS != "" && p.ENS != "." && p.ENS != "!" {
+			v.Map[p.ENS] = p
+		}
+		if p.LoopringENS != "" && p.LoopringENS != "." && p.LoopringENS != "!" {
+			v.Map[p.LoopringENS] = p
+		}
+		if p.LoopringID != "" && p.LoopringID != "." && p.LoopringID != "!" {
+			v.Map[p.LoopringID] = p
+		}
+	}
 }
 
 func (v *Value) input(url string, response any) error {

@@ -1,8 +1,6 @@
 package value
 
 import (
-	"fmt"
-
 	"github.com/zachklingbeil/factory"
 )
 
@@ -39,20 +37,5 @@ func NewValue(factory *factory.Factory) *Value {
 	v.LoadTokens()
 	v.LoadPeers()
 	v.rebuildMap()
-	v.DotLoop()
 	return v
-}
-
-func (v *Value) DotLoop() {
-	toProcess := len(v.Peers)
-	for _, peer := range v.Peers {
-		peer.ENS = ""
-
-		// Fetch ENS for all peers
-		v.GetENS(peer)
-
-		// Print peer details, decrementing the count each time
-		toProcess--
-		fmt.Printf("%d %s %s %s\n", toProcess, peer.ENS, peer.LoopringENS, peer.LoopringID)
-	}
 }
