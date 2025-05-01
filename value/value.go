@@ -55,13 +55,6 @@ func (v *Value) Refresh() {
 // 	for i := range v.Peers {
 // 		fmt.Printf("%d", i)
 // 		peer := v.Peers[i]
-// 		// Clear invalid fields if they are "." or "!"
-// 		if peer.ENS == "." || peer.ENS == "!" {
-// 			peer.ENS = ""
-// 		}
-// 		if peer.LoopringID == "." || peer.LoopringID == "!" {
-// 			peer.LoopringID = ""
-// 		}
 // 		if peer.LoopringENS == "." || peer.LoopringENS == "!" {
 // 			peer.LoopringENS = ""
 // 		}
@@ -71,34 +64,35 @@ func (v *Value) Refresh() {
 // }
 
 func (v *Value) DotLoop() {
-	// Create a rate limiter for 20 requests per second
-	limiter := rate.NewLimiter(rate.Every(50*time.Millisecond), 1) // 50ms per request = 20 RPS
+	// No burst: set burst to 1, and use a conservative rate (adjust as needed)
+	limiter := rate.NewLimiter(rate.Every(501*time.Millisecond), 1)
 
-	for i := range v.Peers {
-		// Wait for permission to proceed
+	// Count how many peers need processing
+	toProcess := 0
+	for _, peer := range v.Peers {
+		if peer.LoopringENS == "." || peer.LoopringENS == "!" {
+			toProcess++
+		}
+	}
+
+	for _, peer := range v.Peers {
+		// Only process peers where LoopringENS is "." or "!"
+		if peer.LoopringENS != "." && peer.LoopringENS != "!" {
+			continue
+		}
+
 		if err := limiter.Wait(v.Factory.Ctx); err != nil {
 			fmt.Printf("Rate limiter error: %v\n", err)
 			continue
 		}
 
-		fmt.Printf("%d", i)
-		peer := v.Peers[i]
-
-		// Clear invalid fields if they are "." or "!"
-		if peer.ENS == "." || peer.ENS == "!" {
-			peer.ENS = ""
-		}
-		if peer.LoopringID == "." || peer.LoopringID == "!" {
-			peer.LoopringID = ""
-		}
-		if peer.LoopringENS == "." || peer.LoopringENS == "!" {
-			peer.LoopringENS = ""
-		}
+		peer.LoopringENS = ""
 
 		// Fetch Loopring ENS
 		v.GetLoopringENS(peer)
 
-		// Print peer details
-		fmt.Printf("%s %s %s\n", peer.ENS, peer.LoopringENS, peer.LoopringID)
+		// Print peer details, decrementing the count each time
+		toProcess--
+		fmt.Printf("%d %s %s %s\n", toProcess, peer.ENS, peer.LoopringENS, peer.LoopringID)
 	}
 }
