@@ -9,14 +9,6 @@ import (
 	"strings"
 )
 
-type Token struct {
-	Token    string `json:"token,omitempty"`
-	Address  string `json:"address,omitempty"`
-	Decimals string `json:"decimals,omitempty"`
-	TokenId  string `json:"tokenId,omitempty"`
-	TokenInt int64  `json:"tokenInt,omitempty"`
-}
-
 func (v *Value) LoadTokens() error {
 	// Step 1: Fetch all tokens from the Redis hash
 	hashKey := "token" // The Redis hash key used in MigrateTokens
@@ -44,7 +36,7 @@ func (v *Value) LoadTokens() error {
 		v.TokenMap[token.Token] = &token
 	}
 
-	log.Printf("Loaded %d tokens from Redis hash: %s", len(v.Tokens), hashKey)
+	fmt.Printf("%d tokens", len(v.Tokens))
 	return nil
 }
 

@@ -8,17 +8,19 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/zachklingbeil/block/value"
 	"github.com/zachklingbeil/factory"
 )
 
 type Ethereum struct {
 	Factory *factory.Factory
-	// Map     map[Coordinate]*Tx
+	Value   *value.Value
 }
 
-func NewEthereum(factory *factory.Factory) *Ethereum {
+func NewEthereum(factory *factory.Factory, value *value.Value) *Ethereum {
 	return &Ethereum{
 		Factory: factory,
+		Value:   value,
 	}
 }
 
