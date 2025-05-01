@@ -2,6 +2,7 @@ package value
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -46,16 +47,12 @@ func (v *Value) HelloUniverse(value string) {
 
 	v.GetENS(peer)
 	v.GetLoopringENS(peer)
-	v.GetLoopringID(peer)
+	// v.GetLoopringID(peer)
 	if peer.Address == "" || peer.Address == "!" {
 		v.GetLoopringAddress(peer)
 	}
-
-	v.rebuildMap()
-
-	v.Factory.Rw.Lock()
 	fmt.Printf("%s %s %s\n", peer.ENS, peer.LoopringENS, peer.LoopringID)
-	v.Factory.Rw.Unlock()
+	v.rebuildMap()
 }
 
 // ENS -> hex
@@ -92,7 +89,6 @@ func (v *Value) GetENS(peer *Peer) {
 	v.Save(peer)
 }
 
-// hex -> LoopringENS [.loopring.eth] or "."
 func (v *Value) GetLoopringENS(peer *Peer) {
 	v.Factory.Rw.Lock()
 	defer v.Factory.Rw.Unlock()
@@ -105,6 +101,8 @@ func (v *Value) GetLoopringENS(peer *Peer) {
 		Loopring string `json:"data"`
 	}
 	if err := v.input(url, &response); err != nil {
+		// Log the error with additional details
+		log.Printf("Failed to fetch Loopring ENS for address %s: %v", peer.Address, err)
 		peer.LoopringENS = "!"
 	} else if response.Loopring == "" {
 		peer.LoopringENS = "."
@@ -113,6 +111,28 @@ func (v *Value) GetLoopringENS(peer *Peer) {
 	}
 	v.Save(peer)
 }
+
+// // hex -> LoopringENS [.loopring.eth] or "."
+// func (v *Value) GetLoopringENS(peer *Peer) {
+// 	v.Factory.Rw.Lock()
+// 	defer v.Factory.Rw.Unlock()
+
+// 	if peer.LoopringENS == "." && peer.LoopringENS != "" {
+// 		return
+// 	}
+// 	url := fmt.Sprintf(dotLoop, peer.Address)
+// 	var response struct {
+// 		Loopring string `json:"data"`
+// 	}
+// 	if err := v.input(url, &response); err != nil {
+// 		peer.LoopringENS = "!"
+// 	} else if response.Loopring == "" {
+// 		peer.LoopringENS = "."
+// 	} else {
+// 		peer.LoopringENS = v.Format(response.Loopring)
+// 	}
+// 	v.Save(peer)
+// }
 
 // hex -> LoopringId or "."
 func (v *Value) GetLoopringID(peer *Peer) {

@@ -20,37 +20,6 @@ type Peer struct {
 	Address     string `json:"address"`
 }
 
-func (v *Value) MigratePeers() error {
-	// Step 1: Load existing peers into v.Peers
-	if err := v.LoadPeers(); err != nil {
-		return fmt.Errorf("failed to load peers: %v", err)
-	}
-
-	// Step 2: Migrate peers to a Redis hash
-	hashKey := "peers" // Define the Redis hash key
-	for _, peer := range v.Peers {
-		if peer.Address == "" {
-			log.Printf("Skipping peer with empty address: %+v", peer)
-			continue
-		}
-
-		peerJSON, err := json.Marshal(peer)
-		if err != nil {
-			log.Printf("Failed to serialize peer: %v", err)
-			continue
-		}
-
-		// Use the hexadecimal address as the field in the Redis hash
-		if err := v.Factory.Data.RB.HSet(v.Factory.Ctx, hashKey, peer.Address, peerJSON).Err(); err != nil {
-			log.Printf("Failed to store peer in Redis hash %s with key %s: %v", hashKey, peer.Address, err)
-			continue
-		}
-	}
-
-	log.Printf("Migrated %d peers to the Redis hash: %s", len(v.Peers), hashKey)
-	return nil
-}
-
 func (v *Value) LoadPeers() error {
 	// Lock while updating v.Peers
 	v.Factory.Rw.Lock()
@@ -74,18 +43,22 @@ func (v *Value) LoadPeers() error {
 	}
 	v.Peers = peers
 	log.Printf("Loaded %d peers from Redis hash: %s", len(v.Peers), hashKey)
-	v.rebuildMap()
-	log.Printf("Rebuilt peer map with %d entries", len(v.Map))
 	return nil
 }
 
 func (v *Value) Save(peer *Peer) error {
+	// Serialize the peer to JSON
 	peerJSON, err := json.Marshal(peer)
 	if err != nil {
 		return fmt.Errorf("failed to serialize peer: %v", err)
 	}
-	if err := v.Factory.Data.RB.SAdd(v.Factory.Ctx, "peer", peerJSON).Err(); err != nil {
-		return fmt.Errorf("failed to store peer in Redis: %v", err)
+
+	// Define the Redis hash key for storing peers
+	hashKey := "peer"
+
+	// Use the peer's Address as the field in the Redis hash
+	if err := v.Factory.Data.RB.HSet(v.Factory.Ctx, hashKey, peer.Address, peerJSON).Err(); err != nil {
+		return fmt.Errorf("failed to store peer in Redis hash: %v", err)
 	}
 	return nil
 }

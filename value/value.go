@@ -1,11 +1,11 @@
 package value
 
 import (
-	"encoding/json"
 	"fmt"
-	"log"
+	"time"
 
 	"github.com/zachklingbeil/factory"
+	"golang.org/x/time/rate"
 )
 
 type Value struct {
@@ -25,15 +25,12 @@ func NewValue(factory *factory.Factory) *Value {
 
 	v.LoadTokens()
 	v.LoadPeers()
-	// v.MigratePeers()
-
-	// v.rebuildMap()
-	// v.Refresh()
+	v.rebuildMap()
+	v.DotLoop()
 	return v
 }
 
 func (v *Value) Refresh() {
-	remaining := len(v.Peers)
 	for i := range v.Peers {
 		fmt.Printf("%d", i)
 		peer := v.Peers[i]
@@ -51,55 +48,57 @@ func (v *Value) Refresh() {
 			peer.Address = ""
 		}
 		v.HelloUniverse(peer.Address)
-		remaining--
-		fmt.Printf("\n%d", remaining)
 	}
 }
 
-func (v *Value) MigrateCombined() error {
-	// Define the Redis hash key for the combined table
-	hashKey := "universe" // The new Redis hash key
+// func (v *Value) DotLoop() {
+// 	for i := range v.Peers {
+// 		fmt.Printf("%d", i)
+// 		peer := v.Peers[i]
+// 		// Clear invalid fields if they are "." or "!"
+// 		if peer.ENS == "." || peer.ENS == "!" {
+// 			peer.ENS = ""
+// 		}
+// 		if peer.LoopringID == "." || peer.LoopringID == "!" {
+// 			peer.LoopringID = ""
+// 		}
+// 		if peer.LoopringENS == "." || peer.LoopringENS == "!" {
+// 			peer.LoopringENS = ""
+// 		}
+// 		v.GetLoopringENS(peer)
+// 		fmt.Printf("%s %s %s\n", peer.ENS, peer.LoopringENS, peer.LoopringID)
+// 	}
+// }
 
-	// Step 1: Migrate Peers
-	for _, peer := range v.Peers {
-		if peer.Address == "" {
-			log.Printf("Skipping peer with empty address: %+v", peer)
+func (v *Value) DotLoop() {
+	// Create a rate limiter for 20 requests per second
+	limiter := rate.NewLimiter(rate.Every(50*time.Millisecond), 1) // 50ms per request = 20 RPS
+
+	for i := range v.Peers {
+		// Wait for permission to proceed
+		if err := limiter.Wait(v.Factory.Ctx); err != nil {
+			fmt.Printf("Rate limiter error: %v\n", err)
 			continue
 		}
 
-		peerJSON, err := json.Marshal(peer)
-		if err != nil {
-			log.Printf("Failed to serialize peer: %v", err)
-			continue
+		fmt.Printf("%d", i)
+		peer := v.Peers[i]
+
+		// Clear invalid fields if they are "." or "!"
+		if peer.ENS == "." || peer.ENS == "!" {
+			peer.ENS = ""
+		}
+		if peer.LoopringID == "." || peer.LoopringID == "!" {
+			peer.LoopringID = ""
+		}
+		if peer.LoopringENS == "." || peer.LoopringENS == "!" {
+			peer.LoopringENS = ""
 		}
 
-		// Store the peer in the combined Redis hash
-		if err := v.Factory.Data.RB.HSet(v.Factory.Ctx, hashKey, peer.Address, peerJSON).Err(); err != nil {
-			log.Printf("Failed to store peer in combined Redis hash %s with key %s: %v", hashKey, peer.Address, err)
-			continue
-		}
+		// Fetch Loopring ENS
+		v.GetLoopringENS(peer)
+
+		// Print peer details
+		fmt.Printf("%s %s %s\n", peer.ENS, peer.LoopringENS, peer.LoopringID)
 	}
-
-	// Step 2: Migrate Tokens
-	for _, token := range v.Tokens {
-		if token.Address == "" {
-			log.Printf("Skipping token with empty address: %+v", token)
-			continue
-		}
-
-		tokenJSON, err := json.Marshal(token)
-		if err != nil {
-			log.Printf("Failed to serialize token: %v", err)
-			continue
-		}
-
-		// Store the token in the combined Redis hash
-		if err := v.Factory.Data.RB.HSet(v.Factory.Ctx, hashKey, token.Address, tokenJSON).Err(); err != nil {
-			log.Printf("Failed to store token in combined Redis hash %s with key %s: %v", hashKey, token.Address, err)
-			continue
-		}
-	}
-
-	log.Printf("Migrated peers and tokens to the combined Redis hash: %s", hashKey)
-	return nil
 }

@@ -7,6 +7,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/wealdtech/go-ens/v3 v3.6.0
 	github.com/zachklingbeil/factory v1.1.39
+	golang.org/x/time v0.9.0
 )
 
 require (
