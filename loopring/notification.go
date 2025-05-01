@@ -21,15 +21,11 @@ func (l *Loopring) CurrentBlock() int64 {
 		fmt.Printf("Failed to parse block data: %v\n", err)
 		return 0
 	}
+	l.Factory.State.Count("loop.blocks", block.Number, true)
 	return block.Number
 }
 
 func (l *Loopring) Listen() {
-	currentBlock := l.CurrentBlock()
-	if currentBlock > 0 {
-		l.Factory.State.Add("loopring", "blockHeight", currentBlock)
-	}
-
 	for {
 		key := l.fetchWsApiKey()
 		if key == "" {
@@ -73,7 +69,7 @@ func (l *Loopring) Listen() {
 			}
 			for _, block := range resp.Data {
 				fmt.Printf("block %d\n", block.Number)
-				l.Factory.State.Add("loopring", "blockHeight", block.Number)
+				l.Factory.State.Count("loop.block", block.Number, true)
 				l.BlockByBlock(block.Number)
 			}
 		}

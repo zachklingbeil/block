@@ -32,7 +32,7 @@ func (v *Value) LoadPeers() error {
 		peers = append(peers, &peer)
 	}
 	v.Peers = peers
-	fmt.Printf("%d peers", len(v.Peers))
+	fmt.Printf("%d peers\n", len(v.Peers))
 	return nil
 }
 
@@ -76,6 +76,7 @@ func (v *Value) rebuildMap() {
 			v.Map[p.LoopringID] = p
 		}
 	}
+	v.Factory.State.Count("peers", len(v.Peers), false)
 }
 
 func (v *Value) input(url string, response any) error {

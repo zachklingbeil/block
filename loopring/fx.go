@@ -9,24 +9,24 @@ import (
 )
 
 func (l *Loopring) Loop() error {
-	highestBlock, _ := l.Factory.State.GetValue("loopring", "highestBlock")
+	blocks, _ := l.Factory.State.Read("loop.block")
 	startBlock := int64(1)
 
-	if highestBlock != nil {
-		if hb, ok := highestBlock.(float64); ok {
+	if blocks != nil {
+		if hb, ok := blocks.(float64); ok {
 			startBlock = int64(hb) + 1
 		} else {
-			log.Error("Invalid type for highestBlock: %T", highestBlock)
-			return fmt.Errorf("invalid type for highestBlock")
+			log.Error("Invalid type for blocks: %T", blocks)
+			return fmt.Errorf("invalid type for blocks")
 		}
 	}
 
-	l.Factory.Math.Up(startBlock, func(blockNumber int64) {
-		if err := l.BlockByBlock(blockNumber); err != nil {
-			log.Error("Failed to process block %d: %v", blockNumber, err)
+	l.Factory.Math.Up(startBlock, func(block int64) {
+		if err := l.BlockByBlock(block); err != nil {
+			log.Error("Failed to process block %d: %v", block, err)
 			return
 		}
-		l.Factory.State.Add("loopring", "highestBlock", blockNumber)
+		l.Factory.State.Count("loop.block", block, true)
 	})
 	return nil
 }

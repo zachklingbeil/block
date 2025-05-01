@@ -14,7 +14,16 @@ func (v *Value) Hello(value string) string {
 	v.Factory.Rw.RUnlock()
 
 	if !exists {
-		peer = v.HelloUniverse(value)
+		peer = &Peer{}
+		if common.IsHexAddress(value) {
+			peer.Address = v.Format(value)
+		} else {
+			peer.LoopringID = value
+		}
+		v.Factory.Rw.Lock()
+		v.Peers = append(v.Peers, peer)
+		v.Factory.Rw.Unlock()
+		go v.HelloUniverse(value)
 	}
 	// Prefer ENS, then LoopringENS, then Address
 	switch {
@@ -40,19 +49,15 @@ func (v *Value) HelloUniverse(value string) *Peer {
 			peer.LoopringID = value
 		}
 		v.Peers = append(v.Peers, peer)
-		v.Map[value] = peer
 	}
 
 	// Unlock before external calls to avoid holding lock during network IO
 	v.Factory.Rw.Unlock()
 	v.GetENS(peer)
 	v.GetLoopringENS(peer)
-	if peer.Address == "" || peer.Address == "!" {
-		v.GetLoopringAddress(peer)
-	}
+	v.GetLoopringID(peer)
 	fmt.Printf("%s %s %s\n", peer.ENS, peer.LoopringENS, peer.LoopringID)
 	v.Factory.Rw.Lock()
-	v.rebuildMap()
 	return peer
 }
 

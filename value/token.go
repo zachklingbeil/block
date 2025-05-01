@@ -36,7 +36,7 @@ func (v *Value) LoadTokens() error {
 		v.TokenMap[token.Token] = &token
 	}
 
-	fmt.Printf("%d tokens", len(v.Tokens))
+	fmt.Printf("%d tokens\n", len(v.Tokens))
 	return nil
 }
 

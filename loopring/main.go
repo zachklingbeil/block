@@ -15,6 +15,7 @@ func Connect(factory *factory.Factory, value *value.Value) *Loopring {
 		Factory: factory,
 		Value:   value,
 	}
+	loop.CurrentBlock()
 	go loop.Listen()
 	go loop.Loop()
 	return loop
