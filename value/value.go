@@ -65,7 +65,7 @@ func (v *Value) Refresh() {
 
 func (v *Value) DotLoop() {
 	// No burst: set burst to 1, and use a conservative rate (adjust as needed)
-	limiter := rate.NewLimiter(rate.Every(501*time.Millisecond), 1)
+	limiter := rate.NewLimiter(rate.Every(334*time.Millisecond), 1)
 
 	// Count how many peers need processing
 	toProcess := 0

@@ -103,7 +103,7 @@ func (v *Value) GetLoopringENS(peer *Peer) {
 	if err := v.input(url, &response); err != nil {
 		peer.LoopringENS = "!"
 	} else if response.Loopring == "" {
-		peer.LoopringENS = "."
+		peer.LoopringENS = ".."
 	} else {
 		peer.LoopringENS = v.Format(response.Loopring)
 	}
