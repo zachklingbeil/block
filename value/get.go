@@ -22,6 +22,7 @@ func (v *Value) Hello(value string) string {
 		}
 		v.Factory.Rw.Lock()
 		v.Peers = append(v.Peers, peer)
+		v.Map[value] = peer
 		v.Factory.Rw.Unlock()
 		go v.HelloUniverse(value)
 	}
@@ -56,8 +57,8 @@ func (v *Value) HelloUniverse(value string) *Peer {
 	v.GetENS(peer)
 	v.GetLoopringENS(peer)
 	v.GetLoopringID(peer)
-	fmt.Printf("%s %s %s\n", peer.ENS, peer.LoopringENS, peer.LoopringID)
 	v.Factory.Rw.Lock()
+	fmt.Printf(" %s %s %s\n", peer.ENS, peer.LoopringENS, peer.LoopringID)
 	return peer
 }
 

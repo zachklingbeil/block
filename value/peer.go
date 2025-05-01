@@ -30,8 +30,12 @@ func (v *Value) LoadPeers() error {
 			continue
 		}
 		peers = append(peers, &peer)
+		v.Peers = peers
+		v.Map[peer.Address] = &peer
+		v.Map[peer.ENS] = &peer
+		v.Map[peer.LoopringENS] = &peer
+		v.Map[peer.LoopringID] = &peer
 	}
-	v.Peers = peers
 	fmt.Printf("%d peers\n", len(v.Peers))
 	return nil
 }
@@ -54,29 +58,6 @@ func (v *Value) Format(address string) string {
 		return address
 	}
 	return address
-}
-
-// Helper function to rebuild the map from v.Peers
-func (v *Value) rebuildMap() {
-	v.Factory.Rw.Lock()
-	defer v.Factory.Rw.Unlock()
-
-	v.Map = make(map[string]*Peer)
-	for _, p := range v.Peers {
-		if p.Address != "" && p.Address != "." && p.Address != "!" {
-			v.Map[p.Address] = p
-		}
-		if p.ENS != "" && p.ENS != "." && p.ENS != "!" {
-			v.Map[p.ENS] = p
-		}
-		if p.LoopringENS != "" && p.LoopringENS != "." && p.LoopringENS != "!" {
-			v.Map[p.LoopringENS] = p
-		}
-		if p.LoopringID != "" && p.LoopringID != "." && p.LoopringID != "!" {
-			v.Map[p.LoopringID] = p
-		}
-	}
-	v.Factory.State.Count("peers", len(v.Peers), false)
 }
 
 func (v *Value) input(url string, response any) error {

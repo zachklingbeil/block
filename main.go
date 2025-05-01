@@ -9,10 +9,8 @@ import (
 func main() {
 	factory := factory.Assemble()
 	v := value.NewValue(factory)
-	loop := loopring.Connect(factory, v)
-	loop.BlockByBlock(52222)
+	loopring.Connect(factory, v)
 	// e := ethereum.NewEthereum(factory)
 	// e.ProcessBlocks(10)
-
 	select {}
 }

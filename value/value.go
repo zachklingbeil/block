@@ -36,8 +36,7 @@ func NewValue(factory *factory.Factory) *Value {
 
 	v.LoadTokens()
 	v.LoadPeers()
-	v.rebuildMap()
-	v.Factory.State.Count("peers", len(v.Peers), false)
-	v.Factory.State.Count("tokens", len(v.Tokens), false)
+	v.Factory.State.Count("peers", len(v.Peers), true)
+	v.Factory.State.Count("tokens", len(v.Tokens), true)
 	return v
 }
