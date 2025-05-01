@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/redis/go-redis/v9"
 )
 
 func (l *Loopring) Loop() error {
@@ -132,17 +131,19 @@ func (l *Loopring) ProcessBlock(transactions []any) []Tx {
 }
 
 func (l *Loopring) StoreBlock(blockNumber int64, block any) error {
+	// Serialize the block to JSON
 	blockJSON, err := json.Marshal(block)
 	if err != nil {
 		return fmt.Errorf("failed to marshal block: %w", err)
 	}
-	score := float64(blockNumber)
-	err = l.Factory.Data.RB.ZAdd(l.Factory.Ctx, "blocks", redis.Z{
-		Score:  score,
-		Member: blockJSON,
-	}).Err()
+
+	// Define the Redis hash key for storing blocks
+	hashKey := "block"
+
+	// Use the blockNumber as the field in the Redis hash
+	err = l.Factory.Data.RB.HSet(l.Factory.Ctx, hashKey, fmt.Sprintf("%d", blockNumber), blockJSON).Err()
 	if err != nil {
-		return fmt.Errorf("failed to store block in Redis: %w", err)
+		return fmt.Errorf("failed to store block in Redis hash: %w", err)
 	}
 	return nil
 }

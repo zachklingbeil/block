@@ -1,37 +1,61 @@
 package value
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/wealdtech/go-ens/v3"
 )
 
-func (v *Value) Hello(value string) string {
-	v.Factory.Rw.RLock()
-	peer, exists := v.Map[value]
-	v.Factory.Rw.RUnlock()
-	if !exists {
-		return ""
+// Helper function to rebuild the map from v.Peers
+func (v *Value) rebuildMap() {
+	v.Factory.Rw.Lock()
+	defer v.Factory.Rw.Unlock()
+
+	v.Map = make(map[string]*Peer)
+	for _, p := range v.Peers {
+		if p.Address != "" && p.Address != "." && p.Address != "!" {
+			v.Map[p.Address] = p
+		}
+		if p.ENS != "" && p.ENS != "." && p.ENS != "!" {
+			v.Map[p.ENS] = p
+		}
+		if p.LoopringENS != "" && p.LoopringENS != "." && p.LoopringENS != "!" {
+			v.Map[p.LoopringENS] = p
+		}
+		if p.LoopringID != "" && p.LoopringID != "." && p.LoopringID != "!" {
+			v.Map[p.LoopringID] = p
+		}
 	}
-	if peer.ENS != "" && peer.ENS != "." && peer.ENS != "!" {
-		return peer.ENS
-	}
-	if peer.LoopringENS != "" && peer.LoopringENS != "." && peer.LoopringENS != "!" {
-		return peer.LoopringENS
-	}
-	return peer.Address
 }
 
-func (v *Value) Format(address string) string {
-	address = strings.ToLower(address)
-	if strings.HasPrefix(address, "0x") || strings.HasSuffix(address, ".eth") {
-		return address
+func (v *Value) HelloUniverse(value string) {
+	// First look for existing peer in map, if they don't exist, create new peer and set initial identifying value
+	peer, exists := v.Map[value]
+	if !exists {
+		peer = &Peer{}
+		if common.IsHexAddress(value) {
+			peer.Address = v.Format(value)
+		} else {
+			peer.LoopringID = value
+		}
+		// Add to v.Peers - the sole source of truth
+		v.Peers = append(v.Peers, peer)
 	}
-	return address
+
+	v.GetENS(peer)
+	v.GetLoopringENS(peer)
+	v.GetLoopringID(peer)
+	if peer.Address == "" || peer.Address == "!" {
+		v.GetLoopringAddress(peer)
+	}
+
+	v.rebuildMap()
+
+	v.Factory.Rw.Lock()
+	fmt.Printf("%s %s %s\n", peer.ENS, peer.LoopringENS, peer.LoopringID)
+	v.Factory.Rw.Unlock()
 }
 
 // ENS -> hex
@@ -39,7 +63,7 @@ func (v *Value) GetAddress(peer *Peer) {
 	v.Factory.Rw.Lock()
 	defer v.Factory.Rw.Unlock()
 
-	if peer.Address == "." {
+	if peer.Address == "." && peer.Address != "" {
 		return
 	}
 	address, err := ens.Resolve(v.Factory.Eth, peer.ENS)
@@ -49,7 +73,6 @@ func (v *Value) GetAddress(peer *Peer) {
 		peer.Address = v.Format(address.Hex())
 	}
 	v.Save(peer)
-	v.Map[peer.Address] = peer
 }
 
 // hex -> .eth
@@ -57,7 +80,7 @@ func (v *Value) GetENS(peer *Peer) {
 	v.Factory.Rw.Lock()
 	defer v.Factory.Rw.Unlock()
 
-	if peer.ENS == "." {
+	if peer.ENS == "." && peer.ENS != "" {
 		return
 	}
 	ensName, err := ens.ReverseResolve(v.Factory.Eth, common.HexToAddress(peer.Address))
@@ -67,7 +90,6 @@ func (v *Value) GetENS(peer *Peer) {
 		peer.ENS = v.Format(ensName)
 	}
 	v.Save(peer)
-	v.Map[peer.ENS] = peer
 }
 
 // hex -> LoopringENS [.loopring.eth] or "."
@@ -75,7 +97,7 @@ func (v *Value) GetLoopringENS(peer *Peer) {
 	v.Factory.Rw.Lock()
 	defer v.Factory.Rw.Unlock()
 
-	if peer.LoopringENS == "." {
+	if peer.LoopringENS == "." && peer.LoopringENS != "" {
 		return
 	}
 	url := fmt.Sprintf(dotLoop, peer.Address)
@@ -90,7 +112,6 @@ func (v *Value) GetLoopringENS(peer *Peer) {
 		peer.LoopringENS = v.Format(response.Loopring)
 	}
 	v.Save(peer)
-	v.Map[peer.LoopringENS] = peer
 }
 
 // hex -> LoopringId or "."
@@ -98,7 +119,7 @@ func (v *Value) GetLoopringID(peer *Peer) {
 	v.Factory.Rw.Lock()
 	defer v.Factory.Rw.Unlock()
 
-	if peer.LoopringID == "." {
+	if peer.LoopringID == "." && peer.LoopringID != "" {
 		return
 	}
 	url := fmt.Sprintf(byAddress, peer.Address)
@@ -113,7 +134,6 @@ func (v *Value) GetLoopringID(peer *Peer) {
 		peer.LoopringID = strconv.FormatInt(response.ID, 10)
 	}
 	v.Save(peer)
-	v.Map[peer.LoopringID] = peer
 }
 
 // LoopringId -> hex
@@ -121,7 +141,7 @@ func (v *Value) GetLoopringAddress(peer *Peer) {
 	v.Factory.Rw.Lock()
 	defer v.Factory.Rw.Unlock()
 
-	if peer.Address == "." {
+	if peer.Address == "." && peer.Address != "" {
 		return
 	}
 	url := fmt.Sprintf(byId, peer.LoopringID)
@@ -136,31 +156,4 @@ func (v *Value) GetLoopringAddress(peer *Peer) {
 		peer.Address = v.Format(response.Address)
 	}
 	v.Save(peer)
-	v.Map[peer.Address] = peer
-}
-
-func (v *Value) ClearInvalidFields() {
-	for i := range v.Peers {
-		peer := &v.Peers[i]
-		if peer.ENS == "." {
-			peer.ENS = ""
-		}
-		if peer.LoopringID == "." {
-			peer.LoopringID = ""
-		}
-		if peer.LoopringENS == "." {
-			peer.LoopringENS = ""
-		}
-		if peer.Address == "." {
-			peer.Address = ""
-		}
-	}
-}
-
-func (v *Value) input(url string, response any) error {
-	data, err := v.Factory.Json.In(url, "")
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(data, response)
 }

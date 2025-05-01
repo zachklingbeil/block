@@ -18,22 +18,64 @@ type Token struct {
 }
 
 func (v *Value) LoadTokens() error {
-	source, err := v.Factory.Data.RB.ZRange(v.Factory.Ctx, "tokens", 0, -1).Result()
+	// Step 1: Fetch all tokens from the Redis hash
+	hashKey := "token" // The Redis hash key used in MigrateTokens
+	source, err := v.Factory.Data.RB.HGetAll(v.Factory.Ctx, hashKey).Result()
 	if err != nil {
-		log.Fatalf("Failed to fetch tokens from Redis sorted set: %v", err)
+		return fmt.Errorf("failed to fetch tokens from Redis hash: %v", err)
 	}
-	v.Tokens = make([]Token, 0, len(source))
+
+	// Step 2: Clear existing tokens and initialize the token map
+	v.Tokens = make([]*Token, 0, len(source))
+	v.TokenMap = make(map[any]*Token)
+
+	// Step 3: Deserialize each token and populate the token map
 	for _, tokenJSON := range source {
 		var token Token
 		if err := json.Unmarshal([]byte(tokenJSON), &token); err != nil {
 			log.Printf("Skipping invalid token: %v (data: %s)", err, tokenJSON)
 			continue
 		}
-		v.Tokens = append(v.Tokens, token)
+
+		// Add the token to the list and map
+		v.Tokens = append(v.Tokens, &token)
 		v.TokenMap[token.TokenInt] = &token
 		v.TokenMap[token.TokenId] = &token
 		v.TokenMap[token.Token] = &token
 	}
+
+	log.Printf("Loaded %d tokens from Redis hash: %s", len(v.Tokens), hashKey)
+	return nil
+}
+func (v *Value) MigrateTokens() error {
+	// Step 1: Load existing tokens from the sorted set
+	source, err := v.Factory.Data.RB.ZRange(v.Factory.Ctx, "tokens", 0, -1).Result()
+	if err != nil {
+		return fmt.Errorf("failed to fetch tokens from Redis sorted set: %v", err)
+	}
+
+	// Step 2: Migrate tokens to a Redis hash
+	hashKey := "tokenz" // Define the Redis hash key
+	for _, tokenJSON := range source {
+		var token Token
+		if err := json.Unmarshal([]byte(tokenJSON), &token); err != nil {
+			log.Printf("Skipping invalid token: %v (data: %s)", err, tokenJSON)
+			continue
+		}
+
+		if token.Token == "" {
+			log.Printf("Skipping token with empty address: %+v", token)
+			continue
+		}
+
+		// Use the token's Address as the field in the Redis hash
+		if err := v.Factory.Data.RB.HSet(v.Factory.Ctx, hashKey, token.Token, tokenJSON); err != nil {
+			log.Printf("Failed to store token in Redis hash %s with key %s: %v", hashKey, token.Token, err)
+			continue
+		}
+	}
+
+	log.Printf("Migrated tokens to the Redis hash: %s", hashKey)
 	return nil
 }
 

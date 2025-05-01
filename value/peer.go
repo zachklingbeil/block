@@ -4,8 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-
-	"github.com/ethereum/go-ethereum/common"
+	"strings"
 )
 
 const (
@@ -21,69 +20,104 @@ type Peer struct {
 	Address     string `json:"address"`
 }
 
-func (v *Value) LoadPeers() error {
-	source, err := v.Factory.Data.RB.SMembers(v.Factory.Ctx, "peer").Result()
-	if err != nil {
-		log.Fatalf("Failed to fetch peers from Redis: %v", err)
+func (v *Value) MigratePeers() error {
+	// Step 1: Load existing peers into v.Peers
+	if err := v.LoadPeers(); err != nil {
+		return fmt.Errorf("failed to load peers: %v", err)
 	}
-	v.Peers = make([]Peer, 0, len(source))
+
+	// Step 2: Migrate peers to a Redis hash
+	hashKey := "peers" // Define the Redis hash key
+	for _, peer := range v.Peers {
+		if peer.Address == "" {
+			log.Printf("Skipping peer with empty address: %+v", peer)
+			continue
+		}
+
+		peerJSON, err := json.Marshal(peer)
+		if err != nil {
+			log.Printf("Failed to serialize peer: %v", err)
+			continue
+		}
+
+		// Use the hexadecimal address as the field in the Redis hash
+		if err := v.Factory.Data.RB.HSet(v.Factory.Ctx, hashKey, peer.Address, peerJSON).Err(); err != nil {
+			log.Printf("Failed to store peer in Redis hash %s with key %s: %v", hashKey, peer.Address, err)
+			continue
+		}
+	}
+
+	log.Printf("Migrated %d peers to the Redis hash: %s", len(v.Peers), hashKey)
+	return nil
+}
+
+func (v *Value) LoadPeers() error {
+	// Lock while updating v.Peers
+	v.Factory.Rw.Lock()
+	defer v.Factory.Rw.Unlock()
+
+	hashKey := "peer" // The Redis hash key used in MigratePeers
+	source, err := v.Factory.Data.RB.HGetAll(v.Factory.Ctx, hashKey).Result()
+	if err != nil {
+		return fmt.Errorf("failed to fetch peers from Redis hash: %v", err)
+	}
+
+	// Clear any existing peers before loading fresh ones
+	peers := make([]*Peer, 0, len(source))
 	for _, peerJSON := range source {
 		var peer Peer
 		if err := json.Unmarshal([]byte(peerJSON), &peer); err != nil {
-			log.Printf("Skipping invalid peer: %v", err)
+			log.Printf("Skipping invalid peer: %v (data: %s)", err, peerJSON)
 			continue
 		}
-		v.Peers = append(v.Peers, peer)
-		v.Map[peer.Address] = &peer
-		v.Map[peer.LoopringENS] = &peer
-		v.Map[peer.LoopringID] = &peer
-		v.Map[peer.ENS] = &peer
+		peers = append(peers, &peer)
+	}
+	v.Peers = peers
+	log.Printf("Loaded %d peers from Redis hash: %s", len(v.Peers), hashKey)
+	v.rebuildMap()
+	log.Printf("Rebuilt peer map with %d entries", len(v.Map))
+	return nil
+}
+
+func (v *Value) Save(peer *Peer) error {
+	peerJSON, err := json.Marshal(peer)
+	if err != nil {
+		return fmt.Errorf("failed to serialize peer: %v", err)
+	}
+	if err := v.Factory.Data.RB.SAdd(v.Factory.Ctx, "peer", peerJSON).Err(); err != nil {
+		return fmt.Errorf("failed to store peer in Redis: %v", err)
 	}
 	return nil
 }
 
-func (v *Value) HelloUniverse(value string) {
-	v.Factory.Rw.Lock()
-	defer v.Factory.Rw.Unlock()
-
+func (v *Value) Hello(value string) string {
+	v.Factory.Rw.RLock()
 	peer, exists := v.Map[value]
+	v.Factory.Rw.RUnlock()
 	if !exists {
-		peer = &Peer{
-			ENS:         "",
-			LoopringENS: "",
-		}
-		if common.IsHexAddress(value) {
-			peer.Address = v.Format(value)
-		} else {
-			peer.LoopringID = value
-			v.GetLoopringAddress(peer)
-		}
-		v.Peers = append(v.Peers, *peer)
+		return ""
 	}
-
-	if peer.ENS == "" && peer.ENS != "!" {
-		v.GetENS(peer)
+	if peer.ENS != "" && peer.ENS != "." && peer.ENS != "!" {
+		return peer.ENS
 	}
-	if peer.LoopringENS == "" && peer.LoopringENS != "!" {
-		v.GetLoopringENS(peer)
+	if peer.LoopringENS != "" && peer.LoopringENS != "." && peer.LoopringENS != "!" {
+		return peer.LoopringENS
 	}
-	if peer.LoopringID == "" && peer.LoopringID != "!" {
-		v.GetLoopringID(peer)
-	}
-	if peer.Address == "" && peer.Address != "!" {
-		v.GetLoopringAddress(peer)
-	}
-	fmt.Printf("%s %s %s\n", peer.ENS, peer.LoopringENS, peer.LoopringID)
+	return peer.Address
 }
 
-func (v *Value) Save(peer *Peer) {
-	peerJSON, err := json.Marshal(peer)
-	if err != nil {
-		log.Printf("Failed to serialize peer: %v", err)
-		return
+func (v *Value) Format(address string) string {
+	address = strings.ToLower(address)
+	if strings.HasPrefix(address, "0x") || strings.HasSuffix(address, ".eth") {
+		return address
 	}
-	err = v.Factory.Data.RB.SAdd(v.Factory.Ctx, "peer", peerJSON).Err()
+	return address
+}
+
+func (v *Value) input(url string, response any) error {
+	data, err := v.Factory.Json.In(url, "")
 	if err != nil {
-		log.Printf("Failed to store peer in Redis: %v", err)
+		return err
 	}
+	return json.Unmarshal(data, response)
 }
