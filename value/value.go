@@ -26,6 +26,7 @@ func NewValue(factory *factory.Factory) *Value {
 	v.LoadTokens()
 	v.LoadPeers()
 	v.rebuildMap()
+	v.UpdatePeersLoopringENS()
 	// v.DotLoop()
 	return v
 }
