@@ -98,7 +98,7 @@ func (v *Value) GetENS(peer *Peer) {
 
 // hex -> LoopringENS [.loopring.eth] or "."
 func (v *Value) GetLoopringENS(peer *Peer) {
-	if peer.LoopringENS == "." || (peer.LoopringENS != "" && peer.LoopringENS != "!") {
+	if peer.LoopringENS == "." || peer.LoopringENS != "" {
 		return
 	}
 	url := fmt.Sprintf(dotLoop, peer.Address)
@@ -108,12 +108,11 @@ func (v *Value) GetLoopringENS(peer *Peer) {
 	err := v.input(url, &response)
 	v.Factory.Rw.Lock()
 	defer v.Factory.Rw.Unlock()
-	switch {
-	case err != nil:
-		peer.LoopringENS = "!"
-	case response.Loopring == "":
+	if err != nil {
 		peer.LoopringENS = "."
-	default:
+	} else if response.Loopring == "" {
+		peer.LoopringENS = "."
+	} else {
 		peer.LoopringENS = v.Format(response.Loopring)
 	}
 	v.Save(peer)

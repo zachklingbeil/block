@@ -1,5 +1,7 @@
 package loopring
 
+import "encoding/json"
+
 type Raw struct {
 	Number       int64 `json:"blockId"`
 	Timestamp    int64 `json:"createdAt"`
@@ -26,15 +28,16 @@ type Coordinate struct {
 }
 
 type Tx struct {
-	Zero     any `json:"zero,omitempty"`
-	One      any `json:"one,omitempty"`
-	Value    any `json:"value,omitempty"`
-	Token    any `json:"token,omitempty"`
-	Fee      any `json:"fee,omitempty"`
-	FeeToken any `json:"feeToken,omitempty"`
-	Type     any `json:"type,omitempty"`
-	Index    any `json:"index"`
-	// Raw      json.RawMessage `json:"raw,omitempty"`
+	Zero     any             `json:"zero,omitempty"`
+	One      any             `json:"one,omitempty"`
+	Value    any             `json:"value,omitempty"`
+	Token    any             `json:"token,omitempty"`
+	Fee      any             `json:"fee,omitempty"`
+	FeeToken any             `json:"feeToken,omitempty"`
+	Type     any             `json:"type,omitempty"`
+	Index    any             `json:"index"`
+	Nonce    any             `json:"nonce,omitempty"`
+	Raw      json.RawMessage `json:"raw,omitempty"`
 }
 
 type Transfer struct {
@@ -76,6 +79,7 @@ type AccountUpdate struct {
 	ZeroId int64  `json:"accountId"`
 	Type   string `json:"txType,omitempty"`
 	Index  uint16 `json:"index"`
+	Nonce  int64  `json:"nonce"`
 }
 
 type AmmUpdate struct {

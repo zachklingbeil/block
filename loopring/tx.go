@@ -104,6 +104,7 @@ func (l *Loopring) AccountUpdateToTx(transaction any) Tx {
 		Zero:  l.Value.Hello(strconv.FormatInt(a.ZeroId, 10)),
 		Type:  "accountUpdate",
 		Index: a.Index,
+		Nonce: a.Nonce,
 	}
 }
 
@@ -114,6 +115,7 @@ func (l *Loopring) AmmUpdateToTx(transaction any) Tx {
 		Zero:  l.Value.Hello(strconv.FormatInt(a.ZeroId, 10)),
 		Type:  "ammUpdate",
 		Index: a.Index,
+		Nonce: a.Nonce,
 	}
 }
 
