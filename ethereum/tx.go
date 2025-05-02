@@ -3,13 +3,90 @@ package ethereum
 import (
 	"context"
 	"math/big"
+	"strings"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
+const (
+	transferEvent           = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+	transfer1155SingleEvent = "0xc3d58168c5ae7397731d063d5bbf3d657854427343f4c083240f7aacaa2d0f62"
+	transfer1155BatchEvent  = "0x4a39dc06d4c0dbc64b70b1b5fdcf9a43c3b840ecb9c7aafb5c62c0124c6a16e3"
+)
+
+// Block holds information about a block.
+type Block struct {
+	Number       uint64
+	Hash         string
+	ParentHash   string
+	Time         uint64
+	GasUsed      uint64
+	GasLimit     uint64
+	BaseFee      *big.Int
+	Transactions []*Transactions
+}
+
+// Transactions holds information about a transaction.
+type Transactions struct {
+	Hash              string
+	From              string
+	To                string
+	Value             *big.Int
+	Gas               uint64
+	GasPrice          *big.Int
+	Nonce             uint64
+	DataLength        int
+	Type              uint8
+	Status            uint64
+	CumulativeGasUsed uint64
+	Logs              []*LogInfo `json:"logs,omitempty"`
+}
+
+// LogInfo holds information about a transaction log.
+type LogInfo struct {
+	Address    string   `json:"Address,omitempty"`
+	Topics     []string `json:"topics,omitempty"`
+	DataLength int      `json:"dataLength,omitempty"`
+	EventType  string   `json:"eventType,omitempty"`
+	From       string   `json:"from,omitempty"`
+	To         string   `json:"to,omitempty"`
+	Value      *big.Int `json:"value,omitempty"`
+	Operator   string   `json:"operator,omitempty"`
+	ID         *big.Int `json:"id,omitempty"`
+	IDs        []string `json:"ids,omitempty"`
+	Values     []string `json:"values,omitempty"`
+	RawTopics  []string `json:"rawTopics,omitempty"`
+}
+
+// processBlock processes a single block and returns its information.
+func (e *Ethereum) processBlock(ctx context.Context, block *types.Block) *Block {
+	blockInfo := &Block{
+		Number:     block.NumberU64(),
+		Hash:       block.Hash().Hex(),
+		ParentHash: block.ParentHash().Hex(),
+		Time:       block.Time(),
+		GasUsed:    block.GasUsed(),
+		GasLimit:   block.GasLimit(),
+		BaseFee:    block.BaseFee(),
+	}
+
+	signer := e.Signer(block.Number(), block.Time())
+
+	for _, tx := range block.Transactions() {
+		txInfo := e.processTransaction(ctx, tx, signer)
+		blockInfo.Transactions = append(blockInfo.Transactions, txInfo)
+	}
+	return blockInfo
+}
+
+// processTransaction processes a single transaction and returns its information.
 func (e *Ethereum) processTransaction(ctx context.Context, tx *types.Transaction, signer types.Signer) *Transactions {
 	txInfo := &Transactions{
-		Hash:       tx.Hash().Hex(),
+		Hash:       strings.ToLower(tx.Hash().Hex()), // Ensure Hash is lowercase
 		Value:      tx.Value(),
 		Gas:        tx.Gas(),
 		GasPrice:   tx.GasPrice(),
@@ -19,94 +96,155 @@ func (e *Ethereum) processTransaction(ctx context.Context, tx *types.Transaction
 	}
 
 	if addr, err := types.Sender(signer, tx); err == nil {
-		txInfo.From = addr.Hex()
-	}
+		txInfo.From = strings.ToLower(addr.Hex()) // Ensure From is lowercase
 
-	if tx.To() == nil {
-		txInfo.To = "Contract Creation"
-	} else {
-		txInfo.To = tx.To().Hex()
-	}
-
-	receipt, err := e.Factory.Eth.TransactionReceipt(ctx, tx.Hash())
-	if err == nil {
-		txInfo.Status = receipt.Status
-		txInfo.CumulativeGasUsed = receipt.CumulativeGasUsed
-		for _, log := range receipt.Logs {
-			switch {
-			case isERC20or721Transfer(log):
-				txInfo.Logs = append(txInfo.Logs, &LogInfo{
-					Address:   log.Address.Hex(),
-					EventType: "ERC20/ERC721 Transfer",
-					From:      "0x" + log.Topics[1].Hex()[26:],
-					To:        "0x" + log.Topics[2].Hex()[26:],
-					Value:     new(big.Int).SetBytes(log.Data),
-				})
-			case isERC1155TransferSingle(log):
-				txInfo.Logs = append(txInfo.Logs, &LogInfo{
-					Address:   log.Address.Hex(),
-					EventType: "ERC1155 TransferSingle",
-					Operator:  "0x" + log.Topics[1].Hex()[26:],
-					From:      "0x" + log.Topics[2].Hex()[26:],
-					To:        "0x" + log.Topics[3].Hex()[26:],
-					ID:        new(big.Int).SetBytes(log.Data[:32]),
-					Value:     new(big.Int).SetBytes(log.Data[32:]),
-				})
-			case isERC1155TransferBatch(log):
-				logInfo := &LogInfo{
-					Address:   log.Address.Hex(),
-					EventType: "ERC1155 TransferBatch",
-					Operator:  "0x" + log.Topics[1].Hex()[26:],
-					From:      "0x" + log.Topics[2].Hex()[26:],
-					To:        "0x" + log.Topics[3].Hex()[26:],
-				}
-				if len(log.Data) >= 128 {
-					logInfo.IDs, logInfo.Values = decode1155Batch(log.Data)
-				}
-				txInfo.Logs = append(txInfo.Logs, logInfo)
-			}
+		// Handle contract creation
+		if tx.To() == nil {
+			contractAddress := deriveContractAddress(addr, tx.Nonce())
+			txInfo.To = strings.ToLower(contractAddress.Hex()) // Store the derived contract address
+		} else {
+			txInfo.To = strings.ToLower(tx.To().Hex()) // Regular transaction
 		}
+	}
+
+	if receipt, err := e.Factory.Eth.TransactionReceipt(ctx, tx.Hash()); err == nil {
+		e.populateReceiptInfo(txInfo, receipt)
 	}
 
 	return txInfo
 }
 
-func isERC20or721Transfer(log *types.Log) bool {
-	const transferEvent = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
-	return len(log.Topics) == 3 && log.Topics[0].Hex() == transferEvent && len(log.Data) == 32
+// populateReceiptInfo populates transaction information from the receipt.
+func (e *Ethereum) populateReceiptInfo(txInfo *Transactions, receipt *types.Receipt) {
+	txInfo.Status = receipt.Status
+	txInfo.CumulativeGasUsed = receipt.CumulativeGasUsed
+
+	for _, log := range receipt.Logs {
+		eventType := e.determineEventType(log)
+		switch eventType {
+		case "ERC20/ERC721 Transfer":
+			txInfo.Logs = append(txInfo.Logs, e.createTransferLog(log))
+		case "ERC1155 TransferSingle":
+			txInfo.Logs = append(txInfo.Logs, e.createERC1155SingleLog(log))
+		case "ERC1155 TransferBatch":
+			txInfo.Logs = append(txInfo.Logs, e.createERC1155BatchLog(log))
+		}
+	}
 }
 
-func isERC1155TransferSingle(log *types.Log) bool {
-	const transfer1155SingleEvent = "0xc3d58168c5ae7397731d063d5bbf3d657854427343f4c083240f7aacaa2d0f62"
-	return len(log.Topics) == 4 && log.Topics[0].Hex() == transfer1155SingleEvent && len(log.Data) == 64
+// determineEventType determines the type of event based on the log's topics and data.
+func (e *Ethereum) determineEventType(log *types.Log) string {
+	switch {
+	case len(log.Topics) == 3 && log.Topics[0].Hex() == transferEvent && len(log.Data) == 32:
+		return "ERC20/ERC721 Transfer"
+	case len(log.Topics) == 4 && log.Topics[0].Hex() == transfer1155SingleEvent && len(log.Data) == 64:
+		return "ERC1155 TransferSingle"
+	case len(log.Topics) == 4 && log.Topics[0].Hex() == transfer1155BatchEvent && len(log.Data) >= 64:
+		return "ERC1155 TransferBatch"
+	default:
+		return "Unknown"
+	}
 }
 
-func isERC1155TransferBatch(log *types.Log) bool {
-	const transfer1155BatchEvent = "0x4a39dc06d4c0dbc64b70b1b5fdcf9a43c3b840ecb9c7aafb5c62c0124c6a16e3"
-	return len(log.Topics) == 4 && log.Topics[0].Hex() == transfer1155BatchEvent && len(log.Data) >= 64
+// createTransferLog creates a log for ERC20/ERC721 transfers.
+func (e *Ethereum) createTransferLog(log *types.Log) *LogInfo {
+	return &LogInfo{
+		Address:   strings.ToLower(log.Address.Hex()),
+		EventType: "ERC20/ERC721 Transfer",
+		From:      e.extractAddress(log.Topics[1]),
+		To:        e.extractAddress(log.Topics[2]),
+		Value:     new(big.Int).SetBytes(log.Data),
+	}
 }
 
-func decode1155Batch(data []byte) ([]string, []string) {
-	ids := []string{}
-	values := []string{}
+// createERC1155SingleLog creates a log for ERC1155 single transfers.
+func (e *Ethereum) createERC1155SingleLog(log *types.Log) *LogInfo {
+	return &LogInfo{
+		Address:   strings.ToLower(log.Address.Hex()),
+		EventType: "ERC1155 TransferSingle",
+		Operator:  e.extractAddress(log.Topics[1]),
+		From:      e.extractAddress(log.Topics[2]),
+		To:        e.extractAddress(log.Topics[3]),
+		ID:        new(big.Int).SetBytes(log.Data[:32]),
+		Value:     new(big.Int).SetBytes(log.Data[32:]),
+	}
+}
+
+// createERC1155BatchLog creates a log for ERC1155 batch transfers.
+func (e *Ethereum) createERC1155BatchLog(log *types.Log) *LogInfo {
+	ids, values := e.decode1155Batch(log.Data)
+	return &LogInfo{
+		Address:   strings.ToLower(log.Address.Hex()),
+		EventType: "ERC1155 TransferBatch",
+		Operator:  e.extractAddress(log.Topics[1]),
+		From:      e.extractAddress(log.Topics[2]),
+		To:        e.extractAddress(log.Topics[3]),
+		IDs:       ids,
+		Values:    values,
+	}
+}
+
+// extractAddress extracts an address from a topic and ensures it is lowercase.
+func (e *Ethereum) extractAddress(topic common.Hash) string {
+	return strings.ToLower("0x" + topic.Hex()[26:])
+}
+
+// decode1155Batch decodes batch transfer data into IDs and values.
+func (e *Ethereum) decode1155Batch(data []byte) ([]string, []string) {
 	if len(data) < 128 {
-		return ids, values
-	}
-	idsOffset := new(big.Int).SetBytes(data[:32]).Int64()
-	valuesOffset := new(big.Int).SetBytes(data[32:64]).Int64()
-	idsStart := int(idsOffset)
-	valuesStart := int(valuesOffset)
-
-	idsLen := new(big.Int).SetBytes(data[idsStart : idsStart+32]).Int64()
-	for i := int64(0); i < idsLen; i++ {
-		id := new(big.Int).SetBytes(data[idsStart+32+int(i)*32 : idsStart+32+int(i+1)*32])
-		ids = append(ids, id.String())
+		return nil, nil
 	}
 
-	valuesLen := new(big.Int).SetBytes(data[valuesStart : valuesStart+32]).Int64()
-	for i := int64(0); i < valuesLen; i++ {
-		val := new(big.Int).SetBytes(data[valuesStart+32+int(i)*32 : valuesStart+32+int(i+1)*32])
-		values = append(values, val.String())
-	}
+	idsOffset := int(new(big.Int).SetBytes(data[:32]).Int64())
+	valuesOffset := int(new(big.Int).SetBytes(data[32:64]).Int64())
+
+	ids := e.decodeBigIntArray(data, idsOffset)
+	values := e.decodeBigIntArray(data, valuesOffset)
+
 	return ids, values
+}
+
+// decodeBigIntArray decodes an array of big integers from data at the given offset.
+func (e *Ethereum) decodeBigIntArray(data []byte, offset int) []string {
+	length := int(new(big.Int).SetBytes(data[offset : offset+32]).Int64())
+	result := make([]string, length)
+
+	for i := range length {
+		start := offset + 32 + i*32
+		end := start + 32
+		result[i] = new(big.Int).SetBytes(data[start:end]).String()
+	}
+
+	return result
+}
+
+// deriveContractAddress calculates the address of a newly created contract.
+func deriveContractAddress(sender common.Address, nonce uint64) common.Address {
+	// RLP encode the sender address and nonce
+	data, _ := rlp.EncodeToBytes([]interface{}{sender, nonce})
+	// Hash the RLP encoded data
+	hash := crypto.Keccak256Hash(data)
+	// Return the last 20 bytes as the contract address
+	return common.BytesToAddress(hash.Bytes()[12:])
+}
+
+// decodeConstructorArgs decodes the constructor arguments from the transaction data.
+func decodeConstructorArgs(data []byte, abiJSON string) (map[string]interface{}, error) {
+	// Parse the ABI
+	parsedABI, err := abi.JSON(strings.NewReader(abiJSON))
+	if err != nil {
+		return nil, err
+	}
+
+	// Find the constructor
+	constructor := parsedABI.Constructor
+
+	// Decode the arguments
+	args := make(map[string]interface{})
+	err = constructor.Inputs.UnpackIntoMap(args, data[len(constructor.Inputs.NonIndexed()):])
+	if err != nil {
+		return nil, err
+	}
+
+	return args, nil
 }
