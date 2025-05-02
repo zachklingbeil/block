@@ -35,6 +35,9 @@ func (l *Loopring) Loop() error {
 
 func (l *Loopring) BlockByBlock(blockNumber int64) error {
 	input := l.FetchBlock(blockNumber)
+	if input == nil {
+		return fmt.Errorf("failed to fetch block %d: got nil", blockNumber)
+	}
 	transactions, block := l.Coordinates(input)
 	txs := l.ProcessBlock(transactions)
 	block.Ones = txs

@@ -17,6 +17,7 @@ type Peer struct {
 	LoopringENS string `json:"loopringEns"`
 	LoopringID  string `json:"loopringId"`
 	Address     string `json:"address"`
+	FirstBlock  string `json:"firstBlock"`
 }
 
 type Token struct {
