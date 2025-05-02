@@ -58,7 +58,7 @@ func (v *Value) HelloUniverse(value string) *Peer {
 	v.GetLoopringENS(peer)
 	v.GetLoopringID(peer)
 	v.Factory.Rw.Lock()
-	fmt.Printf(" %s %s %s\n", peer.ENS, peer.LoopringENS, peer.LoopringID)
+	fmt.Printf("	%s %s %s %s\n", peer.Address, peer.ENS, peer.LoopringENS, peer.LoopringID)
 	return peer
 }
 

@@ -21,13 +21,15 @@ func (l *Loopring) Loop() error {
 		}
 	}
 
-	l.Factory.Math.Up(startBlock, func(block int64) {
-		if err := l.BlockByBlock(block); err != nil {
-			log.Error("Failed to process block %d: %v", block, err)
-			return
+	for i := startBlock; ; i++ {
+		fmt.Println(i)
+		if err := l.BlockByBlock(i); err != nil {
+			log.Error("Failed to process block %d: %v", i, err)
+			break
 		}
-		l.Factory.State.Count("loop.block", block, true)
-	})
+		l.Factory.State.Count("loop.block", i, true)
+	}
+
 	return nil
 }
 
