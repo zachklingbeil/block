@@ -2,13 +2,12 @@ package ethereum
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-func (e *Ethereum) processTransaction(ctx context.Context, tx *types.Transaction) *Transactions {
+func (e *Ethereum) processTransaction(ctx context.Context, tx *types.Transaction, signer types.Signer) *Transactions {
 	txInfo := &Transactions{
 		Hash:       tx.Hash().Hex(),
 		Value:      tx.Value(),
@@ -19,57 +18,53 @@ func (e *Ethereum) processTransaction(ctx context.Context, tx *types.Transaction
 		Type:       tx.Type(),
 	}
 
-	// Get sender address
-	var from string
-	var err error
-	if tx.ChainId() == nil || tx.ChainId().Sign() == 0 {
-		addr, err := types.Sender(types.HomesteadSigner{}, tx)
-		if err == nil {
-			from = addr.Hex()
-		}
-	} else {
-		signer := types.LatestSignerForChainID(tx.ChainId())
-		addr, err2 := types.Sender(signer, tx)
-		if err2 == nil {
-			from = addr.Hex()
-		}
-		err = err2
-	}
-	if err == nil {
-		txInfo.From = from
+	if addr, err := types.Sender(signer, tx); err == nil {
+		txInfo.From = addr.Hex()
 	}
 
-	// To address (contract creation if nil)
 	if tx.To() == nil {
 		txInfo.To = "Contract Creation"
 	} else {
 		txInfo.To = tx.To().Hex()
 	}
 
-	// Get receipt for transaction status, logs, etc.
 	receipt, err := e.Factory.Eth.TransactionReceipt(ctx, tx.Hash())
 	if err == nil {
 		txInfo.Status = receipt.Status
 		txInfo.CumulativeGasUsed = receipt.CumulativeGasUsed
 		for _, log := range receipt.Logs {
-			logInfo := &LogInfo{
-				Address:    log.Address.Hex(),
-				DataLength: len(log.Data),
-			}
-			for _, topic := range log.Topics {
-				logInfo.Topics = append(logInfo.Topics, topic.Hex())
-			}
-
 			switch {
 			case isERC20or721Transfer(log):
-				processERC20or721Transfer(log, logInfo)
+				txInfo.Logs = append(txInfo.Logs, &LogInfo{
+					Address:   log.Address.Hex(),
+					EventType: "ERC20/ERC721 Transfer",
+					From:      "0x" + log.Topics[1].Hex()[26:],
+					To:        "0x" + log.Topics[2].Hex()[26:],
+					Value:     new(big.Int).SetBytes(log.Data),
+				})
 			case isERC1155TransferSingle(log):
-				processERC1155TransferSingle(log, logInfo)
+				txInfo.Logs = append(txInfo.Logs, &LogInfo{
+					Address:   log.Address.Hex(),
+					EventType: "ERC1155 TransferSingle",
+					Operator:  "0x" + log.Topics[1].Hex()[26:],
+					From:      "0x" + log.Topics[2].Hex()[26:],
+					To:        "0x" + log.Topics[3].Hex()[26:],
+					ID:        new(big.Int).SetBytes(log.Data[:32]),
+					Value:     new(big.Int).SetBytes(log.Data[32:]),
+				})
 			case isERC1155TransferBatch(log):
-				processERC1155TransferBatch(log, logInfo)
+				logInfo := &LogInfo{
+					Address:   log.Address.Hex(),
+					EventType: "ERC1155 TransferBatch",
+					Operator:  "0x" + log.Topics[1].Hex()[26:],
+					From:      "0x" + log.Topics[2].Hex()[26:],
+					To:        "0x" + log.Topics[3].Hex()[26:],
+				}
+				if len(log.Data) >= 128 {
+					logInfo.IDs, logInfo.Values = decode1155Batch(log.Data)
+				}
+				txInfo.Logs = append(txInfo.Logs, logInfo)
 			}
-
-			txInfo.Logs = append(txInfo.Logs, logInfo)
 		}
 	}
 
@@ -81,27 +76,9 @@ func isERC20or721Transfer(log *types.Log) bool {
 	return len(log.Topics) == 3 && log.Topics[0].Hex() == transferEvent && len(log.Data) == 32
 }
 
-func processERC20or721Transfer(log *types.Log, logInfo *LogInfo) {
-	fromAddr := "0x" + log.Topics[1].Hex()[26:]
-	toAddr := "0x" + log.Topics[2].Hex()[26:]
-	amount := new(big.Int).SetBytes(log.Data)
-	logInfo.Topics = append(logInfo.Topics,
-		fmt.Sprintf("Transfer: from %s to %s value %s", fromAddr, toAddr, amount.String()))
-}
-
 func isERC1155TransferSingle(log *types.Log) bool {
 	const transfer1155SingleEvent = "0xc3d58168c5ae7397731d063d5bbf3d657854427343f4c083240f7aacaa2d0f62"
 	return len(log.Topics) == 4 && log.Topics[0].Hex() == transfer1155SingleEvent && len(log.Data) == 64
-}
-
-func processERC1155TransferSingle(log *types.Log, logInfo *LogInfo) {
-	operator := "0x" + log.Topics[1].Hex()[26:]
-	fromAddr := "0x" + log.Topics[2].Hex()[26:]
-	toAddr := "0x" + log.Topics[3].Hex()[26:]
-	id := new(big.Int).SetBytes(log.Data[:32])
-	value := new(big.Int).SetBytes(log.Data[32:])
-	logInfo.Topics = append(logInfo.Topics,
-		fmt.Sprintf("ERC1155 TransferSingle: operator %s from %s to %s id %s value %s", operator, fromAddr, toAddr, id.String(), value.String()))
 }
 
 func isERC1155TransferBatch(log *types.Log) bool {
@@ -109,37 +86,27 @@ func isERC1155TransferBatch(log *types.Log) bool {
 	return len(log.Topics) == 4 && log.Topics[0].Hex() == transfer1155BatchEvent && len(log.Data) >= 64
 }
 
-func processERC1155TransferBatch(log *types.Log, logInfo *LogInfo) {
-	operator := "0x" + log.Topics[1].Hex()[26:]
-	fromAddr := "0x" + log.Topics[2].Hex()[26:]
-	toAddr := "0x" + log.Topics[3].Hex()[26:]
-
-	if len(log.Data) >= 128 {
-		idsOffset := new(big.Int).SetBytes(log.Data[:32]).Int64()
-		valuesOffset := new(big.Int).SetBytes(log.Data[32:64]).Int64()
-		idsStart := int(idsOffset)
-		valuesStart := int(valuesOffset)
-
-		// ids array
-		idsLen := new(big.Int).SetBytes(log.Data[idsStart : idsStart+32]).Int64()
-		var ids []string
-		for i := int64(0); i < idsLen; i++ {
-			id := new(big.Int).SetBytes(log.Data[idsStart+32+int(i)*32 : idsStart+32+int(i+1)*32])
-			ids = append(ids, id.String())
-		}
-
-		// values array
-		valuesLen := new(big.Int).SetBytes(log.Data[valuesStart : valuesStart+32]).Int64()
-		var values []string
-		for i := int64(0); i < valuesLen; i++ {
-			val := new(big.Int).SetBytes(log.Data[valuesStart+32+int(i)*32 : valuesStart+32+int(i+1)*32])
-			values = append(values, val.String())
-		}
-
-		logInfo.Topics = append(logInfo.Topics,
-			fmt.Sprintf("ERC1155 TransferBatch: operator %s from %s to %s ids %v values %v", operator, fromAddr, toAddr, ids, values))
-	} else {
-		logInfo.Topics = append(logInfo.Topics,
-			fmt.Sprintf("ERC1155 TransferBatch: operator %s from %s to %s (unable to decode ids/values)", operator, fromAddr, toAddr))
+func decode1155Batch(data []byte) ([]string, []string) {
+	ids := []string{}
+	values := []string{}
+	if len(data) < 128 {
+		return ids, values
 	}
+	idsOffset := new(big.Int).SetBytes(data[:32]).Int64()
+	valuesOffset := new(big.Int).SetBytes(data[32:64]).Int64()
+	idsStart := int(idsOffset)
+	valuesStart := int(valuesOffset)
+
+	idsLen := new(big.Int).SetBytes(data[idsStart : idsStart+32]).Int64()
+	for i := int64(0); i < idsLen; i++ {
+		id := new(big.Int).SetBytes(data[idsStart+32+int(i)*32 : idsStart+32+int(i+1)*32])
+		ids = append(ids, id.String())
+	}
+
+	valuesLen := new(big.Int).SetBytes(data[valuesStart : valuesStart+32]).Int64()
+	for i := int64(0); i < valuesLen; i++ {
+		val := new(big.Int).SetBytes(data[valuesStart+32+int(i)*32 : valuesStart+32+int(i+1)*32])
+		values = append(values, val.String())
+	}
+	return ids, values
 }

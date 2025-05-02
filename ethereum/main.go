@@ -8,6 +8,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/zachklingbeil/block/value"
 	"github.com/zachklingbeil/factory"
 )
@@ -15,13 +16,20 @@ import (
 type Ethereum struct {
 	Factory *factory.Factory
 	Value   *value.Value
+	Chain   *params.ChainConfig
 }
 
 func NewEthereum(factory *factory.Factory, value *value.Value) *Ethereum {
 	return &Ethereum{
 		Factory: factory,
 		Value:   value,
+		Chain:   params.MainnetChainConfig,
 	}
+}
+
+// Signer returns a signer for Ethereum mainnet at the given block number and time.
+func (e *Ethereum) Signer(blockNumber *big.Int, blockTime uint64) types.Signer {
+	return types.MakeSigner(e.Chain, blockNumber, blockTime)
 }
 
 // Block holds information about a block.
@@ -49,14 +57,24 @@ type Transactions struct {
 	Type              uint8
 	Status            uint64
 	CumulativeGasUsed uint64
-	Logs              []*LogInfo
+	Logs              []*LogInfo `json:"logs,omitempty"`
 }
 
 // LogInfo holds information about a transaction log.
 type LogInfo struct {
-	Address    string
-	Topics     []string
-	DataLength int
+	Address    string   `json:"Address,omitempty"`
+	Topics     []string `json:"topics,omitempty"`
+	DataLength int      `json:"dataLength,omitempty"`
+
+	EventType string   `json:"eventType,omitempty"`
+	From      string   `json:"from,omitempty"`
+	To        string   `json:"to,omitempty"`
+	Value     *big.Int `json:"value,omitempty"`
+	Operator  string   `json:"operator,omitempty"`
+	ID        *big.Int `json:"id,omitempty"`
+	IDs       []string `json:"ids,omitempty"`
+	Values    []string `json:"values,omitempty"`
+	RawTopics []string `json:"rawTopics,omitempty"`
 }
 
 // ProcessBlocks processes the latest `count` blocks.
@@ -116,8 +134,10 @@ func (e *Ethereum) processBlock(ctx context.Context, block *types.Block) *Block 
 		BaseFee:    block.BaseFee(),
 	}
 
+	signer := e.Signer(block.Number(), block.Time()) // create signer for this block
+
 	for _, tx := range block.Transactions() {
-		txInfo := e.processTransaction(ctx, tx)
+		txInfo := e.processTransaction(ctx, tx, signer) // pass signer
 		blockInfo.Transactions = append(blockInfo.Transactions, txInfo)
 	}
 	return blockInfo
