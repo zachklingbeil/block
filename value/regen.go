@@ -56,32 +56,6 @@ func (v *Value) UpdatePeersFromEmbeddedData() error {
 
 	return nil
 }
-func (v *Value) LoadPeers() error {
-	v.Factory.Rw.Lock()
-	defer v.Factory.Rw.Unlock()
-
-	hashKey := "peer"
-	source, err := v.Factory.Data.RB.HGetAll(v.Factory.Ctx, hashKey).Result()
-	if err != nil {
-		return fmt.Errorf("failed to fetch peers from Redis hash: %v", err)
-	}
-	peers := make([]*Peer, 0, len(source))
-	for _, peerJSON := range source {
-		var peer Peer
-		if err := json.Unmarshal([]byte(peerJSON), &peer); err != nil {
-			log.Printf("Skipping invalid peer: %v (data: %s)", err, peerJSON)
-			continue
-		}
-		peers = append(peers, &peer)
-		v.Map[peer.Address] = &peer
-		v.Map[peer.ENS] = &peer
-		v.Map[peer.LoopringENS] = &peer
-		v.Map[peer.LoopringID] = &peer
-	}
-	v.Peers = peers
-	fmt.Printf("%d peers\n", len(v.Peers))
-	return nil
-}
 
 func (v *Value) Save(peer *Peer) error {
 	peerJSON, err := json.Marshal(peer)

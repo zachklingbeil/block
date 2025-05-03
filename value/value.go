@@ -7,24 +7,9 @@ import (
 type Value struct {
 	Factory  *factory.Factory
 	Peers    []*Peer
+	Tokens   []*Token
 	Map      map[string]*Peer
 	TokenMap map[any]*Token
-}
-
-type Peer struct {
-	ENS         string `json:"ens,omitempty"`
-	LoopringENS string `json:"loopringEns,omitempty"`
-	LoopringID  string `json:"loopringId,omitempty"`
-	Address     string `json:"address,omitempty"`
-	FirstBlock  string `json:"firstBlock,omitempty"`
-}
-
-type Token struct {
-	Token    string `json:"token,omitempty"`
-	Address  string `json:"address,omitempty"`
-	Decimals string `json:"decimals,omitempty"`
-	TokenId  string `json:"tokenId,omitempty"`
-	TokenInt int64  `json:"tokenInt,omitempty"`
 }
 
 func NewValue(factory *factory.Factory) *Value {
@@ -36,6 +21,7 @@ func NewValue(factory *factory.Factory) *Value {
 
 	v.LoadTokens()
 	v.LoadPeers()
+	v.ConsolidateAndStoreValues()
 	// v.UpdatePeersFromEmbeddedData()
 	// v.Factory.State.Count("peers", len(v.Peers), true)
 	return v

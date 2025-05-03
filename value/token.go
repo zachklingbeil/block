@@ -9,25 +9,6 @@ import (
 	"strings"
 )
 
-func (v *Value) LoadTokens() error {
-	hashKey := "token"
-	source, err := v.Factory.Data.RB.HGetAll(v.Factory.Ctx, hashKey).Result()
-	if err != nil {
-		return fmt.Errorf("failed to fetch tokens from Redis hash: %v", err)
-	}
-	v.TokenMap = make(map[any]*Token)
-
-	for _, tokenJSON := range source {
-		var token Token
-		if err := json.Unmarshal([]byte(tokenJSON), &token); err != nil {
-			log.Printf("Skipping invalid token: %v (data: %s)", err, tokenJSON)
-			continue
-		}
-		v.TokenMap[token.TokenId] = &token
-		v.TokenMap[token.Token] = &token
-	}
-	return nil
-}
 func (v *Value) SyncTokensToRedis() error {
 	ctx := v.Factory.Ctx
 	client := v.Factory.Data.RB
