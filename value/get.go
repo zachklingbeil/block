@@ -14,19 +14,8 @@ func (v *Value) Hello(value string) string {
 	v.Factory.Rw.RUnlock()
 
 	if !exists {
-		peer = &Peer{}
-		if common.IsHexAddress(value) {
-			peer.Address = v.Format(value)
-		} else {
-			peer.LoopringID = value
-		}
-		v.Factory.Rw.Lock()
-		v.Peers = append(v.Peers, peer)
-		v.Map[value] = peer
-		v.Factory.Rw.Unlock()
-		go v.HelloUniverse(peer)
+		return value
 	}
-
 	// Prefer ENS, then LoopringENS, then Address
 	switch {
 	case peer.ENS != "" && peer.ENS != "." && peer.ENS != "!":
@@ -38,9 +27,39 @@ func (v *Value) Hello(value string) string {
 	}
 }
 
+// func (v *Value) Hello(value string) string {
+// 	v.Factory.Rw.RLock()
+// 	peer, exists := v.Map[value]
+// 	v.Factory.Rw.RUnlock()
+
+// 	if !exists {
+// 		peer = &Peer{}
+// 		if common.IsHexAddress(value) {
+// 			peer.Address = v.Format(value)
+// 		} else {
+// 			peer.LoopringID = value
+// 		}
+// 		v.Factory.Rw.Lock()
+// 		v.Peers = append(v.Peers, peer)
+// 		v.Map[value] = peer
+// 		v.Factory.Rw.Unlock()
+// 		v.HelloUniverse(peer)
+// 	}
+
+// 	// Prefer ENS, then LoopringENS, then Address
+// 	switch {
+// 	case peer.ENS != "" && peer.ENS != "." && peer.ENS != "!":
+// 		return peer.ENS
+// 	case peer.LoopringENS != "" && peer.LoopringENS != "." && peer.LoopringENS != "!":
+// 		return peer.LoopringENS
+// 	default:
+// 		return peer.Address
+// 	}
+// }
+
 func (v *Value) HelloUniverse(peer *Peer) *Peer {
 	v.GetENS(peer)
-	v.GetLoopringENS(peer)
+	// v.GetLoopringENS(peer) // Ensure this is commented out if not needed
 	v.GetLoopringID(peer)
 
 	v.Factory.Rw.Lock()
@@ -57,8 +76,10 @@ func (v *Value) HelloUniverse(peer *Peer) *Peer {
 		v.Map[peer.LoopringID] = peer
 	}
 	v.Save(peer)
-	fmt.Printf("	%s %s %s %s\n", peer.Address, peer.ENS, peer.LoopringENS, peer.LoopringID)
 	v.Factory.Rw.Unlock()
+
+	// Print all peer details, including manually assigned LoopringENS
+	fmt.Printf("	%s %s %s %s\n", peer.Address, peer.ENS, peer.LoopringENS, peer.LoopringID)
 	return peer
 }
 
@@ -95,29 +116,40 @@ func (v *Value) GetENS(peer *Peer) {
 }
 
 // hex -> LoopringENS [.loopring.eth] or "."
+// func (v *Value) GetLoopringENS(peer *Peer) {
+// 	if peer.LoopringENS != "" && peer.LoopringENS != "." && peer.LoopringENS != "!" {
+// 		return
+// 	}
+
+// 	url := fmt.Sprintf(dotLoop, peer.Address)
+// 	var response struct {
+// 		Loopring string `json:"data"`
+// 	}
+// 	err := v.input(url, &response)
+
+//		v.Factory.Rw.Lock()
+//		defer v.Factory.Rw.Unlock()
+//		if err != nil {
+//			peer.LoopringENS = "!"
+//		} else if response.Loopring == "" {
+//			peer.LoopringENS = "."
+//		} else {
+//			peer.LoopringENS = v.Format(response.Loopring)
+//		}
+//	}
+
 func (v *Value) GetLoopringENS(peer *Peer) {
-	if peer.LoopringENS == "." || peer.LoopringENS != "" {
+	if peer.LoopringENS != "" && peer.LoopringENS != "." && peer.LoopringENS != "!" {
 		return
 	}
-	url := fmt.Sprintf(dotLoop, peer.Address)
-	var response struct {
-		Loopring string `json:"data"`
-	}
-	err := v.input(url, &response)
 	v.Factory.Rw.Lock()
 	defer v.Factory.Rw.Unlock()
-	if err != nil {
-		peer.LoopringENS = "."
-	} else if response.Loopring == "" {
-		peer.LoopringENS = "."
-	} else {
-		peer.LoopringENS = v.Format(response.Loopring)
-	}
+	peer.LoopringENS = "."
 }
 
 // hex -> LoopringId or "."
 func (v *Value) GetLoopringID(peer *Peer) {
-	if peer.LoopringID == "." || (peer.LoopringID != "" && peer.LoopringID != "!") {
+	if peer.LoopringID == "." && peer.LoopringID != "" && peer.LoopringID != "!" {
 		return
 	}
 	url := fmt.Sprintf(byAddress, peer.Address)

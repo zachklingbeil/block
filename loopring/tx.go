@@ -13,8 +13,8 @@ func mapToStruct(data any, target any) {
 func (l *Loopring) TransferToTx(transaction any) Tx {
 	var t Transfer
 	mapToStruct(transaction, &t)
-	token := l.Value.GetTokenById(t.Token).Token
-	feeToken := l.Value.GetTokenById(t.FeeToken).Token
+	token := l.Value.GetTokenById(strconv.FormatInt(t.Token, 10)).Token
+	feeToken := l.Value.GetTokenById(strconv.FormatInt(t.FeeToken, 10)).Token
 	tx := Tx{
 		Zero:  l.Value.Hello(strconv.FormatInt(t.ZeroId, 10)),
 		One:   l.Value.Hello(t.One),
@@ -33,7 +33,7 @@ func (l *Loopring) TransferToTx(transaction any) Tx {
 func (l *Loopring) DepositToTx(transaction any) Tx {
 	var d Deposit
 	mapToStruct(transaction, &d)
-	token := l.Value.GetTokenById(d.Token).Token
+	token := l.Value.GetTokenById(strconv.FormatInt(d.Token, 10)).Token
 	return Tx{
 		Zero:  l.Value.Hello(strconv.FormatInt(d.ZeroId, 10)),
 		Value: l.Value.FormatValue(d.Value, token),
@@ -46,9 +46,8 @@ func (l *Loopring) DepositToTx(transaction any) Tx {
 func (l *Loopring) WithdrawToTx(transaction any) Tx {
 	var w Withdrawal
 	mapToStruct(transaction, &w)
-	token := l.Value.GetTokenById(w.Token).Token
-	feeToken := l.Value.GetTokenById(w.FeeToken).Token
-
+	token := l.Value.GetTokenById(strconv.FormatInt(w.Token, 10)).Token
+	feeToken := l.Value.GetTokenById(strconv.FormatInt(w.FeeToken, 10)).Token
 	tx := Tx{
 		Zero:  l.Value.Hello(strconv.FormatInt(w.ZeroId, 10)),
 		Value: l.Value.FormatValue(w.Value, token),
@@ -88,7 +87,7 @@ func (l *Loopring) AmmUpdateToTx(transaction any) Tx {
 func (l *Loopring) MintToTx(transaction any) Tx {
 	var m Mint
 	mapToStruct(transaction, &m)
-	feeToken := l.Value.GetTokenById(m.FeeToken).Token
+	feeToken := l.Value.GetTokenById(strconv.FormatInt(m.FeeToken, 10)).Token
 
 	tx := Tx{
 		Zero:  l.Value.Hello(m.Zero),

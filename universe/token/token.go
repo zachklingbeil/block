@@ -1,21 +1,40 @@
-package value
+package token
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"math/big"
 	"strconv"
 	"strings"
+
+	"github.com/redis/go-redis/v9"
+	"github.com/zachklingbeil/factory"
 )
 
-func (v *Value) LoadTokens() error {
+type Tokens struct {
+	Factory  *factory.Factory
+	Tokens   []*Token
+	TokenMap map[any]*Token
+}
+type Token struct {
+	Token    string `json:"token,omitempty"`
+	Address  string `json:"address,omitempty"`
+	Decimals string `json:"decimals,omitempty"`
+	TokenId  string `json:"tokenId,omitempty"`
+	TokenInt int64  `json:"tokenInt,omitempty"`
+}
+
+func (t *Tokens) LoadTokens(ctx context.Context, redis *redis.Client) error {
 	hashKey := "token"
-	source, err := v.Factory.Data.RB.HGetAll(v.Factory.Ctx, hashKey).Result()
+	source, err := redis.HGetAll(ctx, hashKey).Result()
 	if err != nil {
 		return fmt.Errorf("failed to fetch tokens from Redis hash: %v", err)
 	}
-	v.TokenMap = make(map[any]*Token)
+
+	t.Tokens = make([]*Token, 0, len(source))
+	t.TokenMap = make(map[any]*Token)
 
 	for _, tokenJSON := range source {
 		var token Token
@@ -23,61 +42,45 @@ func (v *Value) LoadTokens() error {
 			log.Printf("Skipping invalid token: %v (data: %s)", err, tokenJSON)
 			continue
 		}
-		v.TokenMap[token.TokenId] = &token
-		v.TokenMap[token.Token] = &token
+		t.Tokens = append(t.Tokens, &token)
+		t.TokenMap[token.TokenInt] = &token
 	}
 	return nil
 }
-func (v *Value) SyncTokensToRedis() error {
-	ctx := v.Factory.Ctx
-	client := v.Factory.Data.RB
-	hashKey := "tokenMap" // Redis hash key for tokens
 
-	// Iterate over the TokenMap
-	for key, token := range v.TokenMap {
-		tokenJSON, err := json.Marshal(token)
-		if err != nil {
-			log.Printf("Failed to marshal token: %v (key: %v)", err, key)
-			continue
-		}
+func (t *Tokens) GetAddress(tokenId int64) string {
+	t.Factory.Rw.RLock()
+	defer t.Factory.Rw.RUnlock()
 
-		err = client.HSet(ctx, hashKey, fmt.Sprintf("%v", key), tokenJSON).Err()
-		if err != nil {
-			return fmt.Errorf("failed to sync token to Redis: %v (key: %v)", err, key)
-		}
-	}
-
-	fmt.Printf("Successfully synced %d tokens to Redis under the '%s' hash.\n", len(v.TokenMap), hashKey)
-	return nil
-}
-
-func (v *Value) GetTokenById(tokenId any) *Token {
-	v.Factory.Rw.RLock()
-	defer v.Factory.Rw.RUnlock()
-
-	var token *Token
-	var exists bool
-	switch id := tokenId.(type) {
-	case int64:
-		token, exists = v.TokenMap[id]
-	case string:
-		token, exists = v.TokenMap[id]
-	default:
-		// log.Printf("Unsupported token ID type: %T", tokenId)
-		return &Token{Token: fmt.Sprintf("%v", tokenId)} // Return a default token with the ID as a string
-	}
+	token, exists := t.TokenMap[tokenId]
 	if !exists {
-		// log.Printf("Token not found for ID: %v", tokenId)
-		return &Token{Token: fmt.Sprintf("%v", tokenId)} // Return a default token with the ID as a string
+		log.Printf("Token not found for ID: %d", tokenId)
+		return ""
 	}
+	return token.Address
+}
+
+func (t *Tokens) GetTokenById(tokenId int64) *Token {
+	// Lock the read mutex to ensure thread-safe access
+	t.Factory.Rw.RLock()
+	defer t.Factory.Rw.RUnlock()
+
+	// Attempt to retrieve the token from the map using the int64 tokenId
+	token, exists := t.TokenMap[tokenId]
+	if !exists {
+		// Log and return a default token if the tokenId is not found
+		log.Printf("Token not found for ID: %d", tokenId)
+		return &Token{Token: fmt.Sprintf("%d", tokenId)}
+	}
+
 	return token
 }
 
 // FormatValue formats a string input as a decimal string based on the token's decimals.
-func (v *Value) FormatValue(input string, key any) string {
-	v.Factory.Rw.RLock()
-	token, exists := v.TokenMap[key]
-	v.Factory.Rw.RUnlock()
+func (t *Tokens) FormatValue(input string, tokenInt int64) string {
+	t.Factory.Rw.RLock()
+	token, exists := t.TokenMap[tokenInt]
+	t.Factory.Rw.RUnlock()
 	if !exists {
 		return input
 	}

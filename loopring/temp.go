@@ -38,25 +38,12 @@ type Swap struct {
 func (l *Loopring) SwapToTx(transaction any) Tx {
 	var s Swap
 	mapToStruct(transaction, &s)
-	tokenIn := l.Value.GetTokenById(s.Token).Token
-	tokenOut := l.Value.GetTokenById(s.TokenOut).Token
-
-	var oneField any
-	if s.AMM {
-		// Use LoopringENS when AMM is true
-		peer := l.Value.GetFromMap(strconv.FormatInt(s.One, 10))
-		if peer != nil {
-			oneField = peer.LoopringENS
-		} else {
-			oneField = nil // Fallback if no peer is found
-		}
-	} else {
-		oneField = l.Value.Hello(strconv.FormatInt(s.One, 10)) // Resolve as usual
-	}
+	tokenIn := l.Value.GetTokenById(strconv.FormatInt(s.Token, 10)).Token
+	tokenOut := l.Value.GetTokenById(strconv.FormatInt(s.TokenOut, 10)).Token
 
 	tx := Tx{
 		Zero:     l.Value.Hello(strconv.FormatInt(s.Zero, 10)),
-		One:      oneField,
+		One:      l.Value.Hello(strconv.FormatInt(s.One, 10)),
 		Value:    l.Value.FormatValue(s.Value, tokenIn),
 		ValueOut: l.Value.FormatValue(s.ValueOut, tokenOut),
 		Token:    tokenIn,
@@ -82,6 +69,7 @@ func (l *Loopring) SwapToTx(transaction any) Tx {
 		fee := new(big.Int).Mul(valueIn, big.NewInt(feeBips))
 		fee.Div(fee, big.NewInt(10000)) // Convert basis points to percentage
 		tx.Fee = l.Value.FormatValue(fee.String(), tokenIn)
+		tx.FeeToken = tokenIn
 	}
 
 	return tx
