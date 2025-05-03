@@ -13,8 +13,8 @@ func mapToStruct(data any, target any) {
 func (l *Loopring) TransferToTx(transaction any) Tx {
 	var t Transfer
 	mapToStruct(transaction, &t)
-	token := l.Value.GetTokenById(strconv.FormatInt(t.Token, 10)).Token
-	feeToken := l.Value.GetTokenById(strconv.FormatInt(t.FeeToken, 10)).Token
+	token := l.Universe.Token.GetAddress(t.Token)
+	feeToken := l.Universe.Token.GetAddress(t.FeeToken)
 	tx := Tx{
 		Zero:  l.Value.Hello(strconv.FormatInt(t.ZeroId, 10)),
 		One:   l.Value.Hello(t.One),

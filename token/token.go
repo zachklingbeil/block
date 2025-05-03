@@ -18,6 +18,16 @@ type Tokens struct {
 	Tokens   []*Token
 	TokenMap map[any]*Token
 }
+
+func NewTokens(factory *factory.Factory) *Tokens {
+	t := &Tokens{
+		Factory:  factory,
+		Tokens:   make([]*Token, 0),
+		TokenMap: make(map[any]*Token),
+	}
+	return t
+}
+
 type Token struct {
 	Token    string `json:"token,omitempty"`
 	Address  string `json:"address,omitempty"`
