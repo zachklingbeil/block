@@ -1,7 +1,5 @@
 package loopring
 
-import "encoding/json"
-
 type Raw struct {
 	Number       int64 `json:"blockId"`
 	Timestamp    int64 `json:"createdAt"`
@@ -25,19 +23,6 @@ type Coordinate struct {
 	Millisecond uint16 `json:"millisecond"`
 	Index       uint16 `json:"index"`
 	Depth       uint16 `json:"depth,omitempty"`
-}
-
-type Tx struct {
-	Zero     any             `json:"zero,omitempty"`
-	One      any             `json:"one,omitempty"`
-	Value    any             `json:"value,omitempty"`
-	Token    any             `json:"token,omitempty"`
-	Fee      any             `json:"fee,omitempty"`
-	FeeToken any             `json:"feeToken,omitempty"`
-	Type     any             `json:"type,omitempty"`
-	Index    any             `json:"index"`
-	Nonce    any             `json:"nonce,omitempty"`
-	Raw      json.RawMessage `json:"raw,omitempty"`
 }
 
 type Transfer struct {
@@ -112,17 +97,4 @@ type NftData struct {
 	NftAddress string `json:"nftToken.tokenAddress"`
 	Type       string `json:"txType,omitempty"`
 	Index      uint16 `json:"index"`
-}
-
-type SpotTrade struct {
-	Zero      int64  `json:"orderA.accountID,omitempty"`
-	ZeroValue string `json:"orderA.filledS,omitempty"`
-	ZeroToken int64  `json:"orderB.tokenB,omitempty"`
-	One       int64  `json:"orderB.accountID,omitempty"`
-	OneValue  string `json:"orderB.filledS,omitempty"`
-	OneToken  int64  `json:"orderA.tokenB,omitempty"`
-	ZeroFee   int64  `json:"orderA.feeBips,omitempty"`
-	OneFee    int64  `json:"orderB.feeBips,omitempty"`
-	Type      string `json:"txType,omitempty"`
-	Index     uint16 `json:"index"`
 }

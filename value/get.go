@@ -24,8 +24,9 @@ func (v *Value) Hello(value string) string {
 		v.Peers = append(v.Peers, peer)
 		v.Map[value] = peer
 		v.Factory.Rw.Unlock()
-		go v.HelloUniverse(value)
+		go v.HelloUniverse(peer)
 	}
+
 	// Prefer ENS, then LoopringENS, then Address
 	switch {
 	case peer.ENS != "" && peer.ENS != "." && peer.ENS != "!":
@@ -37,28 +38,27 @@ func (v *Value) Hello(value string) string {
 	}
 }
 
-func (v *Value) HelloUniverse(value string) *Peer {
-	v.Factory.Rw.Lock()
-	defer v.Factory.Rw.Unlock()
-
-	peer, exists := v.Map[value]
-	if !exists {
-		peer = &Peer{}
-		if common.IsHexAddress(value) {
-			peer.Address = v.Format(value)
-		} else {
-			peer.LoopringID = value
-		}
-		v.Peers = append(v.Peers, peer)
-	}
-
-	// Unlock before external calls to avoid holding lock during network IO
-	v.Factory.Rw.Unlock()
+func (v *Value) HelloUniverse(peer *Peer) *Peer {
 	v.GetENS(peer)
 	v.GetLoopringENS(peer)
 	v.GetLoopringID(peer)
+
 	v.Factory.Rw.Lock()
+	if common.IsHexAddress(peer.Address) {
+		v.Map[peer.Address] = peer
+	}
+	if peer.ENS != "" && peer.ENS != "." && peer.ENS != "!" {
+		v.Map[peer.ENS] = peer
+	}
+	if peer.LoopringENS != "" && peer.LoopringENS != "." && peer.LoopringENS != "!" {
+		v.Map[peer.LoopringENS] = peer
+	}
+	if peer.LoopringID != "" && peer.LoopringID != "." && peer.LoopringID != "!" {
+		v.Map[peer.LoopringID] = peer
+	}
+	v.Save(peer)
 	fmt.Printf("	%s %s %s %s\n", peer.Address, peer.ENS, peer.LoopringENS, peer.LoopringID)
+	v.Factory.Rw.Unlock()
 	return peer
 }
 
@@ -76,7 +76,6 @@ func (v *Value) GetAddress(peer *Peer) {
 	} else {
 		peer.Address = v.Format(address.Hex())
 	}
-	v.Save(peer)
 }
 
 // hex -> .eth
@@ -93,7 +92,6 @@ func (v *Value) GetENS(peer *Peer) {
 	} else {
 		peer.ENS = v.Format(ensName)
 	}
-	v.Save(peer)
 }
 
 // hex -> LoopringENS [.loopring.eth] or "."
@@ -115,7 +113,6 @@ func (v *Value) GetLoopringENS(peer *Peer) {
 	} else {
 		peer.LoopringENS = v.Format(response.Loopring)
 	}
-	v.Save(peer)
 }
 
 // hex -> LoopringId or "."
@@ -138,7 +135,6 @@ func (v *Value) GetLoopringID(peer *Peer) {
 	default:
 		peer.LoopringID = strconv.FormatInt(response.ID, 10)
 	}
-	v.Save(peer)
 }
 
 // LoopringId -> hex
@@ -161,5 +157,4 @@ func (v *Value) GetLoopringAddress(peer *Peer) {
 	default:
 		peer.Address = v.Format(response.Address)
 	}
-	v.Save(peer)
 }

@@ -5,11 +5,8 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/rlp"
 )
 
 const (
@@ -97,14 +94,13 @@ func (e *Ethereum) processTransaction(ctx context.Context, tx *types.Transaction
 
 	if addr, err := types.Sender(signer, tx); err == nil {
 		txInfo.From = strings.ToLower(addr.Hex()) // Ensure From is lowercase
+	}
 
-		// Handle contract creation
-		if tx.To() == nil {
-			contractAddress := deriveContractAddress(addr, tx.Nonce())
-			txInfo.To = strings.ToLower(contractAddress.Hex()) // Store the derived contract address
-		} else {
-			txInfo.To = strings.ToLower(tx.To().Hex()) // Regular transaction
-		}
+	// Consolidate getToAddress logic here
+	if tx.To() == nil {
+		txInfo.To = "Contract Creation"
+	} else {
+		txInfo.To = strings.ToLower(tx.To().Hex()) // Ensure To is lowercase
 	}
 
 	if receipt, err := e.Factory.Eth.TransactionReceipt(ctx, tx.Hash()); err == nil {
@@ -216,35 +212,4 @@ func (e *Ethereum) decodeBigIntArray(data []byte, offset int) []string {
 	}
 
 	return result
-}
-
-// deriveContractAddress calculates the address of a newly created contract.
-func deriveContractAddress(sender common.Address, nonce uint64) common.Address {
-	// RLP encode the sender address and nonce
-	data, _ := rlp.EncodeToBytes([]interface{}{sender, nonce})
-	// Hash the RLP encoded data
-	hash := crypto.Keccak256Hash(data)
-	// Return the last 20 bytes as the contract address
-	return common.BytesToAddress(hash.Bytes()[12:])
-}
-
-// decodeConstructorArgs decodes the constructor arguments from the transaction data.
-func decodeConstructorArgs(data []byte, abiJSON string) (map[string]interface{}, error) {
-	// Parse the ABI
-	parsedABI, err := abi.JSON(strings.NewReader(abiJSON))
-	if err != nil {
-		return nil, err
-	}
-
-	// Find the constructor
-	constructor := parsedABI.Constructor
-
-	// Decode the arguments
-	args := make(map[string]interface{})
-	err = constructor.Inputs.UnpackIntoMap(args, data[len(constructor.Inputs.NonIndexed()):])
-	if err != nil {
-		return nil, err
-	}
-
-	return args, nil
 }

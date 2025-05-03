@@ -53,22 +53,17 @@ func (e *Ethereum) ProcessBlocks(count int) ([]*Block, error) {
 			log.Printf("Error storing block %d: %v", blockInfo.Number, err)
 			continue
 		}
-		log.Printf("%d", blockInfo.Number)
+		fmt.Printf("%d", blockInfo.Number)
 	}
 	return blocks, nil
 }
 
 func (e *Ethereum) StoreBlock(blockNumber int64, block any) error {
-	// Serialize the block to JSON
 	blockJSON, err := json.Marshal(block)
 	if err != nil {
 		return fmt.Errorf("failed to marshal block: %w", err)
 	}
-
-	// Define the Redis hash key for storing blocks
 	hashKey := "ethereum"
-
-	// Use the blockNumber as the field in the Redis hash
 	err = e.Factory.Data.RB.HSet(e.Factory.Ctx, hashKey, fmt.Sprintf("%d", blockNumber), blockJSON).Err()
 	if err != nil {
 		return fmt.Errorf("failed to store block in Redis hash: %w", err)

@@ -10,40 +10,6 @@ func mapToStruct(data any, target any) {
 	json.Unmarshal(bytes, target)
 }
 
-func (l *Loopring) SwapToTx(transaction any) []Tx {
-	var s SpotTrade
-	mapToStruct(transaction, &s)
-	tokenZero := l.Value.GetTokenById(s.ZeroToken).Token
-
-	zero := Tx{
-		Zero:  l.Value.Hello(strconv.FormatInt(s.Zero, 10)),
-		One:   l.Value.Hello(strconv.FormatInt(s.One, 10)),
-		Value: l.Value.FormatValue(s.ZeroValue, tokenZero),
-		Token: tokenZero,
-		Type:  "swap",
-		Index: s.Index,
-	}
-
-	if s.ZeroFee != 0 {
-		zero.Fee = s.ZeroFee
-	}
-
-	tokenOne := l.Value.GetTokenById(s.OneToken).Token
-	one := Tx{
-		Zero:  l.Value.Hello(strconv.FormatInt(s.One, 10)),
-		One:   l.Value.Hello(strconv.FormatInt(s.Zero, 10)),
-		Value: l.Value.FormatValue(s.OneValue, tokenOne),
-		Token: tokenOne,
-		Type:  "swap",
-		Index: s.Index,
-	}
-
-	if s.OneFee != 0 {
-		one.Fee = s.OneFee
-	}
-	return []Tx{zero, one}
-}
-
 func (l *Loopring) TransferToTx(transaction any) Tx {
 	var t Transfer
 	mapToStruct(transaction, &t)

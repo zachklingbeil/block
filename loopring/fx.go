@@ -115,8 +115,7 @@ func (l *Loopring) ProcessBlock(transactions []any) []Tx {
 		case "Withdraw":
 			txs = append(txs, l.WithdrawToTx(txMap))
 		case "SpotTrade":
-			spotTxs := l.SwapToTx(txMap)
-			txs = append(txs, spotTxs...)
+			txs = append(txs, l.SwapToTx(txMap))
 		case "Transfer":
 			txs = append(txs, l.TransferToTx(txMap))
 		case "NftMint":
