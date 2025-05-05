@@ -10,7 +10,7 @@ func (p *Peers) LoadPeers() error {
 	p.Factory.Rw.Lock()
 	defer p.Factory.Rw.Unlock()
 
-	source, err := p.Factory.Data.RB.HGetAll(p.Factory.Ctx, "peer").Result()
+	source, err := p.Factory.Data.RB.SMembers(p.Factory.Ctx, "peers").Result()
 	if err != nil {
 		return fmt.Errorf("failed to fetch peers from Redis hash: %v", err)
 	}
@@ -23,10 +23,6 @@ func (p *Peers) LoadPeers() error {
 			continue
 		}
 		peers = append(peers, peer)
-		p.Map[peer.Address] = peer
-		p.Map[peer.ENS] = peer
-		p.Map[peer.LoopringENS] = peer
-		p.Map[peer.LoopringID] = peer
 	}
 	p.Peers = peers
 	fmt.Printf("%d peers\n", len(p.Peers))

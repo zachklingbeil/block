@@ -19,7 +19,6 @@ type Peer struct {
 	LoopringENS string `json:"loopringEns,omitempty"`
 	LoopringID  string `json:"loopringId,omitempty"`
 	Address     string `json:"address,omitempty"`
-	FirstBlock  string `json:"firstBlock,omitempty"`
 }
 
 func NewPeers(factory *factory.Factory) *Peers {

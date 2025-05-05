@@ -8,40 +8,43 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/zachklingbeil/factory"
 )
 
 type Tokens struct {
 	Factory *factory.Factory
 	Tokens  []*Token
-	Map     map[any]*Token
+	Map     map[common.Address]*Token // map by Address
+	IdMap   map[int64]*Token          // map by TokenId
 }
 
 func NewTokens(factory *factory.Factory) *Tokens {
 	t := &Tokens{
 		Factory: factory,
 		Tokens:  make([]*Token, 0),
-		Map:     make(map[any]*Token),
+		Map:     make(map[common.Address]*Token),
+		IdMap:   make(map[int64]*Token),
 	}
 	t.LoadTokens()
 	return t
 }
 
 type Token struct {
-	Token    string `json:"token,omitempty"`
-	Address  string `json:"address,omitempty"`
-	Decimals string `json:"decimals,omitempty"`
-	TokenId  string `json:"tokenId,omitempty"`
-	TokenInt int64  `json:"tokenInt,omitempty"`
+	Token    string         `json:"token,omitempty"`
+	Address  common.Address `json:"address,omitempty"`
+	Decimals string         `json:"decimals,omitempty"`
+	TokenId  int64          `json:"tokenId,omitempty"`
 }
 
 func (t *Tokens) LoadTokens() error {
-	source, err := t.Factory.Data.RB.HGetAll(t.Factory.Ctx, "token").Result()
+	source, err := t.Factory.Data.RB.SMembers(t.Factory.Ctx, "token").Result()
 	if err != nil {
-		return fmt.Errorf("failed to fetch tokens from Redis hash: %v", err)
+		return fmt.Errorf("failed to fetch tokens from Redis set: %v", err)
 	}
 	t.Tokens = make([]*Token, 0, len(source))
-	t.Map = make(map[any]*Token, len(source))
+	t.Map = make(map[common.Address]*Token, len(source))
+	t.IdMap = make(map[int64]*Token, len(source))
 	for _, tokenJSON := range source {
 		var token Token
 		if err := json.Unmarshal([]byte(tokenJSON), &token); err != nil {
@@ -49,51 +52,63 @@ func (t *Tokens) LoadTokens() error {
 			continue
 		}
 		t.Tokens = append(t.Tokens, &token)
-		t.Map[token.TokenInt] = &token
+		t.Map[token.Address] = &token
+		t.IdMap[token.TokenId] = &token
 	}
+	fmt.Printf("%d tokens loaded\n", len(t.Tokens))
 	return nil
 }
 
-// Int64 tokenId in and desired return:
-// 0 - Token 1 - Address 2 - Decimals 3 - TokenId
-func (t *Tokens) Get(tokenId int64, field uint8) string {
-	if tokenId >= 500 {
-		return strconv.FormatInt(tokenId, 10)
-	}
-
+// GetAddressIdMap returns the common.Address for a given tokenId.
+func (t *Tokens) GetAddressIdMap(tokenId int64) common.Address {
 	t.Factory.Rw.RLock()
 	defer t.Factory.Rw.RUnlock()
 
-	token, exists := t.Map[tokenId]
+	token, exists := t.IdMap[tokenId]
 	if !exists {
 		log.Printf("Token not found for ID: %d", tokenId)
-		return ""
+		return common.Address{}
 	}
-
-	switch field {
-	case 0:
-		return token.Token
-	case 1:
-		return token.Address
-	case 2:
-		return token.Decimals
-	case 3:
-		return token.TokenId
-	default:
-		log.Printf("Invalid field selector: %d", field)
-		return ""
-	}
+	return token.Address
 }
 
-// FormatValue formats a string input as a decimal string based on the token's decimals.
-func (t *Tokens) Format(input string, key any) string {
+// GetAddressAndDecimalsIdMap returns the common.Address and decimals string for a given tokenId.
+func (t *Tokens) GetAddressAndDecimalsIdMap(tokenId int64) (common.Address, string) {
 	t.Factory.Rw.RLock()
-	token, exists := t.Map[key]
+	defer t.Factory.Rw.RUnlock()
+
+	token, exists := t.IdMap[tokenId]
+	if !exists {
+		log.Printf("Token not found for ID: %d", tokenId)
+		return common.Address{}, ""
+	}
+	return token.Address, token.Decimals
+}
+
+// FormatIdMap formats a string input as a decimal string based on the token's decimals, using tokenId.
+func (t *Tokens) FormatById(input string, tokenId int64) string {
+	t.Factory.Rw.RLock()
+	token, exists := t.IdMap[tokenId]
 	t.Factory.Rw.RUnlock()
 	if !exists {
 		return input
 	}
+	return format(input, token)
+}
 
+// FormatMap formats a string input as a decimal string based on the token's decimals, using address.
+func (t *Tokens) FormatMap(input string, address common.Address) string {
+	t.Factory.Rw.RLock()
+	token, exists := t.Map[address]
+	t.Factory.Rw.RUnlock()
+	if !exists {
+		return input
+	}
+	return format(input, token)
+}
+
+// Helper function to format value with token decimals.
+func format(input string, token *Token) string {
 	value := new(big.Int)
 	_, ok := value.SetString(input, 10)
 	if !ok {

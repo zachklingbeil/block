@@ -19,11 +19,11 @@ type Value struct {
 func NewValue(factory *factory.Factory) *Value {
 	v := &Value{
 		Factory: factory,
-		Peer:    peer.NewPeers(factory),
-		Token:   token.NewTokens(factory),
-		Map:     make(map[*common.Address]any),
+		// Peer:    peer.NewPeers(factory),
+		Token: token.NewTokens(factory),
+		Map:   make(map[*common.Address]any),
 	}
-	v.populateMap()
+	// v.populateMap()
 	fmt.Printf("Map: %d\n", len(v.Map))
 	return v
 }
@@ -35,7 +35,7 @@ func (v *Value) populateMap() {
 	}
 
 	for _, t := range v.Token.Tokens {
-		address := common.HexToAddress(t.Address)
+		address := common.HexToAddress(t.Address.Hex())
 		v.Map[&address] = &t
 	}
 }
