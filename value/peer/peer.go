@@ -12,12 +12,13 @@ type Peers struct {
 	Factory *factory.Factory
 	Peers   []*Peer          `json:"peers,omitempty"`
 	Map     map[string]*Peer `json:"map,omitempty"`
+	ById    map[int64]*Peer  `json:"byId,omitempty"`
 }
 
 type Peer struct {
 	ENS         string `json:"ens,omitempty"`
 	LoopringENS string `json:"loopringEns,omitempty"`
-	LoopringID  string `json:"loopringId,omitempty"`
+	LoopringID  int64  `json:"loopringId,omitempty"`
 	Address     string `json:"address,omitempty"`
 }
 

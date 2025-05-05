@@ -88,13 +88,3 @@ type Mint struct {
 	Type       string `json:"txType,omitempty"`
 	Index      uint16 `json:"index"`
 }
-
-type NftData struct {
-	ZeroId     int64  `json:"accountId"`
-	One        string `json:"minter"`
-	NftId      string `json:"nftToken.nftId"`
-	NftData    string `json:"nftToken.nftData,omitempty"`
-	NftAddress string `json:"nftToken.tokenAddress"`
-	Type       string `json:"txType,omitempty"`
-	Index      uint16 `json:"index"`
-}

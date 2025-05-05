@@ -38,9 +38,6 @@ func (p *Peers) GetENS(peer *Peer) {
 	} else {
 		peer.ENS = p.Format(ensName)
 	}
-	p.Factory.Rw.Lock()
-	defer p.Factory.Rw.Unlock()
-	p.Map[peer.ENS] = peer
 }
 
 // hex -> LoopringENS [.loopring.eth] or "."
@@ -63,34 +60,23 @@ func (p *Peers) GetLoopringENS(peer *Peer) {
 			peer.LoopringENS = p.Format(response.Loopring)
 		}
 	}
-	p.Factory.Rw.Lock()
-	defer p.Factory.Rw.Unlock()
-	p.Map[peer.LoopringENS] = peer
 }
 
 // hex -> LoopringId or "."
 func (p *Peers) GetLoopringID(peer *Peer) {
-	if peer.LoopringID == "." || (peer.LoopringID != "" && peer.LoopringID != "!") {
-		return
-	}
 	url := fmt.Sprintf(byAddress, peer.Address)
 	var response struct {
 		ID int64 `json:"accountId"`
 	}
-	err := p.input(url, &response)
+	p.input(url, &response)
 	p.Factory.Rw.Lock()
 	defer p.Factory.Rw.Unlock()
 	switch {
-	case err != nil:
-		peer.LoopringID = "!"
 	case response.ID == 0:
-		peer.LoopringID = "."
+		peer.LoopringID = -1
 	default:
-		peer.LoopringID = strconv.FormatInt(response.ID, 10)
+		peer.LoopringID = response.ID
 	}
-	// p.Factory.Rw.Lock()
-	// defer p.Factory.Rw.Unlock()
-	// p.Map[peer.LoopringID] = peer
 }
 
 // LoopringId -> hex
@@ -98,7 +84,7 @@ func (p *Peers) GetLoopringAddress(peer *Peer) {
 	if peer.Address == "." || (peer.Address != "" && peer.Address != "!") {
 		return
 	}
-	url := fmt.Sprintf(byId, peer.LoopringID)
+	url := fmt.Sprintf(byId, strconv.FormatInt(peer.LoopringID, 10))
 	var response struct {
 		Address string `json:"owner"`
 	}
@@ -113,7 +99,4 @@ func (p *Peers) GetLoopringAddress(peer *Peer) {
 	default:
 		peer.Address = p.Format(response.Address)
 	}
-	// p.Factory.Rw.Lock()
-	// defer p.Factory.Rw.Unlock()
-	p.Map[peer.Address] = peer
 }

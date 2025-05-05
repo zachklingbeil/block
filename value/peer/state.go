@@ -10,7 +10,7 @@ func (p *Peers) LoadPeers() error {
 	p.Factory.Rw.Lock()
 	defer p.Factory.Rw.Unlock()
 
-	source, err := p.Factory.Data.RB.SMembers(p.Factory.Ctx, "peers").Result()
+	source, err := p.Factory.Data.RB.SMembers(p.Factory.Ctx, "peer").Result()
 	if err != nil {
 		return fmt.Errorf("failed to fetch peers from Redis hash: %v", err)
 	}

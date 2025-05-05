@@ -37,14 +37,14 @@ type Swap struct {
 func (l *Loopring) SwapToTx(transaction any) Tx {
 	var s Swap
 	mapToStruct(transaction, &s)
-	tokenIn := l.Value.Token.Get(s.Token, 1)
-	tokenOut := l.Value.Token.Get(s.TokenOut, 1)
+	token := l.Value.Token.GetAddress(s.Token)
+	tokenOut := l.Value.Token.GetAddress(s.TokenOut)
 	tx := Tx{
 		Zero:     l.Value.Peer.Hello(strconv.FormatInt(s.Zero, 10)),
 		One:      l.Value.Peer.Hello(strconv.FormatInt(s.One, 10)),
-		Value:    l.Value.Token.Format(s.Value, s.Token),
-		ValueOut: l.Value.Token.Format(s.ValueOut, s.TokenOut),
-		Token:    tokenIn,
+		Value:    l.Value.Token.Format(s.Value, token),
+		ValueOut: l.Value.Token.Format(s.ValueOut, tokenOut),
+		Token:    token,
 		TokenOut: tokenOut,
 		Type:     "swap",
 		Index:    s.Index,
@@ -66,8 +66,8 @@ func (l *Loopring) SwapToTx(transaction any) Tx {
 		valueIn.SetString(valueInStr, 10)
 		fee := new(big.Int).Mul(valueIn, big.NewInt(feeBips))
 		fee.Div(fee, big.NewInt(10000)) // Convert basis points to percentage
-		tx.Fee = l.Value.Token.Format(fee.String(), s.Token)
-		tx.FeeToken = tokenIn
+		tx.Fee = l.Value.Token.Format(fee.String(), token)
+		tx.FeeToken = token
 	}
 	return tx
 }

@@ -59,8 +59,8 @@ func (t *Tokens) LoadTokens() error {
 	return nil
 }
 
-// GetAddressIdMap returns the common.Address for a given tokenId.
-func (t *Tokens) GetAddressIdMap(tokenId int64) common.Address {
+// GetAddress returns the common.Address for a given tokenId.
+func (t *Tokens) GetAddress(tokenId int64) common.Address {
 	t.Factory.Rw.RLock()
 	defer t.Factory.Rw.RUnlock()
 
@@ -96,8 +96,8 @@ func (t *Tokens) FormatById(input string, tokenId int64) string {
 	return format(input, token)
 }
 
-// FormatMap formats a string input as a decimal string based on the token's decimals, using address.
-func (t *Tokens) FormatMap(input string, address common.Address) string {
+// Format formats a string input as a decimal string based on the token's decimals, using address.
+func (t *Tokens) Format(input string, address common.Address) string {
 	t.Factory.Rw.RLock()
 	token, exists := t.Map[address]
 	t.Factory.Rw.RUnlock()

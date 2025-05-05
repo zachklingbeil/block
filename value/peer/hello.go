@@ -2,6 +2,7 @@ package peer
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -16,24 +17,16 @@ func (p *Peers) Hello(value string) string {
 		if common.IsHexAddress(value) {
 			peer.Address = p.Format(value)
 		} else {
-			peer.LoopringID = value
+			loopringID, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				fmt.Printf("Error converting value to int64: %v\n", err)
+				return ""
+			}
+			peer.LoopringID = loopringID
 			p.GetLoopringAddress(peer)
 		}
-		p.Factory.Rw.RLock()
 		p.Peers = append(p.Peers, peer)
-		p.Factory.Rw.RUnlock()
-		p.HelloUniverse(peer)
 	}
-
-	// // Prefer ENS, then LoopringENS, then Address
-	// switch {
-	// case peer.ENS != "" && peer.ENS != "." && peer.ENS != "!":
-	// 	return peer.ENS
-	// case peer.LoopringENS != "" && peer.LoopringENS != "." && peer.LoopringENS != "!":
-	// 	return peer.LoopringENS
-	// default:
-	// 	return peer.Address
-	// }
 	return peer.Address
 }
 
@@ -44,11 +37,8 @@ func (p *Peers) HelloUniverse(peer *Peer) *Peer {
 
 	p.Factory.Rw.Lock()
 	p.Map[peer.Address] = peer
-	p.Map[peer.ENS] = peer
-	p.Map[peer.LoopringENS] = peer
-	p.Map[peer.LoopringID] = peer
 	p.Save(peer)
 	p.Factory.Rw.Unlock()
-	fmt.Printf("	%s %s %s %s\n", peer.Address, peer.ENS, peer.LoopringENS, peer.LoopringID)
+	fmt.Printf("	%s %s %s %d\n", peer.Address, peer.ENS, peer.LoopringENS, peer.LoopringID)
 	return peer
 }
