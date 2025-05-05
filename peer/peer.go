@@ -5,15 +5,19 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/zachklingbeil/factory"
 )
 
 type Peers struct {
 	Factory *factory.Factory
-	Peers   []*Peer                  `json:"peers,omitempty"`
-	Map     map[string]*Peer         `json:"map,omitempty"`
-	Map2    map[*Peer]common.Address `json:"map2,omitempty"`
+	Peers   []*Peer `json:"peers,omitempty"`
+}
+
+func NewPeers(factory *factory.Factory) *Peers {
+	return &Peers{
+		Factory: factory,
+		Peers:   make([]*Peer, 0),
+	}
 }
 
 type Peer struct {
@@ -22,15 +26,6 @@ type Peer struct {
 	LoopringID  string `json:"loopringId,omitempty"`
 	Address     string `json:"address,omitempty"`
 	FirstBlock  string `json:"firstBlock,omitempty"`
-}
-
-func NewPeers(factory *factory.Factory) *Peers {
-	peers := &Peers{
-		Factory: factory,
-		Map:     make(map[string]*Peer),
-	}
-	peers.LoadPeers()
-	return peers
 }
 
 const (

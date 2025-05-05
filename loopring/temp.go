@@ -32,18 +32,20 @@ type Swap struct {
 	OneFee   int64  `json:"orderB.feeBips,omitempty"`
 	Type     string `json:"txType,omitempty"`
 	Index    uint16 `json:"index"`
+	AMM      bool   `json:"orderB.isAmm,omitempty"`
 }
 
 func (l *Loopring) SwapToTx(transaction any) Tx {
 	var s Swap
 	mapToStruct(transaction, &s)
-	tokenIn := l.Value.Token.Get(s.Token, 1)
-	tokenOut := l.Value.Token.Get(s.TokenOut, 1)
+	tokenIn := l.Value.GetTokenById(strconv.FormatInt(s.Token, 10)).Token
+	tokenOut := l.Value.GetTokenById(strconv.FormatInt(s.TokenOut, 10)).Token
+
 	tx := Tx{
-		Zero:     l.Value.Peer.Hello(strconv.FormatInt(s.Zero, 10)),
-		One:      l.Value.Peer.Hello(strconv.FormatInt(s.One, 10)),
-		Value:    l.Value.Token.Format(s.Value, s.Token),
-		ValueOut: l.Value.Token.Format(s.ValueOut, s.TokenOut),
+		Zero:     l.Value.Hello(strconv.FormatInt(s.Zero, 10)),
+		One:      l.Value.Hello(strconv.FormatInt(s.One, 10)),
+		Value:    l.Value.FormatValue(s.Value, tokenIn),
+		ValueOut: l.Value.FormatValue(s.ValueOut, tokenOut),
 		Token:    tokenIn,
 		TokenOut: tokenOut,
 		Type:     "swap",
@@ -66,8 +68,9 @@ func (l *Loopring) SwapToTx(transaction any) Tx {
 		valueIn.SetString(valueInStr, 10)
 		fee := new(big.Int).Mul(valueIn, big.NewInt(feeBips))
 		fee.Div(fee, big.NewInt(10000)) // Convert basis points to percentage
-		tx.Fee = l.Value.Token.Format(fee.String(), s.Token)
+		tx.Fee = l.Value.FormatValue(fee.String(), tokenIn)
 		tx.FeeToken = tokenIn
 	}
+
 	return tx
 }
