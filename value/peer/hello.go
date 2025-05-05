@@ -19,10 +19,11 @@ func (p *Peers) Hello(value string) string {
 			peer.LoopringID = value
 			p.GetLoopringAddress(peer)
 		}
+		p.Factory.Rw.RLock()
+		p.Peers = append(p.Peers, peer)
+		p.Factory.Rw.RUnlock()
+		p.HelloUniverse(peer)
 	}
-
-	p.Peers = append(p.Peers, peer)
-	p.HelloUniverse(peer)
 
 	// // Prefer ENS, then LoopringENS, then Address
 	// switch {
@@ -41,23 +42,13 @@ func (p *Peers) HelloUniverse(peer *Peer) *Peer {
 	p.GetLoopringENS(peer)
 	p.GetLoopringID(peer)
 
+	p.Factory.Rw.Lock()
+	p.Map[peer.Address] = peer
+	p.Map[peer.ENS] = peer
+	p.Map[peer.LoopringENS] = peer
+	p.Map[peer.LoopringID] = peer
 	p.Save(peer)
+	p.Factory.Rw.Unlock()
 	fmt.Printf("	%s %s %s %s\n", peer.Address, peer.ENS, peer.LoopringENS, peer.LoopringID)
 	return peer
 }
-
-// func (p *Peers) HelloUniverse(peer *Peer) *Peer {
-// 	p.GetENS(peer)
-// 	p.GetLoopringENS(peer)
-// 	p.GetLoopringID(peer)
-
-// 	p.Factory.Rw.Lock()
-// 	p.Map[peer.Address] = peer
-// 	p.Map[peer.ENS] = peer
-// 	p.Map[peer.LoopringENS] = peer
-// 	p.Map[peer.LoopringID] = peer
-// 	p.Save(peer)
-// 	p.Factory.Rw.Unlock()
-// 	fmt.Printf("	%s %s %s %s\n", peer.Address, peer.ENS, peer.LoopringENS, peer.LoopringID)
-// 	return peer
-// }

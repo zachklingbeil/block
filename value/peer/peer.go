@@ -5,15 +5,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/zachklingbeil/factory"
 )
 
 type Peers struct {
 	Factory *factory.Factory
-	Peers   []*Peer                  `json:"peers,omitempty"`
-	Map     map[string]*Peer         `json:"map,omitempty"`
-	Map2    map[*Peer]common.Address `json:"map2,omitempty"`
+	Peers   []*Peer          `json:"peers,omitempty"`
+	Map     map[string]*Peer `json:"map,omitempty"`
 }
 
 type Peer struct {
