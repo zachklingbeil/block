@@ -3,6 +3,7 @@ package loopring
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/ethereum/go-ethereum/log"
@@ -20,7 +21,6 @@ func (l *Loopring) Loop() error {
 			return fmt.Errorf("invalid type for blocks")
 		}
 	}
-
 	for i := startBlock; ; i++ {
 		fmt.Println(i)
 		if err := l.BlockByBlock(i); err != nil {
@@ -29,7 +29,6 @@ func (l *Loopring) Loop() error {
 		}
 		l.Factory.State.Count("loop.block", i, true)
 	}
-
 	return nil
 }
 
@@ -135,18 +134,9 @@ func (l *Loopring) ProcessBlock(transactions []any) []Tx {
 }
 
 func (l *Loopring) StoreBlock(blockNumber int64, block any) error {
-	// Serialize the block to JSON
-	blockJSON, err := json.Marshal(block)
-	if err != nil {
-		return fmt.Errorf("failed to marshal block: %w", err)
-	}
-
-	// Define the Redis hash key for storing blocks
-	hashKey := "loopring"
-
-	// Use the blockNumber as the field in the Redis hash
-	err = l.Factory.Data.RB.HSet(l.Factory.Ctx, hashKey, fmt.Sprintf("%d", blockNumber), blockJSON).Err()
-	if err != nil {
+	blockJSON, _ := json.Marshal(block)
+	key := strconv.FormatInt(blockNumber, 10)
+	if err := l.Factory.Data.RB.HSet(l.Factory.Ctx, "loopring", key, blockJSON).Err(); err != nil {
 		return fmt.Errorf("failed to store block in Redis hash: %w", err)
 	}
 	return nil

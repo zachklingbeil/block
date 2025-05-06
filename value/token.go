@@ -1,4 +1,4 @@
-package token
+package value
 
 import (
 	"encoding/json"
@@ -9,23 +9,7 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/zachklingbeil/factory"
 )
-
-type Tokens struct {
-	Factory *factory.Factory
-	Tokens  []*Token
-	Map     map[common.Address]*Token // map by Address
-	IdMap   map[int64]*Token          // map by TokenId
-}
-
-func NewTokens(factory *factory.Factory) *Tokens {
-	t := &Tokens{
-		Factory: factory,
-	}
-	t.LoadTokens()
-	return t
-}
 
 type Token struct {
 	Token    string         `json:"token,omitempty"`
@@ -34,38 +18,46 @@ type Token struct {
 	TokenId  int64          `json:"tokenId,omitempty"`
 }
 
-func (t *Tokens) LoadTokens() error {
-	source, err := t.Factory.Data.RB.SMembers(t.Factory.Ctx, "token").Result()
+func (v *Value) LoadTokens() error {
+	source, err := v.Factory.Data.RB.SMembers(v.Factory.Ctx, "token").Result()
 	if err != nil {
 		return fmt.Errorf("failed to fetch tokens from Redis set: %v", err)
 	}
-	t.Tokens = make([]*Token, 0, len(source))
-	t.Map = make(map[common.Address]*Token, len(source))
-	t.IdMap = make(map[int64]*Token, len(source))
+	v.Tokens = make([]*Token, 0, len(source))
+	v.Maps.TokenId = make(map[int64]*Token, len(source))
 	for _, tokenJSON := range source {
 		var token Token
 		if err := json.Unmarshal([]byte(tokenJSON), &token); err != nil {
 			log.Printf("Skipping invalid token: %v (data: %s)", err, tokenJSON)
 			continue
 		}
-		t.Tokens = append(t.Tokens, &token)
-		t.Map[token.Address] = &token
-		t.IdMap[token.TokenId] = &token
+		v.Tokens = append(v.Tokens, &token)
+		v.Universe[token.Address] = &token
+		v.Maps.TokenId[token.TokenId] = &token
 	}
-	fmt.Printf("%d tokens loaded\n", len(t.Tokens))
+	fmt.Printf("%d tokens loaded\n", len(v.Tokens))
 	return nil
 }
 
+// AddToken adds a new token to the Tokens struct and updates all maps.
+func (v *Value) AddToken(token *Token) {
+	v.Factory.Rw.Lock()
+	defer v.Factory.Rw.Unlock()
+	v.Tokens = append(v.Tokens, token)
+	v.Universe[token.Address] = token
+	v.Maps.TokenId[token.TokenId] = token
+}
+
 // GetAddress returns the common.Address for a given tokenId.
-func (t *Tokens) GetAddress(tokenId int64) string {
+func (v *Value) GetAddress(tokenId int64) string {
 	if tokenId >= 500 {
 		return strconv.FormatInt(tokenId, 10)
 	}
 
-	t.Factory.Rw.RLock()
-	defer t.Factory.Rw.RUnlock()
+	v.Factory.Rw.RLock()
+	defer v.Factory.Rw.RUnlock()
 
-	token, exists := t.IdMap[tokenId]
+	token, exists := v.Maps.TokenId[tokenId]
 	if !exists {
 		log.Printf("Token not found for ID: %d", tokenId)
 		return strconv.FormatInt(tokenId, 10)
@@ -74,15 +66,15 @@ func (t *Tokens) GetAddress(tokenId int64) string {
 }
 
 // Format formats a string input as a decimal string based on the token's decimals, using address.
-func (t *Tokens) Format(input string, address string) string {
+func (v *Value) Format(input string, address string) string {
 	addr := common.HexToAddress(address)
-	t.Factory.Rw.RLock()
-	token, exists := t.Map[addr]
-	t.Factory.Rw.RUnlock()
+	v.Factory.Rw.RLock()
+	token, exists := v.Universe[addr]
+	v.Factory.Rw.RUnlock()
 	if !exists {
 		return input
 	}
-	return format(input, token)
+	return format(input, token.(*Token))
 }
 
 // Helper function to format value with token decimals.
@@ -112,3 +104,26 @@ func format(input string, token *Token) string {
 	result = strings.TrimSuffix(result, ".")
 	return result
 }
+
+// //go:embed token.json
+// var tokens []byte
+
+// func NewTokens(factory *factory.Factory) {
+// 	var tokensData []Token
+// 	if err := json.Unmarshal(tokens, &tokensData); err != nil {
+// 		log.Fatalf("Failed to unmarshal tokens: %v", err)
+// 	}
+// 	for _, token := range tokensData {
+// 		tokenJSON, err := json.Marshal(token)
+// 		if err != nil {
+// 			log.Printf("Failed to marshal token: %v", err)
+// 			continue
+// 		}
+
+// 		if err := factory.Data.RB.SAdd(factory.Ctx, "token", tokenJSON).Err(); err != nil {
+// 			log.Printf("Failed to add token to Redis: %v", err)
+// 		}
+// 	}
+// 	// factory.State.Add("tokens", len(tokensData))
+// 	fmv.Printf("%d tokens\n", len(tokensData))
+// }

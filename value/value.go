@@ -5,40 +5,46 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/zachklingbeil/block/value/peer"
-	"github.com/zachklingbeil/block/value/token"
+
 	"github.com/zachklingbeil/factory"
 )
 
 type Value struct {
-	Factory *factory.Factory
-	Peer    *peer.Peers
-	Token   *token.Tokens
-	Map     map[common.Address]any
+	Factory  *factory.Factory
+	Peers    []*Peer
+	Tokens   []*Token
+	Universe map[common.Address]any
+	Maps     *Maps
+}
+
+type Maps struct {
+	LoopringId map[int64]*Peer
+	TokenId    map[int64]*Token
 }
 
 func NewValue(factory *factory.Factory) *Value {
 	v := &Value{
 		Factory: factory,
-		Peer:    peer.NewPeers(factory),
-		Token:   token.NewTokens(factory),
-		Map:     make(map[common.Address]any),
+
+		Universe: make(map[common.Address]any),
 	}
+	v.LoadTokens()
+	v.LoadPeers()
 	v.populateMap()
-	fmt.Printf("Map: %d\n", len(v.Map))
+	fmt.Printf("Universe: %d\n", len(v.Universe))
 	return v
 }
 
 func (v *Value) populateMap() {
-	for _, p := range v.Peer.Peers {
-		v.Map[common.HexToAddress(strings.ToLower(p.Address))] = p
+	for _, p := range v.Peers {
+		v.Universe[common.HexToAddress(strings.ToLower(p.Address))] = p
 	}
 
-	for _, t := range v.Token.Tokens {
-		v.Map[t.Address] = t
+	for _, t := range v.Tokens {
+		v.Universe[t.Address] = t
 	}
 }
 
 func (v *Value) Source(address common.Address) any {
-	return v.Map[address]
+	return v.Universe[address]
 }
