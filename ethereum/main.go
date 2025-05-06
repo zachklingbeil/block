@@ -32,14 +32,14 @@ func (e *Ethereum) Signer(blockNumber *big.Int, blockTime uint64) types.Signer {
 }
 
 // ProcessBlocks processes the latest `count` blocks.
-func (e *Ethereum) ProcessBlocks(count int) ([]*Block, error) {
+func (e *Ethereum) ProcessBlocks(count int) ([]*Raw, error) {
 	header, err := e.Factory.Eth.HeaderByNumber(e.Factory.Ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get latest header: %w", err)
 	}
 	latestBlock := header.Number.Uint64()
 
-	var blocks []*Block
+	var blocks []*Raw
 	for blockNum := latestBlock; blockNum > latestBlock-uint64(count); blockNum-- {
 		block, err := e.Factory.Eth.BlockByNumber(e.Factory.Ctx, big.NewInt(int64(blockNum)))
 		if err != nil {

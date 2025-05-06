@@ -1,14 +1,17 @@
 package value
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"log"
 	"math/big"
+	"os"
 	"strconv"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/zachklingbeil/factory"
 )
 
 type Token struct {
@@ -16,6 +19,29 @@ type Token struct {
 	Address  common.Address `json:"address,omitempty"`
 	Decimals string         `json:"decimals,omitempty"`
 	TokenId  int64          `json:"tokenId,omitempty"`
+}
+
+//go:embed token.json
+var tokens []byte
+
+func NewTokens(factory *factory.Factory) {
+	var tokensData []Token
+	if err := json.Unmarshal(tokens, &tokensData); err != nil {
+		log.Fatalf("Failed to unmarshal tokens: %v", err)
+	}
+	for _, token := range tokensData {
+		tokenJSON, err := json.Marshal(token)
+		if err != nil {
+			log.Printf("Failed to marshal token: %v", err)
+			continue
+		}
+
+		if err := factory.Data.RB.SAdd(factory.Ctx, "token", tokenJSON).Err(); err != nil {
+			log.Printf("Failed to add token to Redis: %v", err)
+		}
+	}
+	// factory.State.Add("tokens", len(tokensData))
+	fmt.Printf("%d tokens\n", len(tokensData))
 }
 
 func (v *Value) LoadTokens() error {
@@ -36,6 +62,20 @@ func (v *Value) LoadTokens() error {
 		v.Maps.TokenId[token.TokenId] = &token
 	}
 	fmt.Printf("%d tokens loaded\n", len(v.Tokens))
+	v.SaveTokensToFile("tokens.json")
+	return nil
+}
+
+func (v *Value) SaveTokensToFile(filename string) error {
+	v.Factory.Rw.RLock()
+	defer v.Factory.Rw.RUnlock()
+	data, err := json.MarshalIndent(v.Tokens, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal tokens: %v", err)
+	}
+	if err := os.WriteFile(filename, data, 0644); err != nil {
+		return fmt.Errorf("failed to write tokens to file: %v", err)
+	}
 	return nil
 }
 
@@ -104,26 +144,3 @@ func format(input string, token *Token) string {
 	result = strings.TrimSuffix(result, ".")
 	return result
 }
-
-// //go:embed token.json
-// var tokens []byte
-
-// func NewTokens(factory *factory.Factory) {
-// 	var tokensData []Token
-// 	if err := json.Unmarshal(tokens, &tokensData); err != nil {
-// 		log.Fatalf("Failed to unmarshal tokens: %v", err)
-// 	}
-// 	for _, token := range tokensData {
-// 		tokenJSON, err := json.Marshal(token)
-// 		if err != nil {
-// 			log.Printf("Failed to marshal token: %v", err)
-// 			continue
-// 		}
-
-// 		if err := factory.Data.RB.SAdd(factory.Ctx, "token", tokenJSON).Err(); err != nil {
-// 			log.Printf("Failed to add token to Redis: %v", err)
-// 		}
-// 	}
-// 	// factory.State.Add("tokens", len(tokensData))
-// 	fmv.Printf("%d tokens\n", len(tokensData))
-// }

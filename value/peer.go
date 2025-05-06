@@ -39,6 +39,8 @@ func (v *Value) LoadPeers() error {
 			continue
 		}
 		peers = append(peers, peer)
+		v.Universe[common.HexToAddress(strings.ToLower(peer.Address))] = peer
+		v.Maps.LoopringId[peer.LoopringID] = peer
 	}
 	v.Peers = peers
 	return nil

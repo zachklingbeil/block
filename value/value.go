@@ -24,9 +24,12 @@ type Maps struct {
 
 func NewValue(factory *factory.Factory) *Value {
 	v := &Value{
-		Factory: factory,
-
+		Factory:  factory,
 		Universe: make(map[common.Address]any),
+		Maps: &Maps{
+			LoopringId: make(map[int64]*Peer),
+			TokenId:    make(map[int64]*Token),
+		},
 	}
 	v.LoadTokens()
 	v.LoadPeers()

@@ -11,9 +11,8 @@ func main() {
 
 	// value.NewValue(factory)
 	v := value.NewValue(factory)
-	// // // e := ethereum.NewEthereum(factory, v)
-
-	// // // go e.ProcessBlocks(10)
+	// e := ethereum.NewEthereum(factory, v)
+	// go e.ProcessBlocks(10)
 	go loopring.Connect(factory, v)
 	select {}
 }

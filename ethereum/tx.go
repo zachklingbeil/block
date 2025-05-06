@@ -15,8 +15,8 @@ const (
 	transfer1155BatchEvent  = "0x4a39dc06d4c0dbc64b70b1b5fdcf9a43c3b840ecb9c7aafb5c62c0124c6a16e3"
 )
 
-// Block holds information about a block.
-type Block struct {
+// Raw holds information about a block.
+type Raw struct {
 	Number       uint64
 	Hash         string
 	ParentHash   string
@@ -60,8 +60,8 @@ type LogInfo struct {
 }
 
 // processBlock processes a single block and returns its information.
-func (e *Ethereum) processBlock(ctx context.Context, block *types.Block) *Block {
-	blockInfo := &Block{
+func (e *Ethereum) processBlock(ctx context.Context, block *types.Block) *Raw {
+	blockInfo := &Raw{
 		Number:     block.NumberU64(),
 		Hash:       block.Hash().Hex(),
 		ParentHash: block.ParentHash().Hex(),
@@ -114,76 +114,54 @@ func (e *Ethereum) processTransaction(ctx context.Context, tx *types.Transaction
 func (e *Ethereum) populateReceiptInfo(txInfo *Transactions, receipt *types.Receipt) {
 	txInfo.Status = receipt.Status
 	txInfo.CumulativeGasUsed = receipt.CumulativeGasUsed
-
 	for _, log := range receipt.Logs {
-		eventType := e.determineEventType(log)
-		switch eventType {
-		case "ERC20/ERC721 Transfer":
-			txInfo.Logs = append(txInfo.Logs, e.createTransferLog(log))
-		case "ERC1155 TransferSingle":
-			txInfo.Logs = append(txInfo.Logs, e.createERC1155SingleLog(log))
-		case "ERC1155 TransferBatch":
-			txInfo.Logs = append(txInfo.Logs, e.createERC1155BatchLog(log))
+		if logInfo := e.parseLog(log); logInfo != nil {
+			txInfo.Logs = append(txInfo.Logs, logInfo)
 		}
 	}
 }
 
-// determineEventType determines the type of event based on the log's topics and data.
-func (e *Ethereum) determineEventType(log *types.Log) string {
+// parseLog handles all supported log types in one place.
+func (e *Ethereum) parseLog(log *types.Log) *LogInfo {
 	switch {
 	case len(log.Topics) == 3 && log.Topics[0].Hex() == transferEvent && len(log.Data) == 32:
-		return "ERC20/ERC721 Transfer"
+		return &LogInfo{
+			Address:   toLowerHex(log.Address.Hex()),
+			EventType: "ERC20/ERC721 Transfer",
+			From:      extractAddr(log.Topics[1]),
+			To:        extractAddr(log.Topics[2]),
+			Value:     bigIntFromBytes(log.Data),
+		}
 	case len(log.Topics) == 4 && log.Topics[0].Hex() == transfer1155SingleEvent && len(log.Data) == 64:
-		return "ERC1155 TransferSingle"
+		return &LogInfo{
+			Address:   toLowerHex(log.Address.Hex()),
+			EventType: "ERC1155 TransferSingle",
+			Operator:  extractAddr(log.Topics[1]),
+			From:      extractAddr(log.Topics[2]),
+			To:        extractAddr(log.Topics[3]),
+			ID:        bigIntFromBytes(log.Data[:32]),
+			Value:     bigIntFromBytes(log.Data[32:]),
+		}
 	case len(log.Topics) == 4 && log.Topics[0].Hex() == transfer1155BatchEvent && len(log.Data) >= 64:
-		return "ERC1155 TransferBatch"
+		ids, values := e.decode1155Batch(log.Data)
+		return &LogInfo{
+			Address:   toLowerHex(log.Address.Hex()),
+			EventType: "ERC1155 TransferBatch",
+			Operator:  extractAddr(log.Topics[1]),
+			From:      extractAddr(log.Topics[2]),
+			To:        extractAddr(log.Topics[3]),
+			IDs:       ids,
+			Values:    values,
+		}
 	default:
-		return "Unknown"
+		return nil
 	}
 }
 
-// createTransferLog creates a log for ERC20/ERC721 transfers.
-func (e *Ethereum) createTransferLog(log *types.Log) *LogInfo {
-	return &LogInfo{
-		Address:   strings.ToLower(log.Address.Hex()),
-		EventType: "ERC20/ERC721 Transfer",
-		From:      e.extractAddress(log.Topics[1]),
-		To:        e.extractAddress(log.Topics[2]),
-		Value:     new(big.Int).SetBytes(log.Data),
-	}
-}
-
-// createERC1155SingleLog creates a log for ERC1155 single transfers.
-func (e *Ethereum) createERC1155SingleLog(log *types.Log) *LogInfo {
-	return &LogInfo{
-		Address:   strings.ToLower(log.Address.Hex()),
-		EventType: "ERC1155 TransferSingle",
-		Operator:  e.extractAddress(log.Topics[1]),
-		From:      e.extractAddress(log.Topics[2]),
-		To:        e.extractAddress(log.Topics[3]),
-		ID:        new(big.Int).SetBytes(log.Data[:32]),
-		Value:     new(big.Int).SetBytes(log.Data[32:]),
-	}
-}
-
-// createERC1155BatchLog creates a log for ERC1155 batch transfers.
-func (e *Ethereum) createERC1155BatchLog(log *types.Log) *LogInfo {
-	ids, values := e.decode1155Batch(log.Data)
-	return &LogInfo{
-		Address:   strings.ToLower(log.Address.Hex()),
-		EventType: "ERC1155 TransferBatch",
-		Operator:  e.extractAddress(log.Topics[1]),
-		From:      e.extractAddress(log.Topics[2]),
-		To:        e.extractAddress(log.Topics[3]),
-		IDs:       ids,
-		Values:    values,
-	}
-}
-
-// extractAddress extracts an address from a topic and ensures it is lowercase.
-func (e *Ethereum) extractAddress(topic common.Hash) string {
-	return strings.ToLower("0x" + topic.Hex()[26:])
-}
+// Helper functions
+func toLowerHex(s string) string           { return strings.ToLower(s) }
+func extractAddr(topic common.Hash) string { return toLowerHex("0x" + topic.Hex()[26:]) }
+func bigIntFromBytes(b []byte) *big.Int    { return new(big.Int).SetBytes(b) }
 
 // decode1155Batch decodes batch transfer data into IDs and values.
 func (e *Ethereum) decode1155Batch(data []byte) ([]string, []string) {
