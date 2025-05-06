@@ -16,6 +16,7 @@ func (p *Peers) LoadPeers() error {
 	}
 	peers := make([]*Peer, 0, len(source))
 	p.Map = make(map[string]*Peer, len(source))
+	p.LoopringIdMap = make(map[int64]*Peer, len(source))
 	for _, peerJSON := range source {
 		var peer *Peer
 		if err := json.Unmarshal([]byte(peerJSON), &peer); err != nil {
@@ -23,6 +24,8 @@ func (p *Peers) LoadPeers() error {
 			continue
 		}
 		peers = append(peers, peer)
+		p.Map[peer.Address] = peer
+		p.LoopringIdMap[peer.LoopringID] = peer
 	}
 	p.Peers = peers
 	fmt.Printf("%d peers\n", len(p.Peers))

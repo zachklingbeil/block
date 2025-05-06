@@ -3,7 +3,6 @@ package loopring
 import (
 	"encoding/json"
 	"math/big"
-	"strconv"
 )
 
 type Tx struct {
@@ -40,8 +39,8 @@ func (l *Loopring) SwapToTx(transaction any) Tx {
 	token := l.Value.Token.GetAddress(s.Token)
 	tokenOut := l.Value.Token.GetAddress(s.TokenOut)
 	tx := Tx{
-		Zero:     l.Value.Peer.Hello(strconv.FormatInt(s.Zero, 10)),
-		One:      l.Value.Peer.Hello(strconv.FormatInt(s.One, 10)),
+		Zero:     l.Value.Peer.GetAddress(s.Zero),
+		One:      l.Value.Peer.GetAddress(s.One),
 		Value:    l.Value.Token.Format(s.Value, token),
 		ValueOut: l.Value.Token.Format(s.ValueOut, tokenOut),
 		Token:    token,

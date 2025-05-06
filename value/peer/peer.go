@@ -9,10 +9,10 @@ import (
 )
 
 type Peers struct {
-	Factory *factory.Factory
-	Peers   []*Peer          `json:"peers,omitempty"`
-	Map     map[string]*Peer `json:"map,omitempty"`
-	ById    map[int64]*Peer  `json:"byId,omitempty"`
+	Factory       *factory.Factory
+	Peers         []*Peer `json:"peers,omitempty"`
+	LoopringIdMap map[int64]*Peer
+	Map           map[string]*Peer
 }
 
 type Peer struct {
@@ -25,7 +25,6 @@ type Peer struct {
 func NewPeers(factory *factory.Factory) *Peers {
 	peers := &Peers{
 		Factory: factory,
-		Map:     make(map[string]*Peer),
 	}
 	peers.LoadPeers()
 	return peers
@@ -60,4 +59,13 @@ func (p *Peers) Refresh() {
 		p.Format(peer.Address)
 		p.Save(peer)
 	}
+}
+
+// GetAddressByLoopringID returns the address for a given LoopringID, or an empty string if not found.
+func (p *Peers) GetAddress(id int64) string {
+	peer, ok := p.LoopringIdMap[id]
+	if !ok || peer == nil {
+		return ""
+	}
+	return strings.ToLower(peer.Address)
 }

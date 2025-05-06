@@ -22,9 +22,6 @@ type Tokens struct {
 func NewTokens(factory *factory.Factory) *Tokens {
 	t := &Tokens{
 		Factory: factory,
-		Tokens:  make([]*Token, 0),
-		Map:     make(map[common.Address]*Token),
-		IdMap:   make(map[int64]*Token),
 	}
 	t.LoadTokens()
 	return t
@@ -60,46 +57,27 @@ func (t *Tokens) LoadTokens() error {
 }
 
 // GetAddress returns the common.Address for a given tokenId.
-func (t *Tokens) GetAddress(tokenId int64) common.Address {
+func (t *Tokens) GetAddress(tokenId int64) string {
+	if tokenId >= 500 {
+		return strconv.FormatInt(tokenId, 10)
+	}
+
 	t.Factory.Rw.RLock()
 	defer t.Factory.Rw.RUnlock()
 
 	token, exists := t.IdMap[tokenId]
 	if !exists {
 		log.Printf("Token not found for ID: %d", tokenId)
-		return common.Address{}
+		return strconv.FormatInt(tokenId, 10)
 	}
-	return token.Address
-}
-
-// GetAddressAndDecimalsIdMap returns the common.Address and decimals string for a given tokenId.
-func (t *Tokens) GetAddressAndDecimalsIdMap(tokenId int64) (common.Address, string) {
-	t.Factory.Rw.RLock()
-	defer t.Factory.Rw.RUnlock()
-
-	token, exists := t.IdMap[tokenId]
-	if !exists {
-		log.Printf("Token not found for ID: %d", tokenId)
-		return common.Address{}, ""
-	}
-	return token.Address, token.Decimals
-}
-
-// FormatIdMap formats a string input as a decimal string based on the token's decimals, using tokenId.
-func (t *Tokens) FormatById(input string, tokenId int64) string {
-	t.Factory.Rw.RLock()
-	token, exists := t.IdMap[tokenId]
-	t.Factory.Rw.RUnlock()
-	if !exists {
-		return input
-	}
-	return format(input, token)
+	return strings.ToLower(token.Address.Hex())
 }
 
 // Format formats a string input as a decimal string based on the token's decimals, using address.
-func (t *Tokens) Format(input string, address common.Address) string {
+func (t *Tokens) Format(input string, address string) string {
+	addr := common.HexToAddress(address)
 	t.Factory.Rw.RLock()
-	token, exists := t.Map[address]
+	token, exists := t.Map[addr]
 	t.Factory.Rw.RUnlock()
 	if !exists {
 		return input

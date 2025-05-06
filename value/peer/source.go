@@ -2,27 +2,10 @@ package peer
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/wealdtech/go-ens/v3"
 )
-
-// ENS -> hex
-func (p *Peers) GetAddress(peer *Peer) {
-	if peer.Address == "." || peer.Address != "" {
-		return
-	}
-	address, err := ens.Resolve(p.Factory.Eth, peer.ENS)
-
-	p.Factory.Rw.Lock()
-	defer p.Factory.Rw.Unlock()
-	if err != nil {
-		peer.Address = "."
-	} else {
-		peer.Address = p.Format(address.Hex())
-	}
-}
 
 // hex -> .eth
 func (p *Peers) GetENS(peer *Peer) {
@@ -79,24 +62,14 @@ func (p *Peers) GetLoopringID(peer *Peer) {
 	}
 }
 
-// LoopringId -> hex
-func (p *Peers) GetLoopringAddress(peer *Peer) {
-	if peer.Address == "." || (peer.Address != "" && peer.Address != "!") {
-		return
-	}
-	url := fmt.Sprintf(byId, strconv.FormatInt(peer.LoopringID, 10))
-	var response struct {
-		Address string `json:"owner"`
-	}
-	err := p.input(url, &response)
-	p.Factory.Rw.Lock()
-	defer p.Factory.Rw.Unlock()
-	switch {
-	case err != nil:
-		peer.Address = "!"
-	case response.Address == "":
-		peer.Address = "."
-	default:
-		peer.Address = p.Format(response.Address)
-	}
-}
+// // ENS -> hex
+// func (p *Peers) GetAddress(peer *Peer) {
+// 	address, err := ens.Resolve(p.Factory.Eth, peer.ENS)
+// 	p.Factory.Rw.Lock()
+// 	defer p.Factory.Rw.Unlock()
+// 	if err != nil {
+// 		peer.Address = common.Address{}
+// 	} else {
+// 		peer.Address = common.HexToAddress(address.Hex())
+// 	}
+// }
