@@ -16,32 +16,10 @@ import (
 type Token struct {
 	Token    string         `json:"token,omitempty"`
 	Address  common.Address `json:"address,omitempty"`
-	Decimals string         `json:"decimals,omitempty"`
+	Decimals int64          `json:"decimals,omitempty"`
 	TokenId  int64          `json:"tokenId,omitempty"`
+	ABI      string         `json:"abi,omitempty"`
 }
-
-// //go:embed token.json
-// var tokens []byte
-
-// func NewTokens(factory *factory.Factory) {
-// 	var tokensData []Token
-// 	if err := json.Unmarshal(tokens, &tokensData); err != nil {
-// 		log.Fatalf("Failed to unmarshal tokens: %v", err)
-// 	}
-// 	for _, token := range tokensData {
-// 		tokenJSON, err := json.Marshal(token)
-// 		if err != nil {
-// 			log.Printf("Failed to marshal token: %v", err)
-// 			continue
-// 		}
-
-// 		if err := factory.Data.RB.SAdd(factory.Ctx, "token", tokenJSON).Err(); err != nil {
-// 			log.Printf("Failed to add token to Redis: %v", err)
-// 		}
-// 	}
-// 	// factory.State.Add("tokens", len(tokensData))
-// 	fmt.Printf("%d tokens\n", len(tokensData))
-// }
 
 func (v *Value) LoadTokens() error {
 	source, err := v.Factory.Data.RB.SMembers(v.Factory.Ctx, "token").Result()
@@ -124,10 +102,7 @@ func format(input string, token *Token) string {
 		return input
 	}
 
-	decimals, err := strconv.Atoi(token.Decimals)
-	if err != nil {
-		return input
-	}
+	decimals := int(token.Decimals)
 
 	valueStr := value.String()
 	if len(valueStr) <= decimals {
@@ -143,3 +118,26 @@ func format(input string, token *Token) string {
 	result = strings.TrimSuffix(result, ".")
 	return result
 }
+
+// //go:embed token.json
+// var tokens []byte
+
+// func NewTokens(factory *factory.Factory) {
+// 	var tokensData []Token
+// 	if err := json.Unmarshal(tokens, &tokensData); err != nil {
+// 		log.Fatalf("Failed to unmarshal tokens: %v", err)
+// 	}
+// 	for _, token := range tokensData {
+// 		tokenJSON, err := json.Marshal(token)
+// 		if err != nil {
+// 			log.Printf("Failed to marshal token: %v", err)
+// 			continue
+// 		}
+
+// 		if err := factory.Data.RB.SAdd(factory.Ctx, "token", tokenJSON).Err(); err != nil {
+// 			log.Printf("Failed to add token to Redis: %v", err)
+// 		}
+// 	}
+// 	// factory.State.Add("tokens", len(tokensData))
+// 	fmt.Printf("%d tokens\n", len(tokensData))
+// }
