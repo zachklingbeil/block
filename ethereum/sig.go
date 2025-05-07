@@ -24,14 +24,26 @@ func (e *Ethereum) LoadHexToText() error {
 	if err != nil {
 		return fmt.Errorf("failed to fetch signatures from Redis set: %v", err)
 	}
-	e.HexToText = make(map[string]string)
+	m := make(map[string]string)
 	for _, sigJSON := range source {
 		var sig Signature
 		if err := json.Unmarshal([]byte(sigJSON), &sig); err != nil {
 			log.Printf("Skipping invalid signature: %v (data: %s)", err, sigJSON)
 			continue
 		}
-		e.HexToText[sig.Hex] = sig.Text
+		m[sig.Hex] = sig.Text
 	}
+	e.Factory.Rw.Lock()
+	e.HexToText = m
+	e.Factory.Rw.Unlock()
+	fmt.Printf("%d HexToText\n", len(e.HexToText))
 	return nil
+}
+
+// Concurrent read method
+func (e *Ethereum) GetHexText(hex string) (string, bool) {
+	e.Factory.Rw.RLock()
+	defer e.Factory.Rw.RUnlock()
+	val, ok := e.HexToText[hex]
+	return val, ok
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"strconv"
 )
 
 // ProcessBlocks processes the latest `count` blocks.
@@ -34,13 +35,12 @@ func (e *Ethereum) ProcessBlocks(count int) ([]*Raw, error) {
 	return blocks, nil
 }
 
-func (e *Ethereum) StoreBlock(blockNumber int64, block any) error {
+func (e *Ethereum) StoreBlock(blockNumber int64, block *Raw) error {
 	blockJSON, err := json.Marshal(block)
 	if err != nil {
 		return fmt.Errorf("failed to marshal block: %w", err)
 	}
-	hashKey := "ethereum"
-	err = e.Factory.Data.RB.HSet(e.Factory.Ctx, hashKey, fmt.Sprintf("%d", blockNumber), blockJSON).Err()
+	err = e.Factory.Data.RB.HSet(e.Factory.Ctx, "ethereum", strconv.Itoa(int(blockNumber)), blockJSON).Err()
 	if err != nil {
 		return fmt.Errorf("failed to store block in Redis hash: %w", err)
 	}

@@ -43,6 +43,7 @@ func (v *Value) LoadPeers() error {
 		v.Maps.LoopringId[peer.LoopringID] = peer.Address
 	}
 	v.Peers = peers
+	fmt.Printf("%d peers loaded\n", len(v.Peers))
 	return nil
 }
 
