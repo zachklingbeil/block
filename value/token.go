@@ -77,7 +77,7 @@ func (v *Value) GetAddress(tokenId int64) string {
 		log.Printf("Token not found for ID: %d", tokenId)
 		return strconv.FormatInt(tokenId, 10)
 	}
-	return strings.ToLower(token)
+	return token
 }
 
 // Format formats a string input as a decimal string based on the token's decimals, using address.
