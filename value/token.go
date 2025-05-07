@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/zachklingbeil/factory"
 )
 
 type Token struct {
@@ -21,28 +20,28 @@ type Token struct {
 	TokenId  int64          `json:"tokenId,omitempty"`
 }
 
-//go:embed token.json
-var tokens []byte
+// //go:embed token.json
+// var tokens []byte
 
-func NewTokens(factory *factory.Factory) {
-	var tokensData []Token
-	if err := json.Unmarshal(tokens, &tokensData); err != nil {
-		log.Fatalf("Failed to unmarshal tokens: %v", err)
-	}
-	for _, token := range tokensData {
-		tokenJSON, err := json.Marshal(token)
-		if err != nil {
-			log.Printf("Failed to marshal token: %v", err)
-			continue
-		}
+// func NewTokens(factory *factory.Factory) {
+// 	var tokensData []Token
+// 	if err := json.Unmarshal(tokens, &tokensData); err != nil {
+// 		log.Fatalf("Failed to unmarshal tokens: %v", err)
+// 	}
+// 	for _, token := range tokensData {
+// 		tokenJSON, err := json.Marshal(token)
+// 		if err != nil {
+// 			log.Printf("Failed to marshal token: %v", err)
+// 			continue
+// 		}
 
-		if err := factory.Data.RB.SAdd(factory.Ctx, "token", tokenJSON).Err(); err != nil {
-			log.Printf("Failed to add token to Redis: %v", err)
-		}
-	}
-	// factory.State.Add("tokens", len(tokensData))
-	fmt.Printf("%d tokens\n", len(tokensData))
-}
+// 		if err := factory.Data.RB.SAdd(factory.Ctx, "token", tokenJSON).Err(); err != nil {
+// 			log.Printf("Failed to add token to Redis: %v", err)
+// 		}
+// 	}
+// 	// factory.State.Add("tokens", len(tokensData))
+// 	fmt.Printf("%d tokens\n", len(tokensData))
+// }
 
 func (v *Value) LoadTokens() error {
 	source, err := v.Factory.Data.RB.SMembers(v.Factory.Ctx, "token").Result()
