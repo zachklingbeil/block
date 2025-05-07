@@ -2,6 +2,7 @@ package ethereum
 
 import (
 	"context"
+	"encoding/hex"
 	"math/big"
 	"strings"
 
@@ -40,6 +41,7 @@ type Transactions struct {
 	Type              uint8
 	Status            uint64
 	CumulativeGasUsed uint64
+	FunctionSignature string     `json:"functionSignature,omitempty"`
 	Logs              []*LogInfo `json:"logs,omitempty"`
 }
 
@@ -103,6 +105,14 @@ func (e *Ethereum) processTransaction(ctx context.Context, tx *types.Transaction
 		txInfo.To = strings.ToLower(tx.To().Hex()) // Ensure To is lowercase
 	}
 
+	// Decode function signature if present
+	if data := tx.Data(); len(data) >= 4 && e.HexToText != nil {
+		selector := "0x" + hex.EncodeToString(data[:4])
+		if textSig, ok := e.HexToText[selector]; ok {
+			txInfo.FunctionSignature = textSig
+		}
+	}
+
 	if receipt, err := e.Factory.Eth.TransactionReceipt(ctx, tx.Hash()); err == nil {
 		e.populateReceiptInfo(txInfo, receipt)
 	}
@@ -123,11 +133,17 @@ func (e *Ethereum) populateReceiptInfo(txInfo *Transactions, receipt *types.Rece
 
 // parseLog handles all supported log types in one place.
 func (e *Ethereum) parseLog(log *types.Log) *LogInfo {
+	var eventType string
+	if len(log.Topics) > 0 && e.HexToText != nil {
+		if textSig, ok := e.HexToText[log.Topics[0].Hex()]; ok {
+			eventType = textSig
+		}
+	}
 	switch {
 	case len(log.Topics) == 3 && log.Topics[0].Hex() == transferEvent && len(log.Data) == 32:
 		return &LogInfo{
 			Address:   toLowerHex(log.Address.Hex()),
-			EventType: "ERC20/ERC721 Transfer",
+			EventType: eventTypeOrDefault(eventType, "ERC20/ERC721 Transfer"),
 			From:      extractAddr(log.Topics[1]),
 			To:        extractAddr(log.Topics[2]),
 			Value:     bigIntFromBytes(log.Data),
@@ -135,7 +151,7 @@ func (e *Ethereum) parseLog(log *types.Log) *LogInfo {
 	case len(log.Topics) == 4 && log.Topics[0].Hex() == transfer1155SingleEvent && len(log.Data) == 64:
 		return &LogInfo{
 			Address:   toLowerHex(log.Address.Hex()),
-			EventType: "ERC1155 TransferSingle",
+			EventType: eventTypeOrDefault(eventType, "ERC1155 TransferSingle"),
 			Operator:  extractAddr(log.Topics[1]),
 			From:      extractAddr(log.Topics[2]),
 			To:        extractAddr(log.Topics[3]),
@@ -146,7 +162,7 @@ func (e *Ethereum) parseLog(log *types.Log) *LogInfo {
 		ids, values := e.decode1155Batch(log.Data)
 		return &LogInfo{
 			Address:   toLowerHex(log.Address.Hex()),
-			EventType: "ERC1155 TransferBatch",
+			EventType: eventTypeOrDefault(eventType, "ERC1155 TransferBatch"),
 			Operator:  extractAddr(log.Topics[1]),
 			From:      extractAddr(log.Topics[2]),
 			To:        extractAddr(log.Topics[3]),
@@ -154,8 +170,22 @@ func (e *Ethereum) parseLog(log *types.Log) *LogInfo {
 			Values:    values,
 		}
 	default:
+		// For other events, still return decoded event type if available
+		if eventType != "" {
+			return &LogInfo{
+				Address:   toLowerHex(log.Address.Hex()),
+				EventType: eventType,
+			}
+		}
 		return nil
 	}
+}
+
+func eventTypeOrDefault(eventType, fallback string) string {
+	if eventType != "" {
+		return eventType
+	}
+	return fallback
 }
 
 // Helper functions

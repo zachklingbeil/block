@@ -9,16 +9,14 @@ import (
 	"os"
 	"strconv"
 	"strings"
-
-	"github.com/ethereum/go-ethereum/common"
 )
 
 type Token struct {
-	Token    string         `json:"token,omitempty"`
-	Address  common.Address `json:"address,omitempty"`
-	Decimals int64          `json:"decimals,omitempty"`
-	TokenId  int64          `json:"tokenId,omitempty"`
-	ABI      string         `json:"abi,omitempty"`
+	Token    string `json:"token,omitempty"`
+	Address  string `json:"address,omitempty"`
+	Decimals int64  `json:"decimals,omitempty"`
+	TokenId  int64  `json:"tokenId,omitempty"`
+	ABI      string `json:"abi,omitempty"`
 }
 
 func (v *Value) LoadTokens() error {
@@ -27,7 +25,7 @@ func (v *Value) LoadTokens() error {
 		return fmt.Errorf("failed to fetch tokens from Redis set: %v", err)
 	}
 	v.Tokens = make([]*Token, 0, len(source))
-	v.Maps.TokenId = make(map[int64]*Token, len(source))
+	v.Maps.TokenId = make(map[int64]string)
 	for _, tokenJSON := range source {
 		var token Token
 		if err := json.Unmarshal([]byte(tokenJSON), &token); err != nil {
@@ -36,7 +34,7 @@ func (v *Value) LoadTokens() error {
 		}
 		v.Tokens = append(v.Tokens, &token)
 		v.Universe[token.Address] = &token
-		v.Maps.TokenId[token.TokenId] = &token
+		v.Maps.TokenId[token.TokenId] = token.Address
 	}
 	fmt.Printf("%d tokens loaded\n", len(v.Tokens))
 	v.SaveTokensToFile("tokens.json")
@@ -62,7 +60,7 @@ func (v *Value) AddToken(token *Token) {
 	defer v.Factory.Rw.Unlock()
 	v.Tokens = append(v.Tokens, token)
 	v.Universe[token.Address] = token
-	v.Maps.TokenId[token.TokenId] = token
+	v.Maps.TokenId[token.TokenId] = token.Address
 }
 
 // GetAddress returns the common.Address for a given tokenId.
@@ -79,14 +77,14 @@ func (v *Value) GetAddress(tokenId int64) string {
 		log.Printf("Token not found for ID: %d", tokenId)
 		return strconv.FormatInt(tokenId, 10)
 	}
-	return strings.ToLower(token.Address.Hex())
+	return strings.ToLower(token)
 }
 
 // Format formats a string input as a decimal string based on the token's decimals, using address.
 func (v *Value) Format(input string, address string) string {
-	addr := common.HexToAddress(address)
+
 	v.Factory.Rw.RLock()
-	token, exists := v.Universe[addr]
+	token, exists := v.Universe[address]
 	v.Factory.Rw.RUnlock()
 	if !exists {
 		return input

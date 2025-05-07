@@ -39,8 +39,8 @@ func (v *Value) LoadPeers() error {
 			continue
 		}
 		peers = append(peers, peer)
-		v.Universe[common.HexToAddress(strings.ToLower(peer.Address))] = peer
-		v.Maps.LoopringId[peer.LoopringID] = peer
+		v.Universe[peer.Address] = peer
+		v.Maps.LoopringId[peer.LoopringID] = peer.Address
 	}
 	v.Peers = peers
 	return nil
@@ -52,7 +52,7 @@ func (v *Value) Save(peer *Peer) error {
 		return fmt.Errorf("failed to serialize peer: %v", err)
 	}
 
-	if err := v.Factory.Data.RB.HSet(v.Factory.Ctx, "peer", peer.Address, peerJSON).Err(); err != nil {
+	if err := v.Factory.Data.RB.HSet(v.Factory.Ctx, "peer", strings.ToLower(peer.Address), peerJSON).Err(); err != nil {
 		return fmt.Errorf("failed to store peer in Redis hash: %v", err)
 	}
 	return nil
@@ -129,10 +129,10 @@ func (v *Value) input(url string, response any) error {
 // GetAddressByLoopringID returns the address for a given LoopringID, or an empty string if not found.
 func (v *Value) GetPeer(id int64) string {
 	peer, ok := v.Maps.LoopringId[id]
-	if !ok || peer == nil {
+	if !ok {
 		return ""
 	}
-	return strings.ToLower(peer.Address)
+	return strings.ToLower(peer)
 }
 
 // func (v *Value) HelloUniverse(value string) *Peer {
