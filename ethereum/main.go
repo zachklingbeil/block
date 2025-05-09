@@ -7,18 +7,24 @@ import (
 )
 
 type Ethereum struct {
-	Factory   *factory.Factory
-	Value     *value.Value
-	Chain     *params.ChainConfig
-	HexToText map[string]string
+	Factory        *factory.Factory
+	Value          *value.Value
+	Chain          *params.ChainConfig
+	Signature      map[string]string
+	EventSignature map[string]string
+	Header         int64
 }
 
 func NewEthereum(factory *factory.Factory, value *value.Value) *Ethereum {
 	eth := &Ethereum{
-		Factory: factory,
-		Value:   value,
-		Chain:   params.MainnetChainConfig,
+		Factory:        factory,
+		Value:          value,
+		Chain:          params.MainnetChainConfig,
+		Signature:      make(map[string]string),
+		EventSignature: make(map[string]string),
 	}
-	eth.LoadHexToText()
+	eth.LoadSignatures()
+	go eth.Listen(factory.Ctx)
+	eth.ProcessBlocks(10)
 	return eth
 }

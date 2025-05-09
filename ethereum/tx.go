@@ -38,21 +38,24 @@ type Transactions struct {
 }
 
 func (e *Ethereum) processBlock(ctx context.Context, block *types.Block) *Raw {
-	blockInfo := &Raw{
-		Number:     block.NumberU64(),
-		Hash:       block.Hash().Hex(),
-		ParentHash: block.ParentHash().Hex(),
-		Time:       block.Time(),
-		GasUsed:    block.GasUsed(),
-		GasLimit:   block.GasLimit(),
-		BaseFee:    block.BaseFee(),
-	}
 	signer := e.Signer(block.Number(), block.Time())
-	for _, tx := range block.Transactions() {
-		txInfo := e.processTransaction(ctx, tx, signer)
-		blockInfo.Transactions = append(blockInfo.Transactions, txInfo)
+	txs := block.Transactions()
+	transactions := make([]*Transactions, 0, len(txs))
+	for _, tx := range txs {
+		if txInfo := e.processTransaction(ctx, tx, signer); txInfo != nil {
+			transactions = append(transactions, txInfo)
+		}
 	}
-	return blockInfo
+	return &Raw{
+		Number:       block.NumberU64(),
+		Hash:         block.Hash().Hex(),
+		ParentHash:   block.ParentHash().Hex(),
+		Time:         block.Time(),
+		GasUsed:      block.GasUsed(),
+		GasLimit:     block.GasLimit(),
+		BaseFee:      block.BaseFee(),
+		Transactions: transactions,
+	}
 }
 
 func (e *Ethereum) processTransaction(ctx context.Context, tx *types.Transaction, signer types.Signer) *Transactions {
@@ -65,47 +68,58 @@ func (e *Ethereum) processTransaction(ctx context.Context, tx *types.Transaction
 		DataLength: len(tx.Data()),
 		Type:       tx.Type(),
 	}
+
+	// Set From address
 	if addr, err := types.Sender(signer, tx); err == nil {
 		txInfo.From = strings.ToLower(addr.Hex())
 	}
-	if tx.To() == nil {
+
+	// Set To address or contract creation
+	if to := tx.To(); to == nil {
 		txInfo.To = "Contract Creation"
 	} else {
-		txInfo.To = strings.ToLower(tx.To().Hex())
+		txInfo.To = strings.ToLower(to.Hex())
 	}
-	if data := tx.Data(); len(data) >= 4 && e.HexToText != nil {
+
+	// Set function signature if available
+	if data := tx.Data(); len(data) >= 4 && len(e.Signature) > 0 {
 		selector := "0x" + hex.EncodeToString(data[:4])
-		if textSig, ok := e.GetHexText(selector); ok {
+		if textSig, ok := e.Signature[selector]; ok {
 			txInfo.FunctionSignature = textSig
 		}
 	}
+
+	// Attach receipt info if available
 	if receipt, err := e.Factory.Eth.TransactionReceipt(ctx, tx.Hash()); err == nil {
 		txInfo.Status = receipt.Status
 		txInfo.CumulativeGasUsed = receipt.CumulativeGasUsed
-		for _, log := range receipt.Logs {
-			if decoded := e.decodeLog(log); decoded != nil {
-				txInfo.Logs = append(txInfo.Logs, decoded)
+		if logs := receipt.Logs; len(logs) > 0 && len(e.EventSignature) > 0 {
+			decodedLogs := make([]any, 0, len(logs))
+			for _, log := range logs {
+				if decoded := e.decodeLog(log); decoded != nil {
+					decodedLogs = append(decodedLogs, decoded)
+				}
 			}
+			txInfo.Logs = decodedLogs
 		}
 	}
 	return txInfo
 }
 
-// decodeLog returns a map[string]any with decoded event info using HexToText.
+// decodeLog returns a map[string]any with decoded event info using EventSignature.
 func (e *Ethereum) decodeLog(log *types.Log) any {
 	eventType := ""
-	if len(log.Topics) > 0 && e.HexToText != nil {
-		if textSig, ok := e.GetHexText(log.Topics[0].Hex()); ok {
+	if len(log.Topics) > 0 && e.EventSignature != nil {
+		if textSig, ok := e.EventSignature[log.Topics[0].Hex()]; ok {
 			eventType = textSig
 		}
 	}
-	result := map[string]any{
+	return map[string]any{
 		"address":   strings.ToLower(log.Address.Hex()),
 		"topics":    topicsToStrings(log.Topics),
 		"data":      hex.EncodeToString(log.Data),
 		"eventType": eventType,
 	}
-	return result
 }
 
 func topicsToStrings(topics []common.Hash) []string {
