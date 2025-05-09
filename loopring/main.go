@@ -1,19 +1,19 @@
 package loopring
 
 import (
-	"github.com/zachklingbeil/block/value"
+	"github.com/zachklingbeil/block/universe"
 	"github.com/zachklingbeil/factory"
 )
 
 type Loopring struct {
 	Factory *factory.Factory
-	Value   *value.Value
+	One     *universe.One
 }
 
-func Connect(factory *factory.Factory, value *value.Value) *Loopring {
+func Connect(factory *factory.Factory, one *universe.One) *Loopring {
 	loop := &Loopring{
 		Factory: factory,
-		Value:   value,
+		One:     one,
 	}
 	loop.CurrentBlock()
 	go loop.Listen()

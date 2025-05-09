@@ -6,7 +6,7 @@ require (
 	github.com/ethereum/go-ethereum v1.15.11
 	github.com/gorilla/websocket v1.5.3
 	github.com/wealdtech/go-ens/v3 v3.6.0
-	github.com/zachklingbeil/factory v1.1.49
+	github.com/zachklingbeil/factory v1.1.50
 )
 
 require (
@@ -52,6 +52,6 @@ require (
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/text v0.25.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
-	lukechampine.com/blake3 v1.4.0 // indirect
+	lukechampine.com/blake3 v1.4.1 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 )

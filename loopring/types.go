@@ -66,13 +66,13 @@ type Swap struct {
 func (l *Loopring) SwapToTx(transaction any) Tx {
 	var s Swap
 	mapToStruct(transaction, &s)
-	token := l.Value.GetAddress(s.Token)
-	tokenOut := l.Value.GetAddress(s.TokenOut)
+	token := l.One.GetAddress(s.Token)
+	tokenOut := l.One.GetAddress(s.TokenOut)
 	tx := Tx{
-		Zero:     l.Value.GetPeer(s.Zero),
-		One:      l.Value.GetPeer(s.One),
-		Value:    l.Value.Format(s.Value, token),
-		ValueOut: l.Value.Format(s.ValueOut, tokenOut),
+		Zero:     l.One.GetPeer(s.Zero),
+		One:      l.One.GetPeer(s.One),
+		Value:    l.One.Format(s.Value, token),
+		ValueOut: l.One.Format(s.ValueOut, tokenOut),
 		Token:    token,
 		TokenOut: tokenOut,
 		Type:     "swap",
@@ -95,7 +95,7 @@ func (l *Loopring) SwapToTx(transaction any) Tx {
 		valueIn.SetString(valueInStr, 10)
 		fee := new(big.Int).Mul(valueIn, big.NewInt(feeBips))
 		fee.Div(fee, big.NewInt(10000)) // Convert basis points to percentage
-		tx.Fee = l.Value.Format(fee.String(), token)
+		tx.Fee = l.One.Format(fee.String(), token)
 		tx.FeeToken = token
 	}
 	return tx
@@ -116,18 +116,18 @@ type Transfer struct {
 func (l *Loopring) TransferToTx(transaction any) Tx {
 	var t Transfer
 	mapToStruct(transaction, &t)
-	token := l.Value.GetAddress(t.Token)
-	feeToken := l.Value.GetAddress(t.FeeToken)
+	token := l.One.GetAddress(t.Token)
+	feeToken := l.One.GetAddress(t.FeeToken)
 	tx := Tx{
-		Zero:  l.Value.GetPeer(t.ZeroId),
-		One:   l.Value.GetPeer(t.OneId),
-		Value: l.Value.Format(t.Value, token),
+		Zero:  l.One.GetPeer(t.ZeroId),
+		One:   l.One.GetPeer(t.OneId),
+		Value: l.One.Format(t.Value, token),
 		Token: token,
 		Index: t.Index,
 		Type:  "transfer",
 	}
 	if t.Fee != "0" {
-		tx.Fee = l.Value.Format(t.Fee, feeToken)
+		tx.Fee = l.One.Format(t.Fee, feeToken)
 		tx.FeeToken = feeToken
 	}
 	return tx
@@ -147,10 +147,10 @@ type Deposit struct {
 func (l *Loopring) DepositToTx(transaction any) Tx {
 	var d Deposit
 	mapToStruct(transaction, &d)
-	token := l.Value.GetAddress(d.Token)
+	token := l.One.GetAddress(d.Token)
 	return Tx{
-		Zero:  l.Value.GetPeer(d.ZeroId),
-		Value: l.Value.Format(d.Value, token),
+		Zero:  l.One.GetPeer(d.ZeroId),
+		Value: l.One.Format(d.Value, token),
 		Token: token,
 		Type:  "deposit",
 		Index: d.Index,
@@ -172,17 +172,17 @@ type Withdrawal struct {
 func (l *Loopring) WithdrawToTx(transaction any) Tx {
 	var w Withdrawal
 	mapToStruct(transaction, &w)
-	token := l.Value.GetAddress(w.Token)
-	feeToken := l.Value.GetAddress(w.FeeToken)
+	token := l.One.GetAddress(w.Token)
+	feeToken := l.One.GetAddress(w.FeeToken)
 	tx := Tx{
-		Zero:  l.Value.GetPeer(w.ZeroId),
-		Value: l.Value.Format(w.Value, token),
+		Zero:  l.One.GetPeer(w.ZeroId),
+		Value: l.One.Format(w.Value, token),
 		Token: token,
 		Type:  "withdraw",
 		Index: w.Index,
 	}
 	if w.Fee != "0" {
-		tx.Fee = l.Value.Format(w.Fee, feeToken)
+		tx.Fee = l.One.Format(w.Fee, feeToken)
 		tx.FeeToken = feeToken
 	}
 	return tx
@@ -199,7 +199,7 @@ func (l *Loopring) AccountUpdateToTx(transaction any) Tx {
 	var a AccountUpdate
 	mapToStruct(transaction, &a)
 	return Tx{
-		Zero:  l.Value.GetPeer(a.ZeroId),
+		Zero:  l.One.GetPeer(a.ZeroId),
 		Type:  "accountUpdate",
 		Index: a.Index,
 		Nonce: a.Nonce,
@@ -218,7 +218,7 @@ func (l *Loopring) AmmUpdateToTx(transaction any) Tx {
 	var a AmmUpdate
 	mapToStruct(transaction, &a)
 	return Tx{
-		Zero:  l.Value.GetPeer(a.ZeroId),
+		Zero:  l.One.GetPeer(a.ZeroId),
 		Type:  "ammUpdate",
 		Index: a.Index,
 		Nonce: a.Nonce,
@@ -242,17 +242,17 @@ type Mint struct {
 func (l *Loopring) MintToTx(transaction any) Tx {
 	var m Mint
 	mapToStruct(transaction, &m)
-	feeToken := l.Value.GetAddress(m.FeeToken)
+	feeToken := l.One.GetAddress(m.FeeToken)
 
 	tx := Tx{
-		Zero:  l.Value.GetPeer(m.ZeroId),
+		Zero:  l.One.GetPeer(m.ZeroId),
 		Value: m.Quantity,
 		Token: m.NftAddress,
 		Type:  "mint",
 		Index: m.Index,
 	}
 	if m.Fee != "0" {
-		tx.Fee = l.Value.Format(m.Fee, feeToken)
+		tx.Fee = l.One.Format(m.Fee, feeToken)
 		tx.FeeToken = feeToken
 	}
 	return tx
@@ -272,7 +272,7 @@ func (l *Loopring) NftDataToTx(transaction any) Tx {
 	var n NftData
 	mapToStruct(transaction, &n)
 	return Tx{
-		Zero:  l.Value.GetPeer(n.ZeroId),
+		Zero:  l.One.GetPeer(n.ZeroId),
 		Type:  "nft",
 		Index: n.Index,
 		Raw:   []byte(n.NftData),

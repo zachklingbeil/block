@@ -2,23 +2,23 @@ package ethereum
 
 import (
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/zachklingbeil/block/value"
+	"github.com/zachklingbeil/block/universe"
 	"github.com/zachklingbeil/factory"
 )
 
 type Ethereum struct {
 	Factory        *factory.Factory
-	Value          *value.Value
+	One            *universe.One
 	Chain          *params.ChainConfig
 	Signature      map[string]string
 	EventSignature map[string]string
 	Header         int64
 }
 
-func NewEthereum(factory *factory.Factory, value *value.Value) *Ethereum {
+func NewEthereum(factory *factory.Factory, one *universe.One) *Ethereum {
 	eth := &Ethereum{
 		Factory:        factory,
-		Value:          value,
+		One:            one,
 		Chain:          params.MainnetChainConfig,
 		Signature:      make(map[string]string),
 		EventSignature: make(map[string]string),
