@@ -1,7 +1,6 @@
 package ethereum
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -12,9 +11,9 @@ import (
 )
 
 // ListenForNewBlocksIPC subscribes to new block headers using IPC and updates e.Header.
-func (e *Ethereum) Listen(ctx context.Context) error {
+func (e *Ethereum) Listen() error {
 	headers := make(chan *types.Header)
-	sub, err := e.Factory.Eth.SubscribeNewHead(ctx, headers)
+	sub, err := e.Factory.Eth.SubscribeNewHead(e.Factory.Ctx, headers)
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to new heads: %w", err)
 	}
@@ -23,7 +22,7 @@ func (e *Ethereum) Listen(ctx context.Context) error {
 		defer sub.Unsubscribe()
 		for {
 			select {
-			case <-ctx.Done():
+			case <-e.Factory.Ctx.Done():
 				return
 			case err := <-sub.Err():
 				log.Printf("Subscription error: %v", err)

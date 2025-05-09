@@ -10,7 +10,7 @@ import (
 )
 
 func (l *Loopring) Loop() error {
-	blocks, _ := l.Factory.State.Read("loop.block")
+	blocks, _ := l.Factory.State.Get("loop.block")
 	startBlock := int64(1)
 
 	if blocks != nil {
@@ -27,7 +27,7 @@ func (l *Loopring) Loop() error {
 			log.Error("Failed to process block %d: %v", i, err)
 			break
 		}
-		l.Factory.State.Count("loop.block", i, true)
+		l.Factory.State.Count("loop.block", i)
 	}
 	return nil
 }

@@ -24,7 +24,7 @@ func NewEthereum(factory *factory.Factory, value *value.Value) *Ethereum {
 		EventSignature: make(map[string]string),
 	}
 	eth.LoadSignatures()
-	go eth.Listen(factory.Ctx)
+	go eth.Listen()
 	eth.ProcessBlocks(10)
 	return eth
 }

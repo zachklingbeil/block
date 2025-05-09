@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -81,8 +82,8 @@ func (e *Ethereum) processTransaction(ctx context.Context, tx *types.Transaction
 		txInfo.To = strings.ToLower(to.Hex())
 	}
 
-	// Set function signature if available
-	if data := tx.Data(); len(data) >= 4 && len(e.Signature) > 0 {
+	// Set function signature if available using Signature map
+	if data := tx.Data(); len(data) >= 4 {
 		selector := "0x" + hex.EncodeToString(data[:4])
 		if textSig, ok := e.Signature[selector]; ok {
 			txInfo.FunctionSignature = textSig
@@ -93,7 +94,7 @@ func (e *Ethereum) processTransaction(ctx context.Context, tx *types.Transaction
 	if receipt, err := e.Factory.Eth.TransactionReceipt(ctx, tx.Hash()); err == nil {
 		txInfo.Status = receipt.Status
 		txInfo.CumulativeGasUsed = receipt.CumulativeGasUsed
-		if logs := receipt.Logs; len(logs) > 0 && len(e.EventSignature) > 0 {
+		if logs := receipt.Logs; len(logs) > 0 {
 			decodedLogs := make([]any, 0, len(logs))
 			for _, log := range logs {
 				if decoded := e.decodeLog(log); decoded != nil {
@@ -109,23 +110,56 @@ func (e *Ethereum) processTransaction(ctx context.Context, tx *types.Transaction
 // decodeLog returns a map[string]any with decoded event info using EventSignature.
 func (e *Ethereum) decodeLog(log *types.Log) any {
 	eventType := ""
-	if len(log.Topics) > 0 && e.EventSignature != nil {
-		if textSig, ok := e.EventSignature[log.Topics[0].Hex()]; ok {
+	var decodedTopics map[string]any
+
+	if len(log.Topics) > 0 {
+		sighash := log.Topics[0].Hex()
+		if textSig, ok := e.EventSignature[sighash]; ok {
 			eventType = textSig
+			// Try to decode topics if ABI info is available
+			if e.EventABI != nil {
+				if event, ok := e.EventABI[sighash]; ok {
+					decodedTopics = decodeIndexedTopics(event, log.Topics)
+				}
+			}
 		}
 	}
+
 	return map[string]any{
-		"address":   strings.ToLower(log.Address.Hex()),
-		"topics":    topicsToStrings(log.Topics),
-		"data":      hex.EncodeToString(log.Data),
-		"eventType": eventType,
+		"address":       strings.ToLower(log.Address.Hex()),
+		"topics":        topicsToStrings(log.Topics),
+		"decodedTopics": decodedTopics,
+		"data":          hex.EncodeToString(log.Data),
+		"eventType":     eventType,
 	}
 }
-
 func topicsToStrings(topics []common.Hash) []string {
 	out := make([]string, len(topics))
 	for i, t := range topics {
 		out[i] = t.Hex()
 	}
 	return out
+}
+
+// Helper to decode indexed topics using ABI event definition
+func decodeIndexedTopics(event abi.Event, topics []common.Hash) map[string]any {
+	decoded := make(map[string]any)
+	// topics[0] is the event signature hash, skip it
+	indexedCount := 0
+	for _, arg := range event.Inputs {
+		if arg.Indexed {
+			if len(topics) > indexedCount+1 {
+				switch arg.Type.String() {
+				case "address":
+					decoded[arg.Name] = common.HexToAddress(topics[indexedCount+1].Hex()).Hex()
+				case "uint256", "uint":
+					decoded[arg.Name] = new(big.Int).SetBytes(topics[indexedCount+1].Bytes()).String()
+				default:
+					decoded[arg.Name] = topics[indexedCount+1].Hex()
+				}
+			}
+			indexedCount++
+		}
+	}
+	return decoded
 }
