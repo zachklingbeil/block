@@ -38,7 +38,12 @@ func NewZero(factory *factory.Factory) *Zero {
 	z := &Zero{
 		Factory: factory,
 		Map:     make(map[string]*One),
-		Maps:    &Maps{},
+		Maps: &Maps{
+			LoopringId: make(map[int64]*One),
+			TokenId:    make(map[int64]*One),
+			ENS:        make(map[string]*One),
+			Token:      make(map[string]*One),
+		},
 	}
 	z.LoadOnes()
 	return z
@@ -59,7 +64,29 @@ func (z *Zero) LoopringId(id int64) *One {
 	return peer
 }
 
+func (z *Zero) Who(id int64) string {
+	peer := z.LoopringId(id)
+	if peer == nil {
+		return ""
+	}
+	if peer.ENS != "" && peer.ENS != "." {
+		return peer.ENS
+	}
+	if peer.LoopringENS != "" && peer.LoopringENS != "." && peer.LoopringENS != "!" {
+		return peer.LoopringENS
+	}
+	return peer.Address
+}
+
 func (z *Zero) TokenId(id int64) *One {
+	if id == 0 {
+		return &One{
+			Token:    "eth",
+			Address:  "0x0000000000000000000000000000000000000000",
+			Decimals: 18,
+			TokenId:  0,
+		}
+	}
 	z.Factory.Rw.RLock()
 	defer z.Factory.Rw.RUnlock()
 	token := z.Maps.TokenId[id]
@@ -96,27 +123,16 @@ func (z *Zero) LoadOnes() error {
 	}
 
 	ones := make([]*One, 0, len(source))
-	mapAddr := make(map[string]*One, len(source))
-	mapLoopringId := make(map[int64]*One, len(source))
-	mapTokenId := make(map[int64]*One, len(source))
 
 	for _, s := range source {
 		one := &One{}
 		if err := json.Unmarshal([]byte(s), one); err != nil {
 			return fmt.Errorf("failed to unmarshal One: %v", err)
 		}
-		ones = append(ones, one)
-		mapAddr[one.Address] = one
-		mapLoopringId[one.LoopringID] = one
-		mapTokenId[one.TokenId] = one
+		z.One = append(ones, one)
+		z.Map[one.Address] = one
+		z.Maps.LoopringId[one.LoopringID] = one
+		z.Maps.TokenId[one.TokenId] = one
 	}
-
-	z.Factory.Rw.Lock()
-	defer z.Factory.Rw.Unlock()
-
-	z.One = ones
-	z.Map = mapAddr
-	z.Maps.LoopringId = mapLoopringId
-	z.Maps.TokenId = mapTokenId
 	return nil
 }
