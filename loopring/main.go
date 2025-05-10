@@ -7,13 +7,13 @@ import (
 
 type Loopring struct {
 	Factory *factory.Factory
-	One     *universe.Zero
+	Zero    *universe.Zero
 }
 
-func Connect(factory *factory.Factory, one *universe.Zero) *Loopring {
+func Connect(factory *factory.Factory, zero *universe.Zero) *Loopring {
 	loop := &Loopring{
 		Factory: factory,
-		One:     one,
+		Zero:    zero,
 	}
 	loop.CurrentBlock()
 	go loop.Listen()

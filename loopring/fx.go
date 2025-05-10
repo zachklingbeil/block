@@ -3,10 +3,9 @@ package loopring
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
-	"time"
 
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/zachklingbeil/block/universe"
 )
 
 func (l *Loopring) Loop() error {
@@ -37,24 +36,28 @@ func (l *Loopring) BlockByBlock(blockNumber int64) error {
 	if input == nil {
 		return fmt.Errorf("failed to fetch block %d: got nil", blockNumber)
 	}
-	transactions, block := l.Coordinates(input)
+	transactions, coordinate := l.Zero.Coordinates(input)
 	txs := l.ProcessBlock(transactions)
-	block.Ones = txs
 
-	if err := l.StoreBlock(blockNumber, block); err != nil {
+	block := &universe.Block{
+		Zero: *coordinate,
+		Ones: txs,
+	}
+
+	if err := l.StoreBlock(block); err != nil {
 		return fmt.Errorf("failed to store block: %w", err)
 	}
 	return nil
 }
 
-func (l *Loopring) FetchBlock(number int64) *Raw {
+func (l *Loopring) FetchBlock(number int64) *universe.Raw {
 	url := fmt.Sprintf("https://api3.loopring.io/api/v3/block/getBlock?id=%d", number)
 	response, err := l.Factory.Json.In(url, "")
 	if err != nil {
 		log.Error("Failed to fetch block data: %v", err)
 		return nil
 	}
-	var input *Raw
+	var input *universe.Raw
 	if err := json.Unmarshal(response, &input); err != nil {
 		log.Error("Failed to parse block data: %v", err)
 		return nil
@@ -62,38 +65,38 @@ func (l *Loopring) FetchBlock(number int64) *Raw {
 	return input
 }
 
-func (l *Loopring) Coordinates(loop *Raw) ([]any, *Block) {
-	for i := range loop.Transactions {
-		if tx, ok := loop.Transactions[i].(map[string]any); ok {
-			tx["index"] = i + 1
-		}
-	}
-	transactions := l.Factory.Json.Simplify(loop.Transactions, "")
-	depth := uint16(len(transactions))
+// func (l *Loopring) Coordinates(loop *Raw) ([]any, *Block) {
+// 	for i := range loop.Transactions {
+// 		if tx, ok := loop.Transactions[i].(map[string]any); ok {
+// 			tx["index"] = i + 1
+// 		}
+// 	}
+// 	transactions := l.Factory.Json.Simplify(loop.Transactions, "")
+// 	depth := uint16(len(transactions))
 
-	t := time.UnixMilli(loop.Timestamp)
-	coordinate := Coordinate{
-		Year:        uint8(t.Year() - 2015),
-		Month:       uint8(t.Month()),
-		Day:         uint8(t.Day()),
-		Hour:        uint8(t.Hour()),
-		Minute:      uint8(t.Minute()),
-		Second:      uint8(t.Second()),
-		Millisecond: uint16(t.Nanosecond() / 1e6),
-		Index:       0,
-		Depth:       depth,
-	}
+// 	t := time.UnixMilli(loop.Timestamp)
+// 	coordinate := Coordinate{
+// 		Year:        uint8(t.Year() - 2015),
+// 		Month:       uint8(t.Month()),
+// 		Day:         uint8(t.Day()),
+// 		Hour:        uint8(t.Hour()),
+// 		Minute:      uint8(t.Minute()),
+// 		Second:      uint8(t.Second()),
+// 		Millisecond: uint16(t.Nanosecond() / 1e6),
+// 		Index:       0,
+// 		Depth:       depth,
+// 	}
 
-	block := &Block{
-		Number: loop.Number,
-		Zero:   coordinate,
-		Ones:   make([]Tx, depth),
-	}
-	return transactions, block
-}
+// 	block := &Block{
+// 		Number: loop.Number,
+// 		Zero:   coordinate,
+// 		Ones:   make([]Tx, depth),
+// 	}
+// 	return transactions, block
+// }
 
-func (l *Loopring) ProcessBlock(transactions []any) []Tx {
-	var txs []Tx
+func (l *Loopring) ProcessBlock(transactions []any) []universe.Tx {
+	var txs []universe.Tx
 
 	for _, tx := range transactions {
 		txMap, ok := tx.(map[string]any)
@@ -133,10 +136,9 @@ func (l *Loopring) ProcessBlock(transactions []any) []Tx {
 	return txs
 }
 
-func (l *Loopring) StoreBlock(blockNumber int64, block any) error {
+func (l *Loopring) StoreBlock(block *universe.Block) error {
 	blockJSON, _ := json.Marshal(block)
-	key := strconv.FormatInt(blockNumber, 10)
-	if err := l.Factory.Data.RB.HSet(l.Factory.Ctx, "loopring", key, blockJSON).Err(); err != nil {
+	if err := l.Factory.Data.RB.SAdd(l.Factory.Ctx, "loopring", blockJSON).Err(); err != nil {
 		return fmt.Errorf("failed to store block in Redis hash: %w", err)
 	}
 	return nil
