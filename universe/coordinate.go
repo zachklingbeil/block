@@ -31,18 +31,18 @@ type Coordinate struct {
 }
 
 type Tx struct {
-	Zero     string `json:"zero,omitempty"`
-	One      string `json:"one,omitempty"`
-	Value    string `json:"value,omitempty"`
-	Token    string `json:"token,omitempty"`
-	Fee      string `json:"fee,omitempty"`
-	For      string `json:"for,omitempty"`
-	ForToken string `json:"forToken,omitempty"`
-	FeeToken string `json:"feeToken,omitempty"`
-	// Type     string          `json:"type,omitempty"`
-	Index uint16          `json:"index"`
-	Nonce int64           `json:"nonce,omitempty"`
-	Raw   json.RawMessage `json:"raw,omitempty"`
+	Zero     string          `json:"zero,omitempty"`
+	One      string          `json:"one,omitempty"`
+	Value    string          `json:"value,omitempty"`
+	Token    string          `json:"token,omitempty"`
+	Fee      string          `json:"fee,omitempty"`
+	For      string          `json:"for,omitempty"`
+	ForToken string          `json:"forToken,omitempty"`
+	FeeToken string          `json:"feeToken,omitempty"`
+	Type     string          `json:"type,omitempty"`
+	Index    uint16          `json:"index"`
+	Nonce    int64           `json:"nonce,omitempty"`
+	Raw      json.RawMessage `json:"raw,omitempty"`
 }
 
 func (z *Zero) Coordinates(input *Raw) ([]any, *Coordinate) {

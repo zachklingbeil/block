@@ -158,7 +158,7 @@ func (l *Loopring) DepositToTx(transaction any) universe.Tx {
 		Zero:  l.Zero.Who(d.ZeroId),
 		Value: l.Zero.Format(d.Value, l.Zero.TokenId(d.Token).Decimals),
 		Token: l.Zero.TokenId(d.Token).Token,
-		// Type:  "deposit",
+		Type:  "deposit",
 		Index: d.Index,
 	}
 }
@@ -168,10 +168,10 @@ func (l *Loopring) WithdrawToTx(transaction any) universe.Tx {
 	mapToStruct(transaction, &w)
 
 	tx := universe.Tx{
-		Zero:  l.Zero.Who(w.ZeroId),
-		Value: l.Zero.Format(w.Value, l.Zero.TokenId(w.Token).Decimals),
-		Token: l.Zero.TokenId(w.Token).Token,
-		// Type:     "withdraw",
+		Zero:     l.Zero.Who(w.ZeroId),
+		Value:    l.Zero.Format(w.Value, l.Zero.TokenId(w.Token).Decimals),
+		Token:    l.Zero.TokenId(w.Token).Token,
+		Type:     "withdraw",
 		Index:    w.Index,
 		FeeToken: l.Zero.TokenId(w.FeeToken).Token,
 	}
@@ -186,8 +186,8 @@ func (l *Loopring) AccountUpdateToTx(transaction any) universe.Tx {
 	var a AccountUpdate
 	mapToStruct(transaction, &a)
 	return universe.Tx{
-		Zero: l.Zero.Who(a.ZeroId),
-		// Type:  "accountUpdate",
+		Zero:  l.Zero.Who(a.ZeroId),
+		Type:  "accountUpdate",
 		Index: a.Index,
 		Nonce: a.Nonce,
 	}
@@ -197,8 +197,8 @@ func (l *Loopring) AmmUpdateToTx(transaction any) universe.Tx {
 	var a AmmUpdate
 	mapToStruct(transaction, &a)
 	return universe.Tx{
-		Zero: l.Zero.Who(a.ZeroId),
-		// Type:  "ammUpdate",
+		Zero:  l.Zero.Who(a.ZeroId),
+		Type:  "ammUpdate",
 		Index: a.Index,
 		Nonce: a.Nonce,
 	}
@@ -208,10 +208,10 @@ func (l *Loopring) MintToTx(transaction any) universe.Tx {
 	var m Mint
 	mapToStruct(transaction, &m)
 	tx := universe.Tx{
-		Zero:  l.Zero.Who(m.ZeroId),
-		Value: m.Quantity,
-		Token: m.NftAddress,
-		// Type:     "mint",
+		Zero:     l.Zero.Who(m.ZeroId),
+		Value:    m.Quantity,
+		Token:    m.NftAddress,
+		Type:     "mint",
 		Index:    m.Index,
 		FeeToken: l.Zero.TokenId(m.FeeToken).Token,
 	}
@@ -227,8 +227,8 @@ func (l *Loopring) NftDataToTx(transaction any) universe.Tx {
 	var n NftData
 	mapToStruct(transaction, &n)
 	return universe.Tx{
-		Zero: l.Zero.Who(n.ZeroId),
-		// Type:  "nft",
+		Zero:  l.Zero.Who(n.ZeroId),
+		Type:  "nft",
 		Index: n.Index,
 		Raw:   []byte(n.NftData),
 	}
