@@ -3,7 +3,6 @@ package universe
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -16,44 +15,8 @@ const (
 	dotLoop   = "https://api3.loopring.io/api/wallet/v3/resolveName?owner=%s"
 )
 
-func (z *Zero) LoadPeers() error {
-	z.Factory.Rw.Lock()
-	defer z.Factory.Rw.Unlock()
-
-	source, err := z.Factory.Data.RB.SMembers(z.Factory.Ctx, "peer").Result()
-	if err != nil {
-		return fmt.Errorf("failed to fetch peers from Redis hash: %v", err)
-	}
-	peers := make([]*Peer, 0, len(source))
-	for _, peerJSON := range source {
-		var peer *Peer
-		if err := json.Unmarshal([]byte(peerJSON), &peer); err != nil {
-			log.Printf("Skipping invalid peer: %v (data: %s)", err, peerJSON)
-			continue
-		}
-		peers = append(peers, peer)
-		z.Map[peer.Address] = peer
-		z.Maps.LoopringId[peer.LoopringID] = peer.Address
-	}
-	z.Peers = peers
-	fmt.Printf("%d peers loaded\n", len(z.Peers))
-	return nil
-}
-
-func (z *Zero) Save(peer *Peer) error {
-	peerJSON, err := json.Marshal(peer)
-	if err != nil {
-		return fmt.Errorf("failed to serialize peer: %v", err)
-	}
-
-	if err := z.Factory.Data.RB.HSet(z.Factory.Ctx, "peer", strings.ToLower(peer.Address), peerJSON).Err(); err != nil {
-		return fmt.Errorf("failed to store peer in Redis hash: %v", err)
-	}
-	return nil
-}
-
 // hex -> .eth
-func (z *Zero) GetENS(peer *Peer) {
+func (z *Zero) GetENS(peer *One) {
 	if peer.ENS != "" && peer.ENS != "." {
 		return
 	}
@@ -68,7 +31,7 @@ func (z *Zero) GetENS(peer *Peer) {
 }
 
 // hex -> LoopringENS [.loopring.eth] or "."
-func (z *Zero) GetLoopringENS(peer *Peer) {
+func (z *Zero) GetLoopringENS(peer *One) {
 	if peer.LoopringENS == "." || peer.LoopringENS != "" && peer.LoopringENS != "!" {
 		url := fmt.Sprintf(dotLoop, peer.Address)
 		var resp struct {
@@ -89,7 +52,7 @@ func (z *Zero) GetLoopringENS(peer *Peer) {
 }
 
 // hex -> LoopringId or "."
-func (z *Zero) GetLoopringID(peer *Peer) {
+func (z *Zero) GetLoopringID(peer *One) {
 	url := fmt.Sprintf(byAddress, peer.Address)
 	var resp struct {
 		ID int64 `json:"accountId"`
@@ -118,15 +81,6 @@ func (z *Zero) input(url string, response any) error {
 		return err
 	}
 	return json.Unmarshal(data, response)
-}
-
-// GetAddressByLoopringID returns the address for a given LoopringID, or an empty string if not found.
-func (z *Zero) GetPeer(id int64) string {
-	peer, ok := z.Maps.LoopringId[id]
-	if !ok {
-		return ""
-	}
-	return strings.ToLower(peer)
 }
 
 // func (z *Zero) HelloUniverse(value string) *Peer {
