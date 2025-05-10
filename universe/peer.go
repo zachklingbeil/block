@@ -3,6 +3,7 @@ package universe
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -64,6 +65,28 @@ func (z *Zero) GetLoopringID(peer *One) {
 		peer.LoopringID = -1
 	} else {
 		peer.LoopringID = resp.ID
+	}
+}
+
+// LoopringId -> hex
+func (z *Zero) GetLoopringAddress(peer *One) {
+	if peer.Address == "." || (peer.Address != "" && peer.Address != "!") {
+		return
+	}
+	url := fmt.Sprintf(byId, strconv.FormatInt(peer.LoopringID, 10))
+	var response struct {
+		Address string `json:"owner"`
+	}
+	err := z.input(url, &response)
+	z.Factory.Rw.Lock()
+	defer z.Factory.Rw.Unlock()
+	switch {
+	case err != nil:
+		peer.Address = "!"
+	case response.Address == "":
+		peer.Address = "."
+	default:
+		peer.Address = z.FormatPeer(response.Address)
 	}
 }
 

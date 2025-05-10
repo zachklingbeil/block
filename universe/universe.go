@@ -3,6 +3,8 @@ package universe
 import (
 	"encoding/json"
 	"fmt"
+	"math/big"
+	"strings"
 
 	"github.com/zachklingbeil/factory"
 )
@@ -49,32 +51,53 @@ func (z *Zero) Source(address string) *One {
 // GetOneByLoopringId returns the *One for a given LoopringId, or an error if not found.
 func (z *Zero) LoopringId(id int64) *One {
 	z.Factory.Rw.RLock()
-	defer z.Factory.Rw.RUnlock()
 	addr, ok := z.Maps.LoopringId[id]
-	if !ok || addr == "" {
-		// Return a minimal One with only LoopringID set
-		return &One{LoopringID: id}
-	}
-	one, ok := z.Map[addr]
+	z.Factory.Rw.RUnlock()
+
 	if !ok {
-		return &One{LoopringID: id}
+		peer := &One{LoopringID: id}
+		z.GetLoopringAddress(peer)
+		return peer
 	}
+
+	z.Factory.Rw.RLock()
+	one := z.Map[addr]
+	z.Factory.Rw.RUnlock()
 	return one
 }
 
-func (z *Zero) TokenId(id int64) *One {
+func (z *Zero) TokenId(id int64) (string, int64) {
 	z.Factory.Rw.RLock()
 	defer z.Factory.Rw.RUnlock()
-	addr, ok := z.Maps.TokenId[id]
-	if !ok || addr == "" {
-		// Return a minimal One with only TokenId set
-		return &One{TokenId: id}
+	addr := z.Maps.TokenId[id]
+	one := z.Map[addr]
+	if one == nil {
+		return "", 0
 	}
-	one, ok := z.Map[addr]
+	return one.Address, one.Decimals
+}
+
+// Format formats a string input as a decimal string based on the given decimals.
+func (z *Zero) Format(input string, decimals int64) string {
+	value := new(big.Int)
+	_, ok := value.SetString(input, 10)
 	if !ok {
-		return &One{TokenId: id}
+		return input
 	}
-	return one
+	valueStr := value.String()
+	dec := int(decimals)
+	if len(valueStr) <= dec {
+		paddedValue := strings.Repeat("0", dec-len(valueStr)+1) + valueStr
+		result := "0." + paddedValue
+		return strings.TrimRight(result, "0")
+	}
+
+	intPart := valueStr[:len(valueStr)-dec]
+	fracPart := valueStr[len(valueStr)-dec:]
+	result := intPart + "." + fracPart
+	result = strings.TrimRight(result, "0")
+	result = strings.TrimSuffix(result, ".")
+	return result
 }
 
 func (z *Zero) LoadOnes() error {
