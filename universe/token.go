@@ -11,40 +11,32 @@ import (
 	"strings"
 )
 
-type Token struct {
-	Token    string `json:"token,omitempty"`
-	Address  string `json:"address,omitempty"`
-	Decimals int64  `json:"decimals,omitempty"`
-	TokenId  int64  `json:"tokenId,omitempty"`
-	ABI      string `json:"abi,omitempty"`
-}
-
-func (o *One) LoadTokens() error {
-	source, err := o.Factory.Data.RB.SMembers(o.Factory.Ctx, "token").Result()
+func (z *Zero) LoadTokens() error {
+	source, err := z.Factory.Data.RB.SMembers(z.Factory.Ctx, "token").Result()
 	if err != nil {
 		return fmt.Errorf("failed to fetch tokens from Redis set: %v", err)
 	}
-	o.Tokens = make([]*Token, 0, len(source))
-	o.Maps.TokenId = make(map[int64]string)
+	z.Tokens = make([]*Token, 0, len(source))
+	z.Maps.TokenId = make(map[int64]string)
 	for _, tokenJSON := range source {
 		var token Token
 		if err := json.Unmarshal([]byte(tokenJSON), &token); err != nil {
 			log.Printf("Skipping invalid token: %v (data: %s)", err, tokenJSON)
 			continue
 		}
-		o.Tokens = append(o.Tokens, &token)
-		o.Map[token.Address] = &token
-		o.Maps.TokenId[token.TokenId] = token.Address
+		z.Tokens = append(z.Tokens, &token)
+		z.Map[token.Address] = &token
+		z.Maps.TokenId[token.TokenId] = token.Address
 	}
-	fmt.Printf("%d tokens loaded\n", len(o.Tokens))
-	o.SaveTokensToFile("tokens.json")
+	fmt.Printf("%d tokens loaded\n", len(z.Tokens))
+	z.SaveTokensToFile("tokens.json")
 	return nil
 }
 
-func (o *One) SaveTokensToFile(filename string) error {
-	o.Factory.Rw.RLock()
-	defer o.Factory.Rw.RUnlock()
-	data, err := json.MarshalIndent(o.Tokens, "", "  ")
+func (z *Zero) SaveTokensToFile(filename string) error {
+	z.Factory.Rw.RLock()
+	defer z.Factory.Rw.RUnlock()
+	data, err := json.MarshalIndent(z.Tokens, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal tokens: %v", err)
 	}
@@ -55,24 +47,24 @@ func (o *One) SaveTokensToFile(filename string) error {
 }
 
 // AddToken adds a new token to the Tokens struct and updates all maps.
-func (o *One) AddToken(token *Token) {
-	o.Factory.Rw.Lock()
-	defer o.Factory.Rw.Unlock()
-	o.Tokens = append(o.Tokens, token)
-	o.Map[token.Address] = token
-	o.Maps.TokenId[token.TokenId] = token.Address
+func (z *Zero) AddToken(token *Token) {
+	z.Factory.Rw.Lock()
+	defer z.Factory.Rw.Unlock()
+	z.Tokens = append(z.Tokens, token)
+	z.Map[token.Address] = token
+	z.Maps.TokenId[token.TokenId] = token.Address
 }
 
 // GetAddress returns the common.Address for a given tokenId.
-func (o *One) GetAddress(tokenId int64) string {
+func (z *Zero) GetAddress(tokenId int64) string {
 	if tokenId >= 500 {
 		return strconv.FormatInt(tokenId, 10)
 	}
 
-	o.Factory.Rw.RLock()
-	defer o.Factory.Rw.RUnlock()
+	z.Factory.Rw.RLock()
+	defer z.Factory.Rw.RUnlock()
 
-	token, exists := o.Maps.TokenId[tokenId]
+	token, exists := z.Maps.TokenId[tokenId]
 	if !exists {
 		log.Printf("Token not found for ID: %d", tokenId)
 		return strconv.FormatInt(tokenId, 10)
@@ -81,11 +73,11 @@ func (o *One) GetAddress(tokenId int64) string {
 }
 
 // Format formats a string input as a decimal string based on the token's decimals, using address.
-func (o *One) Format(input string, address string) string {
+func (z *Zero) Format(input string, address string) string {
 
-	o.Factory.Rw.RLock()
-	token, exists := o.Map[address]
-	o.Factory.Rw.RUnlock()
+	z.Factory.Rw.RLock()
+	token, exists := z.Map[address]
+	z.Factory.Rw.RUnlock()
 	if !exists {
 		return input
 	}

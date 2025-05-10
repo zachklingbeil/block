@@ -8,14 +8,14 @@ import (
 
 type Ethereum struct {
 	Factory        *factory.Factory
-	One            *universe.One
+	One            *universe.Zero
 	Chain          *params.ChainConfig
 	Signature      map[string]string
 	EventSignature map[string]string
 	Header         int64
 }
 
-func NewEthereum(factory *factory.Factory, one *universe.One) *Ethereum {
+func NewEthereum(factory *factory.Factory, one *universe.Zero) *Ethereum {
 	eth := &Ethereum{
 		Factory:        factory,
 		One:            one,

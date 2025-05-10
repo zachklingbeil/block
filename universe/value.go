@@ -1,16 +1,13 @@
 package universe
 
 import (
-	"fmt"
-
 	"github.com/zachklingbeil/factory"
 )
 
-type One struct {
+type Zero struct {
 	Factory *factory.Factory
-	Peers   []*Peer
-	Tokens  []*Token
-	Map     map[string]any
+	One     []*One
+	Map     map[string]*One
 	Maps    *Maps
 }
 
@@ -19,30 +16,31 @@ type Maps struct {
 	TokenId    map[int64]string
 }
 
-func NewOne(factory *factory.Factory) *One {
-	v := &One{
+func NewZero(factory *factory.Factory) *Zero {
+	v := &Zero{
 		Factory: factory,
-		Map:     make(map[string]any),
+		One:     make([]*One, 0),
+		Map:     make(map[string]*One),
 		Maps: &Maps{
 			LoopringId: make(map[int64]string),
 			TokenId:    make(map[int64]string),
 		},
 	}
 
-	v.LoadTokens()
-	v.LoadPeers()
+	// v.LoadTokens()
+	// v.LoadPeers()
 
-	for _, p := range v.Peers {
-		v.Map[p.Address] = p
-	}
+	// for _, p := range v.Peers {
+	// 	v.Map[p.Address] = p
+	// }
 
-	for _, t := range v.Tokens {
-		v.Map[t.Address] = t
-	}
-	fmt.Printf("Map: %d\n", len(v.Map))
+	// for _, t := range v.Tokens {
+	// 	v.Map[t.Address] = t
+	// }
+	// fmt.Printf("Map: %d\n", len(v.Map))
 	return v
 }
 
-func (v *One) Source(address string) any {
+func (v *Zero) Source(address string) any {
 	return v.Map[address]
 }

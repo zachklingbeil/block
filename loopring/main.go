@@ -7,10 +7,10 @@ import (
 
 type Loopring struct {
 	Factory *factory.Factory
-	One     *universe.One
+	One     *universe.Zero
 }
 
-func Connect(factory *factory.Factory, one *universe.One) *Loopring {
+func Connect(factory *factory.Factory, one *universe.Zero) *Loopring {
 	loop := &Loopring{
 		Factory: factory,
 		One:     one,
