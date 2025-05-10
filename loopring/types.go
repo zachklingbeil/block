@@ -17,8 +17,8 @@ type Swap struct {
 	One      int64  `json:"orderB.accountID,omitempty"`
 	Value    string `json:"orderA.filledS,omitempty"`
 	Token    int64  `json:"orderB.tokenB,omitempty"`
-	ValueOut string `json:"orderB.filledS,omitempty"`
-	TokenOut int64  `json:"orderA.tokenB,omitempty"`
+	For      string `json:"orderB.filledS,omitempty"`
+	ForToken int64  `json:"orderA.tokenB,omitempty"`
 	ZeroFee  int64  `json:"orderA.feeBips,omitempty"`
 	OneFee   int64  `json:"orderB.feeBips,omitempty"`
 	Type     string `json:"txType,omitempty"`
@@ -102,9 +102,9 @@ func (l *Loopring) SwapToTx(transaction any) universe.Tx {
 		Zero:     l.Zero.LoopringId(s.Zero).Address,
 		One:      l.Zero.LoopringId(s.One).Address,
 		Value:    l.Zero.Format(s.Value, l.Zero.TokenId(s.Token).Decimals),
-		ValueOut: l.Zero.Format(s.ValueOut, l.Zero.TokenId(s.TokenOut).Decimals),
 		Token:    l.Zero.TokenId(s.Token).Address,
-		TokenOut: l.Zero.TokenId(s.TokenOut).Address,
+		For:      l.Zero.Format(s.For, l.Zero.TokenId(s.ForToken).Decimals),
+		ForToken: l.Zero.TokenId(s.ForToken).Address,
 		Type:     "swap",
 		Index:    s.Index,
 		FeeToken: l.Zero.TokenId(s.Token).Address,

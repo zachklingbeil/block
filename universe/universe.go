@@ -30,6 +30,8 @@ type One struct {
 type Maps struct {
 	LoopringId map[int64]*One
 	TokenId    map[int64]*One
+	ENS        map[string]*One
+	Token      map[string]*One
 }
 
 func NewZero(factory *factory.Factory) *Zero {
@@ -116,6 +118,5 @@ func (z *Zero) LoadOnes() error {
 	z.Map = mapAddr
 	z.Maps.LoopringId = mapLoopringId
 	z.Maps.TokenId = mapTokenId
-
 	return nil
 }
