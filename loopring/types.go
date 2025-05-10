@@ -136,82 +136,65 @@ type NftData struct {
 func (l *Loopring) SwapToTx(transaction any) Tx {
 	var s Swap
 	mapToStruct(transaction, &s)
-
-	zero := l.One.LoopringId(s.Zero)
-	tokenAddr, tokenDecimals := l.One.TokenId(s.Token)
-	value := l.One.Format(s.Value, tokenDecimals)
-
-	one := l.One.LoopringId(s.One)
-	tokenOutAddr, tokenOutDecimals := l.One.TokenId(s.TokenOut)
-	valueOut := l.One.Format(s.ValueOut, tokenOutDecimals)
-
 	tx := Tx{
-		Zero:     zero.Address,
-		One:      one.Address,
-		Value:    value,
-		ValueOut: valueOut,
-		Token:    tokenAddr,
-		TokenOut: tokenOutAddr,
+		Zero:     l.One.LoopringId(s.Zero).Address,
+		One:      l.One.LoopringId(s.One).Address,
+		Value:    l.One.Format(s.Value, l.One.TokenId(s.Token).Decimals),
+		ValueOut: l.One.Format(s.ValueOut, l.One.TokenId(s.TokenOut).Decimals),
+		Token:    l.One.TokenId(s.Token).Address,
+		TokenOut: l.One.TokenId(s.TokenOut).Address,
 		Type:     "swap",
 		Index:    s.Index,
+		FeeToken: l.One.TokenId(s.Token).Address,
 	}
 
 	switch {
 	case s.ZeroFee != 0:
 		fee := calcFee(s.Value, s.ZeroFee)
-		tx.Fee = l.One.Format(fee.String(), tokenDecimals)
-		tx.FeeToken = tokenAddr
+		tx.Fee = l.One.Format(fee, l.One.TokenId(s.Token).Decimals)
 	case s.OneFee != 0:
 		fee := calcFee(s.Value, s.OneFee)
-		tx.Fee = l.One.Format(fee.String(), tokenDecimals)
-		tx.FeeToken = tokenAddr
+		tx.Fee = l.One.Format(fee, l.One.TokenId(s.Token).Decimals)
 	}
 	return tx
 }
 
-func calcFee(valueStr string, feeBips int64) *big.Int {
+func calcFee(valueStr string, feeBips int64) string {
 	valueIn := new(big.Int)
 	valueIn.SetString(valueStr, 10)
 	fee := new(big.Int).Mul(valueIn, big.NewInt(feeBips))
 	fee.Div(fee, big.NewInt(10000)) // Convert basis points to percentage
-	return fee
+	return fee.String()
 }
 
 func (l *Loopring) TransferToTx(transaction any) Tx {
 	var t Transfer
 	mapToStruct(transaction, &t)
 
-	zero := l.One.LoopringId(t.ZeroId)
-	one := l.One.LoopringId(t.OneId)
-	tokenAddr, tokenDecimals := l.One.TokenId(t.Token)
-	feeTokenAddr, feeTokenDecimals := l.One.TokenId(t.FeeToken)
-	value := l.One.Format(t.Value, tokenDecimals)
-
 	tx := Tx{
-		Zero:  zero.Address,
-		One:   one.Address,
-		Value: value,
-		Token: tokenAddr,
-		Index: t.Index,
-		Type:  "transfer",
+		Zero:     l.One.LoopringId(t.ZeroId).Address,
+		One:      l.One.LoopringId(t.OneId).Address,
+		Value:    l.One.Format(t.Value, l.One.TokenId(t.Token).Decimals),
+		Token:    l.One.TokenId(t.Token).Address,
+		Index:    t.Index,
+		Type:     "transfer",
+		FeeToken: l.One.TokenId(t.FeeToken).Address,
 	}
 
 	if t.Fee != "" && t.Fee != "0" {
-		tx.Fee = l.One.Format(t.Fee, feeTokenDecimals)
-		tx.FeeToken = feeTokenAddr
+		tx.Fee = l.One.Format(t.Fee, l.One.TokenId(t.FeeToken).Decimals)
 	}
 	return tx
 }
+
 func (l *Loopring) DepositToTx(transaction any) Tx {
 	var d Deposit
 	mapToStruct(transaction, &d)
-	zero := l.One.LoopringId(d.ZeroId)
-	tokenAddr, tokenDecimals := l.One.TokenId(d.Token)
-	value := l.One.Format(d.Value, tokenDecimals)
+
 	return Tx{
-		Zero:  zero.Address,
-		Value: value,
-		Token: tokenAddr,
+		Zero:  l.One.LoopringId(d.ZeroId).Address,
+		Value: l.One.Format(d.Value, l.One.TokenId(d.Token).Decimals),
+		Token: l.One.TokenId(d.Token).Address,
 		Type:  "deposit",
 		Index: d.Index,
 	}
@@ -220,23 +203,18 @@ func (l *Loopring) DepositToTx(transaction any) Tx {
 func (l *Loopring) WithdrawToTx(transaction any) Tx {
 	var w Withdrawal
 	mapToStruct(transaction, &w)
-	zero := l.One.LoopringId(w.ZeroId)
-	tokenAddr, tokenDecimals := l.One.TokenId(w.Token)
-	feeTokenAddr, feeTokenDecimals := l.One.TokenId(w.FeeToken)
-
-	value := l.One.Format(w.Value, tokenDecimals)
 
 	tx := Tx{
-		Zero:  zero.Address,
-		Value: value,
-		Token: tokenAddr,
-		Type:  "withdraw",
-		Index: w.Index,
+		Zero:     l.One.LoopringId(w.ZeroId).Address,
+		Value:    l.One.Format(w.Value, l.One.TokenId(w.Token).Decimals),
+		Token:    l.One.TokenId(w.Token).Address,
+		Type:     "withdraw",
+		Index:    w.Index,
+		FeeToken: l.One.TokenId(w.FeeToken).Address,
 	}
 	switch {
 	case w.Fee != "" && w.Fee != "0":
-		tx.Fee = l.One.Format(w.Fee, feeTokenDecimals)
-		tx.FeeToken = feeTokenAddr
+		tx.Fee = l.One.Format(w.Fee, l.One.TokenId(w.FeeToken).Decimals)
 	}
 	return tx
 }
@@ -244,9 +222,8 @@ func (l *Loopring) WithdrawToTx(transaction any) Tx {
 func (l *Loopring) AccountUpdateToTx(transaction any) Tx {
 	var a AccountUpdate
 	mapToStruct(transaction, &a)
-	zero := l.One.LoopringId(a.ZeroId)
 	return Tx{
-		Zero:  zero.Address,
+		Zero:  l.One.LoopringId(a.ZeroId).Address,
 		Type:  "accountUpdate",
 		Index: a.Index,
 		Nonce: a.Nonce,
@@ -256,9 +233,8 @@ func (l *Loopring) AccountUpdateToTx(transaction any) Tx {
 func (l *Loopring) AmmUpdateToTx(transaction any) Tx {
 	var a AmmUpdate
 	mapToStruct(transaction, &a)
-	zero := l.One.LoopringId(a.ZeroId)
 	return Tx{
-		Zero:  zero.Address,
+		Zero:  l.One.LoopringId(a.ZeroId).Address,
 		Type:  "ammUpdate",
 		Index: a.Index,
 		Nonce: a.Nonce,
@@ -268,21 +244,18 @@ func (l *Loopring) AmmUpdateToTx(transaction any) Tx {
 func (l *Loopring) MintToTx(transaction any) Tx {
 	var m Mint
 	mapToStruct(transaction, &m)
-	zero := l.One.LoopringId(m.ZeroId)
-	feeTokenAddr, feeTokenDecimals := l.One.TokenId(m.FeeToken)
-	value := l.One.Format(m.Quantity, feeTokenDecimals)
-
 	tx := Tx{
-		Zero:  zero.Address,
-		Value: value,
-		Token: m.NftAddress,
-		Type:  "mint",
-		Index: m.Index,
+		Zero:     l.One.LoopringId(m.ZeroId).Address,
+		Value:    m.Quantity,
+		Token:    m.NftAddress,
+		Type:     "mint",
+		Index:    m.Index,
+		FeeToken: l.One.TokenId(m.FeeToken).Address,
 	}
 
 	if m.Fee != "" && m.Fee != "0" {
-		tx.Fee = l.One.Format(m.Fee, feeTokenDecimals)
-		tx.FeeToken = feeTokenAddr
+		tx.Fee = l.One.Format(m.Fee, l.One.TokenId(m.FeeToken).Decimals)
+
 	}
 	return tx
 }
@@ -290,9 +263,8 @@ func (l *Loopring) MintToTx(transaction any) Tx {
 func (l *Loopring) NftDataToTx(transaction any) Tx {
 	var n NftData
 	mapToStruct(transaction, &n)
-	zero := l.One.LoopringId(n.ZeroId)
 	return Tx{
-		Zero:  zero.Address,
+		Zero:  l.One.LoopringId(n.ZeroId).Address,
 		Type:  "nft",
 		Index: n.Index,
 		Raw:   []byte(n.NftData),

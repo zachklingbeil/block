@@ -28,8 +28,8 @@ type One struct {
 }
 
 type Maps struct {
-	LoopringId map[int64]string
-	TokenId    map[int64]string
+	LoopringId map[int64]*One
+	TokenId    map[int64]*One
 }
 
 func NewZero(factory *factory.Factory) *Zero {
@@ -44,37 +44,24 @@ func NewZero(factory *factory.Factory) *Zero {
 
 func (z *Zero) Source(address string) *One {
 	z.Factory.Rw.RLock()
+	one := z.Map[address]
 	defer z.Factory.Rw.RUnlock()
-	return z.Map[address]
+	return one
 }
 
 // GetOneByLoopringId returns the *One for a given LoopringId, or an error if not found.
 func (z *Zero) LoopringId(id int64) *One {
 	z.Factory.Rw.RLock()
-	addr, ok := z.Maps.LoopringId[id]
+	peer := z.Maps.LoopringId[id]
 	z.Factory.Rw.RUnlock()
-
-	if !ok {
-		peer := &One{LoopringID: id}
-		z.GetLoopringAddress(peer)
-		return peer
-	}
-
-	z.Factory.Rw.RLock()
-	one := z.Map[addr]
-	z.Factory.Rw.RUnlock()
-	return one
+	return peer
 }
 
-func (z *Zero) TokenId(id int64) (string, int64) {
+func (z *Zero) TokenId(id int64) *One {
 	z.Factory.Rw.RLock()
 	defer z.Factory.Rw.RUnlock()
-	addr := z.Maps.TokenId[id]
-	one := z.Map[addr]
-	if one == nil {
-		return "", 0
-	}
-	return one.Address, one.Decimals
+	token := z.Maps.TokenId[id]
+	return token
 }
 
 // Format formats a string input as a decimal string based on the given decimals.
@@ -107,25 +94,28 @@ func (z *Zero) LoadOnes() error {
 	}
 
 	ones := make([]*One, 0, len(source))
+	mapAddr := make(map[string]*One, len(source))
+	mapLoopringId := make(map[int64]*One, len(source))
+	mapTokenId := make(map[int64]*One, len(source))
+
 	for _, s := range source {
 		one := &One{}
 		if err := json.Unmarshal([]byte(s), one); err != nil {
 			return fmt.Errorf("failed to unmarshal One: %v", err)
 		}
 		ones = append(ones, one)
+		mapAddr[one.Address] = one
+		mapLoopringId[one.LoopringID] = one
+		mapTokenId[one.TokenId] = one
 	}
 
 	z.Factory.Rw.Lock()
 	defer z.Factory.Rw.Unlock()
 
 	z.One = ones
-	z.Map = make(map[string]*One, len(ones))
-	z.Maps.LoopringId = make(map[int64]string, len(ones))
-	z.Maps.TokenId = make(map[int64]string, len(ones))
-	for _, one := range ones {
-		z.Map[one.Address] = one
-		z.Maps.LoopringId[one.LoopringID] = one.Address
-		z.Maps.TokenId[one.TokenId] = one.Address
-	}
+	z.Map = mapAddr
+	z.Maps.LoopringId = mapLoopringId
+	z.Maps.TokenId = mapTokenId
+
 	return nil
 }
