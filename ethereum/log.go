@@ -1,189 +1,174 @@
 package ethereum
 
-// import (
-// 	"context"
-// 	"math/big"
-// 	"strings"
+import (
+	"math/big"
+	"strings"
 
-// 	"github.com/ethereum/go-ethereum/common"
-// 	"github.com/ethereum/go-ethereum/core/types"
-// )
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+)
 
-// const (
-// 	transferEvent           = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
-// 	transfer1155SingleEvent = "0xc3d58168c5ae7397731d063d5bbf3d657854427343f4c083240f7aacaa2d0f62"
-// 	transfer1155BatchEvent  = "0x4a39dc06d4c0dbc64b70b1b5fdcf9a43c3b840ecb9c7aafb5c62c0124c6a16e3"
-// )
+type Transactions struct {
+	From              string     `json:"from,omitempty"`
+	To                string     `json:"to,omitempty"`
+	Value             *big.Int   `json:"value,omitempty"`
+	Gas               uint64     `json:"gas,omitempty"`
+	GasPrice          *big.Int   `json:"gasPrice,omitempty"`
+	Nonce             uint64     `json:"nonce,omitempty"`
+	CumulativeGasUsed uint64     `json:"cumulativeGasUsed,omitempty"`
+	FunctionSignature string     `json:"functionSignature,omitempty"`
+	Logs              []*LogInfo `json:"logs,omitempty"`
+}
 
-// // Raw holds information about a block.
-// type Raw struct {
-// 	Number       uint64
-// 	Hash         string
-// 	ParentHash   string
-// 	Time         uint64
-// 	GasUsed      uint64
-// 	GasLimit     uint64
-// 	BaseFee      *big.Int
-// 	Transactions []*Transaction
-// }
+type LogInfo struct {
+	Address    string         `json:"address,omitempty"`
+	Topics     []string       `json:"topics,omitempty"`
+	DataLength int            `json:"dataLength,omitempty"`
+	EventType  string         `json:"eventType,omitempty"`
+	Fields     map[string]any `json:"fields,omitempty"`
+}
 
-// // Transactions holds information about a transaction.
-// type Transaction struct {
-// 	Hash              string
-// 	From              string
-// 	To                string
-// 	Value             *big.Int
-// 	Gas               uint64
-// 	GasPrice          *big.Int
-// 	Nonce             uint64
-// 	DataLength        int
-// 	Type              uint8
-// 	Status            uint64
-// 	CumulativeGasUsed uint64
-// 	Logs              []*LogInfo `json:"logs,omitempty"`
-// }
+const (
+	transferEvent           = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+	transfer1155SingleEvent = "0xc3d58168c5ae7397731d063d5bbf3d657854427343f4c083240f7aacaa2d0f62"
+	transfer1155BatchEvent  = "0x4a39dc06d4c0dbc64b70b1b5fdcf9a43c3b840ecb9c7aafb5c62c0124c6a16e3"
+)
 
-// // LogInfo holds information about a transaction log.
-// type LogInfo struct {
-// 	Address    string   `json:"Address,omitempty"`
-// 	Topics     []string `json:"topics,omitempty"`
-// 	DataLength int      `json:"dataLength,omitempty"`
-// 	EventType  string   `json:"eventType,omitempty"`
-// 	From       string   `json:"from,omitempty"`
-// 	To         string   `json:"to,omitempty"`
-// 	Value      *big.Int `json:"value,omitempty"`
-// 	Operator   string   `json:"operator,omitempty"`
-// 	ID         *big.Int `json:"id,omitempty"`
-// 	IDs        []string `json:"ids,omitempty"`
-// 	Values     []string `json:"values,omitempty"`
-// 	RawTopics  []string `json:"rawTopics,omitempty"`
-// }
+func (e *Ethereum) populateReceiptInfo(txInfo *Transactions, receipt *types.Receipt) {
+	txInfo.CumulativeGasUsed = receipt.CumulativeGasUsed
+	for _, log := range receipt.Logs {
+		if logInfo := e.ParseLogSafe(log); logInfo != nil {
+			txInfo.Logs = append(txInfo.Logs, logInfo)
+		}
+	}
+}
 
-// // processBlock processes a single block and returns its information.
-// func (e *Ethereum) processBlock(ctx context.Context, block *types.Block) *Raw {
-// 	blockInfo := &Raw{
-// 		Number:     block.NumberU64(),
-// 		Hash:       block.Hash().Hex(),
-// 		ParentHash: block.ParentHash().Hex(),
-// 		Time:       block.Time(),
-// 		GasUsed:    block.GasUsed(),
-// 		GasLimit:   block.GasLimit(),
-// 		BaseFee:    block.BaseFee(),
-// 	}
+func (e *Ethereum) ParseLogSafe(log *types.Log) *LogInfo {
+	if len(log.Topics) == 0 {
+		return nil
+	}
+	sighash := log.Topics[0].Hex()
 
-// 	signer := e.Signer(block.Number(), block.Time())
+	// ERC20/ERC721 Transfer
+	if len(log.Topics) == 3 && sighash == transferEvent && len(log.Data) == 32 {
+		return &LogInfo{
+			Address:   toLowerHex(log.Address.Hex()),
+			EventType: "ERC20/ERC721 Transfer",
+			Fields: map[string]any{
+				"from":  extractAddr(log.Topics[1]),
+				"to":    extractAddr(log.Topics[2]),
+				"value": bigIntFromBytes(log.Data),
+			},
+		}
+	}
+	// ERC1155 TransferSingle
+	if len(log.Topics) == 4 && sighash == transfer1155SingleEvent && len(log.Data) == 64 {
+		return &LogInfo{
+			Address:   toLowerHex(log.Address.Hex()),
+			EventType: "ERC1155 TransferSingle",
+			Fields: map[string]any{
+				"operator": extractAddr(log.Topics[1]),
+				"from":     extractAddr(log.Topics[2]),
+				"to":       extractAddr(log.Topics[3]),
+				"id":       bigIntFromBytes(log.Data[:32]),
+				"value":    bigIntFromBytes(log.Data[32:]),
+			},
+		}
+	}
 
-// 	for _, tx := range block.Transactions() {
-// 		txInfo := e.processTransaction(ctx, tx, signer)
-// 		blockInfo.Transactions = append(blockInfo.Transactions, txInfo)
-// 	}
-// 	return blockInfo
-// }
+	// ERC1155 TransferBatch
+	if len(log.Topics) == 4 && sighash == transfer1155BatchEvent && len(log.Data) >= 64 {
+		ids, values := e.decode1155Batch(log.Data)
+		return &LogInfo{
+			Address:   toLowerHex(log.Address.Hex()),
+			EventType: "ERC1155 TransferBatch",
+			Fields: map[string]any{
+				"operator": extractAddr(log.Topics[1]),
+				"from":     extractAddr(log.Topics[2]),
+				"to":       extractAddr(log.Topics[3]),
+				"ids":      ids,
+				"values":   values,
+			},
+		}
+	}
+	// Generic ABI-based decoding
+	event, ok := e.EventABI[sighash]
+	if !ok {
+		return nil
+	}
 
-// // processTransaction processes a single transaction and returns its information.
-// func (e *Ethereum) processTransaction(ctx context.Context, tx *types.Transaction, signer types.Signer) *Transactions {
-// 	txInfo := &Transactions{
-// 		Value:    tx.Value(),
-// 		Gas:      tx.Gas(),
-// 		GasPrice: tx.GasPrice(),
-// 		Nonce:    tx.Nonce(),
-// 	}
+	fields := make(map[string]any, len(event.Inputs))
+	idx := 1
+	for _, arg := range event.Inputs {
+		fields[arg.Name] = nil
+		if arg.Indexed && len(log.Topics) > idx {
+			switch arg.Type.String() {
+			case "address":
+				fields[arg.Name] = common.HexToAddress(log.Topics[idx].Hex()).Hex()
+			case "uint256", "uint":
+				fields[arg.Name] = new(big.Int).SetBytes(log.Topics[idx].Bytes())
+			case "bool":
+				fields[arg.Name] = log.Topics[idx].Big().Cmp(big.NewInt(0)) != 0
+			default:
+				fields[arg.Name] = log.Topics[idx].Hex()
+			}
+			idx++
+		}
+	}
 
-// 	if addr, err := types.Sender(signer, tx); err == nil {
-// 		txInfo.From = strings.ToLower(addr.Hex()) // Ensure From is lowercase
-// 	}
+	nonIndexed := event.Inputs.NonIndexed()
+	if len(nonIndexed) > 0 && len(log.Data) > 0 {
+		if values, err := nonIndexed.Unpack(log.Data); err == nil {
+			for i, arg := range nonIndexed {
+				switch arg.Type.String() {
+				case "address":
+					fields[arg.Name] = values[i].(common.Address).Hex()
+				case "uint256", "uint":
+					fields[arg.Name] = values[i].(*big.Int)
+				case "bool":
+					fields[arg.Name] = values[i].(bool)
+				default:
+					fields[arg.Name] = values[i]
+				}
+			}
+		}
+	}
+	logInfo := &LogInfo{
+		Address:   toLowerHex(log.Address.Hex()),
+		EventType: event.Name,
+		Fields:    fields,
+	}
 
-// 	// Consolidate getToAddress logic here
-// 	if tx.To() == nil {
-// 		txInfo.To = "Contract Creation"
-// 	} else {
-// 		txInfo.To = strings.ToLower(tx.To().Hex()) // Ensure To is lowercase
-// 	}
+	// Set EventType to signature if available
+	if sig, ok := e.GetEventSignature(sighash); ok {
+		logInfo.EventType = sig
+	}
 
-// 	if receipt, err := e.Factory.Eth.TransactionReceipt(ctx, tx.Hash()); err == nil {
-// 		e.populateReceiptInfo(txInfo, receipt)
-// 	}
+	return logInfo
+}
 
-// 	return txInfo
-// }
+func toLowerHex(s string) string           { return strings.ToLower(s) }
+func extractAddr(topic common.Hash) string { return toLowerHex("0x" + topic.Hex()[26:]) }
+func bigIntFromBytes(b []byte) *big.Int    { return new(big.Int).SetBytes(b) }
 
-// // populateReceiptInfo populates transaction information from the receipt.
-// func (e *Ethereum) populateReceiptInfo(txInfo *Transactions, receipt *types.Receipt) {
-// 	txInfo.CumulativeGasUsed = receipt.CumulativeGasUsed
-// 	for _, log := range receipt.Logs {
-// 		if logInfo := e.parseLog(log); logInfo != nil {
-// 			txInfo.Logs = append(txInfo.Logs, logInfo)
-// 		}
-// 	}
-// }
+func (e *Ethereum) decode1155Batch(data []byte) ([]*big.Int, []*big.Int) {
+	if len(data) < 128 {
+		return nil, nil
+	}
+	idsOffset := int(new(big.Int).SetBytes(data[:32]).Int64())
+	valuesOffset := int(new(big.Int).SetBytes(data[32:64]).Int64())
+	ids := e.decodeBigIntArray(data, idsOffset)
+	values := e.decodeBigIntArray(data, valuesOffset)
+	return ids, values
+}
 
-// // parseLog handles all supported log types in one place.
-// func (e *Ethereum) parseLog(log *types.Log) *LogInfo {
-// 	switch {
-// 	case len(log.Topics) == 3 && log.Topics[0].Hex() == transferEvent && len(log.Data) == 32:
-// 		return &LogInfo{
-// 			Address:   toLowerHex(log.Address.Hex()),
-// 			EventType: "ERC20/ERC721 Transfer",
-// 			From:      extractAddr(log.Topics[1]),
-// 			To:        extractAddr(log.Topics[2]),
-// 			Value:     bigIntFromBytes(log.Data),
-// 		}
-// 	case len(log.Topics) == 4 && log.Topics[0].Hex() == transfer1155SingleEvent && len(log.Data) == 64:
-// 		return &LogInfo{
-// 			Address:   toLowerHex(log.Address.Hex()),
-// 			EventType: "ERC1155 TransferSingle",
-// 			Operator:  extractAddr(log.Topics[1]),
-// 			From:      extractAddr(log.Topics[2]),
-// 			To:        extractAddr(log.Topics[3]),
-// 			ID:        bigIntFromBytes(log.Data[:32]),
-// 			Value:     bigIntFromBytes(log.Data[32:]),
-// 		}
-// 	case len(log.Topics) == 4 && log.Topics[0].Hex() == transfer1155BatchEvent && len(log.Data) >= 64:
-// 		ids, values := e.decode1155Batch(log.Data)
-// 		return &LogInfo{
-// 			Address:   toLowerHex(log.Address.Hex()),
-// 			EventType: "ERC1155 TransferBatch",
-// 			Operator:  extractAddr(log.Topics[1]),
-// 			From:      extractAddr(log.Topics[2]),
-// 			To:        extractAddr(log.Topics[3]),
-// 			IDs:       ids,
-// 			Values:    values,
-// 		}
-// 	default:
-// 		return nil
-// 	}
-// }
-
-// // Helper functions
-// func toLowerHex(s string) string           { return strings.ToLower(s) }
-// func extractAddr(topic common.Hash) string { return toLowerHex("0x" + topic.Hex()[26:]) }
-// func bigIntFromBytes(b []byte) *big.Int    { return new(big.Int).SetBytes(b) }
-
-// // decode1155Batch decodes batch transfer data into IDs and values.
-// func (e *Ethereum) decode1155Batch(data []byte) ([]string, []string) {
-// 	if len(data) < 128 {
-// 		return nil, nil
-// 	}
-
-// 	idsOffset := int(new(big.Int).SetBytes(data[:32]).Int64())
-// 	valuesOffset := int(new(big.Int).SetBytes(data[32:64]).Int64())
-
-// 	ids := e.decodeBigIntArray(data, idsOffset)
-// 	values := e.decodeBigIntArray(data, valuesOffset)
-
-// 	return ids, values
-// }
-
-// // decodeBigIntArray decodes an array of big integers from data at the given offset.
-// func (e *Ethereum) decodeBigIntArray(data []byte, offset int) []string {
-// 	length := int(new(big.Int).SetBytes(data[offset : offset+32]).Int64())
-// 	result := make([]string, length)
-
-// 	for i := range length {
-// 		start := offset + 32 + i*32
-// 		end := start + 32
-// 		result[i] = new(big.Int).SetBytes(data[start:end]).String()
-// 	}
-
-// 	return result
-// }
+func (e *Ethereum) decodeBigIntArray(data []byte, offset int) []*big.Int {
+	length := int(new(big.Int).SetBytes(data[offset : offset+32]).Int64())
+	result := make([]*big.Int, length)
+	for i := range length {
+		start := offset + 32 + i*32
+		end := start + 32
+		result[i] = new(big.Int).SetBytes(data[start:end])
+	}
+	return result
+}
