@@ -32,6 +32,7 @@ type Maps struct {
 	TokenId    map[int64]*One
 	ENS        map[string]*One
 	Token      map[string]*One
+	ABI        map[string]*One
 }
 
 func NewZero(factory *factory.Factory) *Zero {
@@ -43,6 +44,7 @@ func NewZero(factory *factory.Factory) *Zero {
 			TokenId:    make(map[int64]*One),
 			ENS:        make(map[string]*One),
 			Token:      make(map[string]*One),
+			ABI:        make(map[string]*One),
 		},
 	}
 	z.LoadOnes()
@@ -108,9 +110,9 @@ func (z *Zero) Format(input string, decimals int64) string {
 		return strings.TrimRight(result, "0")
 	}
 
-	intPart := valueStr[:len(valueStr)-dec]
-	fracPart := valueStr[len(valueStr)-dec:]
-	result := intPart + "." + fracPart
+	left := valueStr[:len(valueStr)-dec]
+	right := valueStr[len(valueStr)-dec:]
+	result := left + "." + right
 	result = strings.TrimRight(result, "0")
 	result = strings.TrimSuffix(result, ".")
 	return result
@@ -133,6 +135,7 @@ func (z *Zero) LoadOnes() error {
 		z.Map[one.Address] = one
 		z.Maps.LoopringId[one.LoopringID] = one
 		z.Maps.TokenId[one.TokenId] = one
+		z.Maps.ABI[one.ABI] = one
 	}
 	return nil
 }
