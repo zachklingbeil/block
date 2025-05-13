@@ -97,14 +97,25 @@ type NftData struct {
 }
 
 func (l *Loopring) Token(tokenId int64) string {
-	one := l.Zero.TokenId(tokenId)
+	var one *universe.One
+	if tokenId == 0 {
+		one = &universe.One{
+			Token:    "eth",
+			Address:  "0x0000000000000000000000000000000000000000",
+			Decimals: 18,
+			TokenId:  0,
+		}
+	} else {
+		one = l.Zero.Maps.TokenId[tokenId]
+	}
 	if one != nil && one.Token != "" {
 		return one.Token
 	}
 	return fmt.Sprintf("%d", tokenId)
 }
+
 func (l *Loopring) Who(id int64) string {
-	peer := l.Zero.LoopringId(id)
+	peer := l.Zero.Maps.LoopringId[id]
 	if peer == nil {
 		return ""
 	}
@@ -118,7 +129,17 @@ func (l *Loopring) Who(id int64) string {
 }
 
 func (l *Loopring) Decimals(tokenId int64) int64 {
-	one := l.Zero.TokenId(tokenId)
+	var one *universe.One
+	if tokenId == 0 {
+		one = &universe.One{
+			Token:    "eth",
+			Address:  "0x0000000000000000000000000000000000000000",
+			Decimals: 18,
+			TokenId:  0,
+		}
+	} else {
+		one = l.Zero.Maps.TokenId[tokenId]
+	}
 	if one != nil && one.Decimals != 0 {
 		return one.Decimals
 	}

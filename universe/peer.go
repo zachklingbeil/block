@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/wealdtech/go-ens/v3"
@@ -97,31 +98,52 @@ func (z *Zero) input(url string, response any) error {
 	return json.Unmarshal(data, response)
 }
 
-// func (z *Zero) HelloUniverse(value string) *Peer {
+func (z *Zero) HelloUniverse(value string) *One {
+	z.Factory.Rw.Lock()
+	defer z.Factory.Rw.Unlock()
+
+	peer, exists := z.Map[value]
+	if !exists {
+		peer = &One{}
+		if common.IsHexAddress(value) {
+			peer.Address = strings.ToLower(value)
+		}
+		z.One = append(z.One, peer)
+		z.Map[peer.Address] = peer
+	} else if peer.Address == "" && common.IsHexAddress(value) {
+		peer.Address = strings.ToLower(value)
+		z.Map[peer.Address] = peer
+	}
+
+	z.GetENS(peer)
+	fmt.Printf("	%s %s\n", peer.Address, peer.ENS)
+	return peer
+}
+
+// func (z *Zero) HelloUniverse(value string) *One {
 // 	z.Factory.Rw.Lock()
 // 	defer z.Factory.Rw.Unlock()
 
-// 	peer, exists := z.Maps[value]
+// 	peer, exists := z.Map[value]
 // 	if !exists {
-// 		peer = &Peer{}
+// 		peer = &One{}
 // 		if common.IsHexAddress(value) {
-// 			peer.Address = z.FormatPeer(value)
+// 			peer.Address = z.Format.Peer(value)
 // 		} else {
-// 			loopringID, err := strconz.ParseInt(value, 10, 64)
+// 			loopringID, err := strconv.ParseInt(value, 10, 64)
 // 			if err != nil {
 // 				fmt.Printf("Error converting value to int64: %v\n", err)
 // 				return nil
 // 			}
 // 			peer.LoopringID = loopringID
 // 		}
-// 		z.Peers = append(z.Peers, peer)
+// 		z.One = append(z.One, peer)
 // 	}
 // 	z.GetENS(peer)
 // 	z.GetLoopringENS(peer)
 // 	z.GetLoopringID(peer)
 
-// 	z.Maps[peer.Address] = peer
-// 	z.Save(peer)
+// 	z.Map[peer.Address] = peer
 // 	fmt.Printf("	%s %s %s %d\n", peer.Address, peer.ENS, peer.LoopringENS, peer.LoopringID)
 // 	return peer
 // }

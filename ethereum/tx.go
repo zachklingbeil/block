@@ -3,7 +3,6 @@ package ethereum
 import (
 	"context"
 	"math/big"
-	"strings"
 
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -36,6 +35,21 @@ func (e *Ethereum) processBlock(ctx context.Context, block *types.Block) *Raw {
 	}
 }
 
+// Who returns the ENS, Token, or Address for a given hex address.
+func (e *Ethereum) Who(hex string) string {
+	one := e.Zero.Source(hex)
+	if one == nil {
+		return hex
+	}
+	if one.ENS != "" && one.ENS != "." {
+		return one.ENS
+	}
+	if one.Token != "" {
+		return one.Token
+	}
+	return one.Address
+}
+
 func (e *Ethereum) processTransaction(ctx context.Context, tx *types.Transaction, signer types.Signer) *Transactions {
 	txInfo := &Transactions{
 		Value:    tx.Value(),
@@ -44,16 +58,16 @@ func (e *Ethereum) processTransaction(ctx context.Context, tx *types.Transaction
 		Nonce:    tx.Nonce(),
 	}
 
-	// Set From address
+	// Set From address (prefer ENS/Token/Address)
 	if addr, err := types.Sender(signer, tx); err == nil {
-		txInfo.From = strings.ToLower(addr.Hex())
+		txInfo.From = e.Who(addr.Hex())
 	}
 
-	// Set To address or contract creation
+	// Set To address or contract creation (prefer ENS/Token/Address)
 	if to := tx.To(); to == nil {
 		txInfo.To = "Contract Creation"
 	} else {
-		txInfo.To = strings.ToLower(to.Hex())
+		txInfo.To = e.Who(to.Hex())
 	}
 
 	// Populate receipt info (logs, cumulative gas used, etc.)

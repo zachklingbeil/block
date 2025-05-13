@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/zachklingbeil/factory"
 )
@@ -68,34 +69,27 @@ func (z *Zero) SyncOnesToRedis(ctx context.Context) error {
 	return err
 }
 
-func (z *Zero) Source(address string) *One {
+func (z *Zero) Source(hex string) *One {
+	address := strings.ToLower(hex)
+
 	z.Factory.Rw.RLock()
 	one := z.Map[address]
-	defer z.Factory.Rw.RUnlock()
-	return one
-}
-
-// GetOneByLoopringId returns the *One for a given LoopringId, or an error if not found.
-func (z *Zero) LoopringId(id int64) *One {
-	z.Factory.Rw.RLock()
-	peer := z.Maps.LoopringId[id]
 	z.Factory.Rw.RUnlock()
-	return peer
-}
-
-func (z *Zero) TokenId(id int64) *One {
-	if id == 0 {
-		return &One{
-			Token:    "eth",
-			Address:  "0x0000000000000000000000000000000000000000",
-			Decimals: 18,
-			TokenId:  0,
-		}
+	if one != nil {
+		return one
 	}
-	z.Factory.Rw.RLock()
-	defer z.Factory.Rw.RUnlock()
-	token := z.Maps.TokenId[id]
-	return token
+
+	z.Factory.Rw.Lock()
+	one = z.Map[address]
+	if one == nil {
+		one = &One{Address: address}
+		z.One = append(z.One, one)
+		z.Map[address] = one
+	}
+	z.Factory.Rw.Unlock()
+	z.GetENS(one)
+	fmt.Printf("	%s %s\n", one.Address, one.ENS)
+	return one
 }
 
 func (z *Zero) LoadOnes() error {

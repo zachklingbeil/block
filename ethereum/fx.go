@@ -45,6 +45,7 @@ func (e *Ethereum) BlockByBlock() error {
 	if err != nil {
 		log.Printf("Error storing block %d: %v", blockInfo.Number, err)
 	}
+	e.Zero.SyncOnesToRedis(e.Factory.Ctx)
 	fmt.Printf("%d\n", e.Header.Uint64())
 	return nil
 }
