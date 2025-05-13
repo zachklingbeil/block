@@ -2,7 +2,6 @@ package ethereum
 
 import (
 	"context"
-	"encoding/hex"
 	"math/big"
 	"strings"
 
@@ -57,13 +56,13 @@ func (e *Ethereum) processTransaction(ctx context.Context, tx *types.Transaction
 		txInfo.To = strings.ToLower(to.Hex())
 	}
 
-	// Set function signature if available using Signature map
-	if data := tx.Data(); len(data) >= 4 {
-		selector := "0x" + hex.EncodeToString(data[:4])
-		if textSig, ok := e.Signature[selector]; ok {
-			txInfo.FunctionSignature = textSig
-		}
-	}
+	// // Set function signature if available using Signature map
+	// if data := tx.Data(); len(data) >= 4 {
+	// 	selector := "0x" + hex.EncodeToString(data[:4])
+	// 	if textSig, ok := e.Signature[selector]; ok {
+	// 		txInfo.FunctionSignature = textSig
+	// 	}
+	// }
 
 	// Populate receipt info (logs, cumulative gas used, etc.)
 	if receipt, err := e.Factory.Eth.TransactionReceipt(ctx, tx.Hash()); err == nil {
