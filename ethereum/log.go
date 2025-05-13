@@ -142,6 +142,10 @@ func (e *Ethereum) parseERC20ERC721Transfer(log *types.Log) *LogInfo {
 		resolvedAddr = token.Token
 	} else {
 		resolvedAddr = toLowerHex(log.Address.Hex())
+		token = e.Zero.FetchERC20(common.HexToAddress(resolvedAddr))
+		if token != nil && token.Token != "" {
+			resolvedAddr = token.Token
+		}
 	}
 	return &LogInfo{
 		Address: resolvedAddr,
@@ -152,18 +156,9 @@ func (e *Ethereum) parseERC20ERC721Transfer(log *types.Log) *LogInfo {
 }
 
 func (e *Ethereum) parseERC1155Transfer(log *types.Log) *LogInfo {
-	token := e.Zero.Source(toLowerHex(log.Address.Hex()))
-	var resolvedAddr string
-	if token != nil && token.Token != "" {
-		resolvedAddr = token.Token
-	} else {
-		resolvedAddr = toLowerHex(log.Address.Hex())
-	}
-
-	// ERC1155 TransferSingle
 	if len(log.Topics) == 4 && len(log.Data) == 64 {
 		return &LogInfo{
-			Address:   resolvedAddr,
+			Address:   toLowerHex(log.Address.Hex()),
 			EventType: "ERC1155 TransferSingle",
 			Fields: map[string]any{
 				"operator": extractAddr(log.Topics[1]),
@@ -179,7 +174,7 @@ func (e *Ethereum) parseERC1155Transfer(log *types.Log) *LogInfo {
 	if len(log.Topics) == 4 && len(log.Data) >= 64 {
 		ids, values := e.decode1155Batch(log.Data)
 		return &LogInfo{
-			Address:   resolvedAddr,
+			Address:   toLowerHex(log.Address.Hex()),
 			EventType: "ERC1155 TransferBatch",
 			Fields: map[string]any{
 				"operator": extractAddr(log.Topics[1]),

@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-type Block struct {
+type Raw struct {
 	Number       uint64          `json:"number,omitempty"`
 	Time         uint64          `json:"time,omitempty"`
 	GasUsed      uint64          `json:"gasUsed,omitempty"`
@@ -17,7 +17,7 @@ type Block struct {
 	Transactions []*Transactions `json:"transactions,omitempty"`
 }
 
-func (e *Ethereum) processBlock(ctx context.Context, block *types.Block) *Block {
+func (e *Ethereum) processBlock(ctx context.Context, block *types.Block) *Raw {
 	signer := e.Signer(block.Number(), block.Time())
 	txs := block.Transactions()
 	transactions := make([]*Transactions, 0, len(txs))
@@ -26,7 +26,7 @@ func (e *Ethereum) processBlock(ctx context.Context, block *types.Block) *Block 
 			transactions = append(transactions, txInfo)
 		}
 	}
-	return &Block{
+	return &Raw{
 		Number:       block.NumberU64(),
 		Time:         block.Time(),
 		GasUsed:      block.GasUsed(),
@@ -56,18 +56,9 @@ func (e *Ethereum) processTransaction(ctx context.Context, tx *types.Transaction
 		txInfo.To = strings.ToLower(to.Hex())
 	}
 
-	// // Set function signature if available using Signature map
-	// if data := tx.Data(); len(data) >= 4 {
-	// 	selector := "0x" + hex.EncodeToString(data[:4])
-	// 	if textSig, ok := e.Signature[selector]; ok {
-	// 		txInfo.FunctionSignature = textSig
-	// 	}
-	// }
-
 	// Populate receipt info (logs, cumulative gas used, etc.)
 	if receipt, err := e.Factory.Eth.TransactionReceipt(ctx, tx.Hash()); err == nil {
 		e.populateReceiptInfo(txInfo, receipt)
 	}
-
 	return txInfo
 }

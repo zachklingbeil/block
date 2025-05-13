@@ -49,7 +49,7 @@ func (e *Ethereum) BlockByBlock() error {
 	return nil
 }
 
-func (e *Ethereum) StoreBlock(blockNumber int64, block *Block) error {
+func (e *Ethereum) StoreBlock(blockNumber int64, block *Raw) error {
 	blockJSON, err := json.Marshal(block)
 	if err != nil {
 		return fmt.Errorf("failed to marshal block: %w", err)
