@@ -21,7 +21,7 @@ type Ethereum struct {
 	Signature      map[string]string
 	EventSignature map[string]string
 	EventABI       map[string]abi.Event
-	Header         int64
+	Header         *big.Int
 }
 
 func NewEthereum(factory *factory.Factory, zero *universe.Zero) *Ethereum {
@@ -35,8 +35,7 @@ func NewEthereum(factory *factory.Factory, zero *universe.Zero) *Ethereum {
 	}
 	eth.LoadSignatures()
 	eth.PopulateEventABI()
-	eth.BlockByBlock(2)
-	// go eth.Listen()
+	// eth.BlockByBlock()
 	return eth
 }
 

@@ -48,11 +48,17 @@ func (e *Ethereum) ParseLogSafe(log *types.Log) *LogInfo {
 		return nil
 	}
 	sighash := log.Topics[0].Hex()
-
+	token := e.Zero.Source(toLowerHex(log.Address.Hex()))
+	var resolvedAddr string
+	if token != nil && token.Token != "" {
+		resolvedAddr = token.Token
+	} else {
+		resolvedAddr = toLowerHex(log.Address.Hex())
+	}
 	// ERC20/ERC721 Transfer
 	if len(log.Topics) == 3 && sighash == transferEvent && len(log.Data) == 32 {
 		return &LogInfo{
-			Address:   toLowerHex(log.Address.Hex()),
+			Address:   resolvedAddr,
 			EventType: "ERC20/ERC721 Transfer",
 			Fields: map[string]any{
 				"from":  extractAddr(log.Topics[1]),

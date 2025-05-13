@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"math/big"
-	"strconv"
 
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -28,8 +26,8 @@ func (e *Ethereum) Listen() error {
 				log.Printf("Subscription error: %v", err)
 				return
 			case header := <-headers:
-				e.Header = int64(header.Number.Uint64())
-				log.Printf("New block: %d", e.Header)
+				e.Header = header.Number
+				e.BlockByBlock()
 			}
 		}
 	}()
@@ -37,26 +35,17 @@ func (e *Ethereum) Listen() error {
 }
 
 // BlockByBlock processes and stores the latest `count` blocks, one at a time.
-func (e *Ethereum) BlockByBlock(count int) error {
-	header, err := e.Factory.Eth.HeaderByNumber(e.Factory.Ctx, nil)
+func (e *Ethereum) BlockByBlock() error {
+	block, err := e.Factory.Eth.BlockByNumber(e.Factory.Ctx, e.Header)
 	if err != nil {
-		return fmt.Errorf("failed to get latest header: %w", err)
+		log.Printf("Error fetching block %d: %v", e.Header.Uint64(), err)
 	}
-	latestBlock := header.Number.Uint64()
-
-	for blockNum := latestBlock; blockNum > latestBlock-uint64(count); blockNum-- {
-		block, err := e.Factory.Eth.BlockByNumber(e.Factory.Ctx, big.NewInt(int64(blockNum)))
-		if err != nil {
-			log.Printf("Error fetching block %d: %v", blockNum, err)
-			continue
-		}
-		blockInfo := e.processBlock(e.Factory.Ctx, block)
-		err = e.StoreBlock(int64(blockInfo.Number), blockInfo)
-		if err != nil {
-			log.Printf("Error storing block %d: %v", blockInfo.Number, err)
-			continue
-		}
+	blockInfo := e.processBlock(e.Factory.Ctx, block)
+	err = e.StoreBlock(int64(blockInfo.Number), blockInfo)
+	if err != nil {
+		log.Printf("Error storing block %d: %v", blockInfo.Number, err)
 	}
+	fmt.Printf("%d\n", e.Header.Uint64())
 	return nil
 }
 
@@ -65,10 +54,9 @@ func (e *Ethereum) StoreBlock(blockNumber int64, block *Block) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal block: %w", err)
 	}
-	err = e.Factory.Data.RB.HSet(e.Factory.Ctx, "ethereum", strconv.Itoa(int(blockNumber)), blockJSON).Err()
+	err = e.Factory.Data.RB.SAdd(e.Factory.Ctx, "ethereum", blockJSON).Err()
 	if err != nil {
 		return fmt.Errorf("failed to store block in Redis hash: %w", err)
 	}
-	fmt.Printf("%d", blockNumber)
 	return nil
 }

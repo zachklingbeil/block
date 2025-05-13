@@ -10,7 +10,8 @@ func main() {
 	factory := factory.Assemble()
 	one := universe.NewZero(factory)
 
-	go ethereum.NewEthereum(factory, one)
+	eth := ethereum.NewEthereum(factory, one)
+	eth.Listen()
 	// go loopring.Connect(factory, one)
 	select {}
 }
