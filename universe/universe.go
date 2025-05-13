@@ -1,10 +1,9 @@
 package universe
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"math/big"
-	"strings"
 
 	"github.com/zachklingbeil/factory"
 )
@@ -14,7 +13,10 @@ type Zero struct {
 	One     []*One
 	Map     map[string]*One
 	Maps    *Maps
+	Format  *Format
 }
+
+type Format struct{}
 
 type One struct {
 	ENS         string `json:"ens,omitempty"`
@@ -46,9 +48,24 @@ func NewZero(factory *factory.Factory) *Zero {
 			Token:      make(map[string]*One),
 			ABI:        make(map[string]*One),
 		},
+		Format: &Format{},
 	}
 	z.LoadOnes()
 	return z
+}
+
+func (z *Zero) SyncOnesToRedis(ctx context.Context) error {
+	pipe := z.Factory.Data.RB.Pipeline()
+	for _, one := range z.One {
+		data, err := json.Marshal(one)
+		if err != nil {
+			return err
+		}
+		pipe.SAdd(ctx, "one", data)
+	}
+
+	_, err := pipe.Exec(ctx)
+	return err
 }
 
 func (z *Zero) Source(address string) *One {
@@ -66,20 +83,6 @@ func (z *Zero) LoopringId(id int64) *One {
 	return peer
 }
 
-func (z *Zero) Who(id int64) string {
-	peer := z.LoopringId(id)
-	if peer == nil {
-		return ""
-	}
-	if peer.ENS != "" && peer.ENS != "." {
-		return peer.ENS
-	}
-	if peer.LoopringENS != "" && peer.LoopringENS != "." && peer.LoopringENS != "!" {
-		return peer.LoopringENS
-	}
-	return peer.Address
-}
-
 func (z *Zero) TokenId(id int64) *One {
 	if id == 0 {
 		return &One{
@@ -93,29 +96,6 @@ func (z *Zero) TokenId(id int64) *One {
 	defer z.Factory.Rw.RUnlock()
 	token := z.Maps.TokenId[id]
 	return token
-}
-
-// Format formats a string input as a decimal string based on the given decimals.
-func (z *Zero) Format(input string, decimals int64) string {
-	value := new(big.Int)
-	_, ok := value.SetString(input, 10)
-	if !ok {
-		return input
-	}
-	valueStr := value.String()
-	dec := int(decimals)
-	if len(valueStr) <= dec {
-		paddedValue := strings.Repeat("0", dec-len(valueStr)+1) + valueStr
-		result := "0." + paddedValue
-		return strings.TrimRight(result, "0")
-	}
-
-	left := valueStr[:len(valueStr)-dec]
-	right := valueStr[len(valueStr)-dec:]
-	result := left + "." + right
-	result = strings.TrimRight(result, "0")
-	result = strings.TrimSuffix(result, ".")
-	return result
 }
 
 func (z *Zero) LoadOnes() error {

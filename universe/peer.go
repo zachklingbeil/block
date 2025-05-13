@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/wealdtech/go-ens/v3"
@@ -27,7 +26,7 @@ func (z *Zero) GetENS(peer *One) {
 	if err != nil || ensName == "" {
 		peer.ENS = "."
 	} else {
-		peer.ENS = z.FormatPeer(ensName)
+		peer.ENS = z.Format.Peer(ensName)
 	}
 }
 
@@ -47,7 +46,7 @@ func (z *Zero) GetLoopringENS(peer *One) {
 		case resp.Loopring == "":
 			peer.LoopringENS = "."
 		default:
-			peer.LoopringENS = z.FormatPeer(resp.Loopring)
+			peer.LoopringENS = z.Format.Peer(resp.Loopring)
 		}
 	}
 }
@@ -86,16 +85,8 @@ func (z *Zero) GetLoopringAddress(peer *One) {
 	case response.Address == "":
 		peer.Address = "."
 	default:
-		peer.Address = z.FormatPeer(response.Address)
+		peer.Address = z.Format.Peer(response.Address)
 	}
-}
-
-func (z *Zero) FormatPeer(address string) string {
-	address = strings.ToLower(address)
-	if strings.HasPrefix(address, "0x") || strings.HasSuffix(address, ".eth") {
-		return address
-	}
-	return address
 }
 
 func (z *Zero) input(url string, response any) error {

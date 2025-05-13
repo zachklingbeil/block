@@ -2,6 +2,7 @@ package loopring
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/big"
 
 	"github.com/zachklingbeil/block/universe"
@@ -95,29 +96,54 @@ type NftData struct {
 	Index      uint16 `json:"index"`
 }
 
+func (l *Loopring) Token(tokenId int64) string {
+	one := l.Zero.TokenId(tokenId)
+	if one != nil && one.Token != "" {
+		return one.Token
+	}
+	return fmt.Sprintf("%d", tokenId)
+}
+func (l *Loopring) Who(id int64) string {
+	peer := l.Zero.LoopringId(id)
+	if peer == nil {
+		return ""
+	}
+	if peer.ENS != "" && peer.ENS != "." {
+		return peer.ENS
+	}
+	if peer.LoopringENS != "" && peer.LoopringENS != "." && peer.LoopringENS != "!" {
+		return peer.LoopringENS
+	}
+	return peer.Address
+}
+
+func (l *Loopring) Decimals(tokenId int64) int64 {
+	one := l.Zero.TokenId(tokenId)
+	if one != nil && one.Decimals != 0 {
+		return one.Decimals
+	}
+	return 18
+}
 func (l *Loopring) SwapToTx(transaction any) universe.Tx {
 	var s Swap
 	mapToStruct(transaction, &s)
 	tx := universe.Tx{
-		Zero:     l.Zero.Who(s.Zero),
-		One:      l.Zero.Who(s.One),
-		Value:    l.Zero.Format(s.Value, l.Zero.TokenId(s.Token).Decimals),
-		Token:    l.Zero.TokenId(s.Token).Token,
-		For:      l.Zero.Format(s.For, l.Zero.TokenId(s.ForToken).Decimals),
-		ForToken: l.Zero.TokenId(s.ForToken).Token,
-		// Type:     "swap",
-		Index: s.Index,
+		Zero:     l.Who(s.Zero),
+		One:      l.Who(s.One),
+		Value:    l.Zero.Format.Value(s.Value, l.Decimals(s.Token)),
+		Token:    l.Token(s.Token),
+		For:      l.Zero.Format.Value(s.For, l.Decimals(s.ForToken)),
+		ForToken: l.Token(s.ForToken),
+		Index:    s.Index,
 	}
 
 	switch {
 	case s.ZeroFee != 0:
 		fee := calcFee(s.Value, s.ZeroFee)
-		tx.Fee = l.Zero.Format(fee, l.Zero.TokenId(s.Token).Decimals)
-		// tx.FeeToken = l.Zero.TokenId(s.Token).Token
+		tx.Fee = l.Zero.Format.Value(fee, l.Decimals(s.Token))
 	case s.OneFee != 0:
 		fee := calcFee(s.Value, s.OneFee)
-		tx.Fee = l.Zero.Format(fee, l.Zero.TokenId(s.Token).Decimals)
-		// tx.FeeToken = l.Zero.TokenId(s.ForToken).Token
+		tx.Fee = l.Zero.Format.Value(fee, l.Decimals(s.Token))
 	}
 	return tx
 }
@@ -135,17 +161,17 @@ func (l *Loopring) TransferToTx(transaction any) universe.Tx {
 	mapToStruct(transaction, &t)
 
 	tx := universe.Tx{
-		Zero:  l.Zero.Who(t.ZeroId),
-		One:   l.Zero.Who(t.OneId),
-		Value: l.Zero.Format(t.Value, l.Zero.TokenId(t.Token).Decimals),
-		Token: l.Zero.TokenId(t.Token).Token,
+		Zero:  l.Who(t.ZeroId),
+		One:   l.Who(t.OneId),
+		Value: l.Zero.Format.Value(t.Value, l.Decimals(t.Token)),
+		Token: l.Token(t.Token),
 		Index: t.Index,
 		// Type:  "transfer",
 	}
 
 	if t.Fee != "" && t.Fee != "0" {
-		tx.Fee = l.Zero.Format(t.Fee, l.Zero.TokenId(t.FeeToken).Decimals)
-		tx.FeeToken = l.Zero.TokenId(t.FeeToken).Token
+		tx.Fee = l.Zero.Format.Value(t.Fee, l.Decimals(t.FeeToken))
+		tx.FeeToken = l.Token(t.FeeToken)
 	}
 	return tx
 }
@@ -155,9 +181,9 @@ func (l *Loopring) DepositToTx(transaction any) universe.Tx {
 	mapToStruct(transaction, &d)
 
 	return universe.Tx{
-		Zero:  l.Zero.Who(d.ZeroId),
-		Value: l.Zero.Format(d.Value, l.Zero.TokenId(d.Token).Decimals),
-		Token: l.Zero.TokenId(d.Token).Token,
+		Zero:  l.Who(d.ZeroId),
+		Value: l.Zero.Format.Value(d.Value, l.Decimals(d.Token)),
+		Token: l.Token(d.Token),
 		Type:  "deposit",
 		Index: d.Index,
 	}
@@ -168,16 +194,16 @@ func (l *Loopring) WithdrawToTx(transaction any) universe.Tx {
 	mapToStruct(transaction, &w)
 
 	tx := universe.Tx{
-		Zero:     l.Zero.Who(w.ZeroId),
-		Value:    l.Zero.Format(w.Value, l.Zero.TokenId(w.Token).Decimals),
-		Token:    l.Zero.TokenId(w.Token).Token,
+		Zero:     l.Who(w.ZeroId),
+		Value:    l.Zero.Format.Value(w.Value, l.Decimals(w.Token)),
+		Token:    l.Token(w.Token),
 		Type:     "withdraw",
 		Index:    w.Index,
-		FeeToken: l.Zero.TokenId(w.FeeToken).Token,
+		FeeToken: l.Token(w.FeeToken),
 	}
 	switch {
 	case w.Fee != "" && w.Fee != "0":
-		tx.Fee = l.Zero.Format(w.Fee, l.Zero.TokenId(w.FeeToken).Decimals)
+		tx.Fee = l.Zero.Format.Value(w.Fee, l.Decimals(w.FeeToken))
 	}
 	return tx
 }
@@ -186,7 +212,7 @@ func (l *Loopring) AccountUpdateToTx(transaction any) universe.Tx {
 	var a AccountUpdate
 	mapToStruct(transaction, &a)
 	return universe.Tx{
-		Zero:  l.Zero.Who(a.ZeroId),
+		Zero:  l.Who(a.ZeroId),
 		Type:  "accountUpdate",
 		Index: a.Index,
 		Nonce: a.Nonce,
@@ -197,7 +223,7 @@ func (l *Loopring) AmmUpdateToTx(transaction any) universe.Tx {
 	var a AmmUpdate
 	mapToStruct(transaction, &a)
 	return universe.Tx{
-		Zero:  l.Zero.Who(a.ZeroId),
+		Zero:  l.Who(a.ZeroId),
 		Type:  "ammUpdate",
 		Index: a.Index,
 		Nonce: a.Nonce,
@@ -208,17 +234,16 @@ func (l *Loopring) MintToTx(transaction any) universe.Tx {
 	var m Mint
 	mapToStruct(transaction, &m)
 	tx := universe.Tx{
-		Zero:     l.Zero.Who(m.ZeroId),
+		Zero:     l.Who(m.ZeroId),
 		Value:    m.Quantity,
 		Token:    m.NftAddress,
 		Type:     "mint",
 		Index:    m.Index,
-		FeeToken: l.Zero.TokenId(m.FeeToken).Token,
+		FeeToken: l.Token(m.FeeToken),
 	}
 
 	if m.Fee != "" && m.Fee != "0" {
-		tx.Fee = l.Zero.Format(m.Fee, l.Zero.TokenId(m.FeeToken).Decimals)
-
+		tx.Fee = l.Zero.Format.Value(m.Fee, l.Decimals(m.FeeToken))
 	}
 	return tx
 }
@@ -227,7 +252,7 @@ func (l *Loopring) NftDataToTx(transaction any) universe.Tx {
 	var n NftData
 	mapToStruct(transaction, &n)
 	return universe.Tx{
-		Zero:  l.Zero.Who(n.ZeroId),
+		Zero:  l.Who(n.ZeroId),
 		Type:  "nft",
 		Index: n.Index,
 		Raw:   []byte(n.NftData),

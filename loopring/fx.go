@@ -9,6 +9,7 @@ import (
 )
 
 func (l *Loopring) Loop() error {
+	latestBlock := l.CurrentBlock()
 	blocks, _ := l.Factory.State.Get("loop.block")
 	startBlock := int64(1)
 
@@ -20,7 +21,7 @@ func (l *Loopring) Loop() error {
 			return fmt.Errorf("invalid type for blocks")
 		}
 	}
-	for i := startBlock; ; i++ {
+	for i := startBlock; i <= latestBlock; i++ {
 		fmt.Println(i)
 		if err := l.BlockByBlock(i); err != nil {
 			log.Error("Failed to process block %d: %v", i, err)
@@ -29,6 +30,23 @@ func (l *Loopring) Loop() error {
 		l.Factory.State.Count("loop.block", i)
 	}
 	return nil
+}
+
+func (l *Loopring) CurrentBlock() int64 {
+	data, err := l.Factory.Json.In("https://api3.loopring.io/api/v3/block/getBlock", "")
+	if err != nil {
+		fmt.Printf("Failed to fetch block data: %v\n", err)
+		return 0
+	}
+	var block struct {
+		Number int64 `json:"blockId"`
+	}
+	err = json.Unmarshal(data, &block)
+	if err != nil {
+		fmt.Printf("Failed to parse block data: %v\n", err)
+		return 0
+	}
+	return block.Number
 }
 
 func (l *Loopring) BlockByBlock(blockNumber int64) error {
@@ -64,36 +82,6 @@ func (l *Loopring) FetchBlock(number int64) *universe.Raw {
 	}
 	return input
 }
-
-// func (l *Loopring) Coordinates(loop *Raw) ([]any, *Block) {
-// 	for i := range loop.Transactions {
-// 		if tx, ok := loop.Transactions[i].(map[string]any); ok {
-// 			tx["index"] = i + 1
-// 		}
-// 	}
-// 	transactions := l.Factory.Json.Simplify(loop.Transactions, "")
-// 	depth := uint16(len(transactions))
-
-// 	t := time.UnixMilli(loop.Timestamp)
-// 	coordinate := Coordinate{
-// 		Year:        uint8(t.Year() - 2015),
-// 		Month:       uint8(t.Month()),
-// 		Day:         uint8(t.Day()),
-// 		Hour:        uint8(t.Hour()),
-// 		Minute:      uint8(t.Minute()),
-// 		Second:      uint8(t.Second()),
-// 		Millisecond: uint16(t.Nanosecond() / 1e6),
-// 		Index:       0,
-// 		Depth:       depth,
-// 	}
-
-// 	block := &Block{
-// 		Number: loop.Number,
-// 		Zero:   coordinate,
-// 		Ones:   make([]Tx, depth),
-// 	}
-// 	return transactions, block
-// }
 
 func (l *Loopring) ProcessBlock(transactions []any) []universe.Tx {
 	var txs []universe.Tx
