@@ -1,57 +1,72 @@
 package ethereum
 
 import (
-	"log"
+	"context"
+	"fmt"
 	"math/big"
-	"strings"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/zachklingbeil/block/universe"
 	"github.com/zachklingbeil/factory"
 )
 
 type Ethereum struct {
-	Factory        *factory.Factory
-	Zero           *universe.Zero
-	Chain          *params.ChainConfig
-	Block          *types.Block
-	Signature      map[string]string
-	EventSignature map[string]string
-	ABIs           map[string]abi.ABI // address → ABI
-	Header         *big.Int
+	Factory    *factory.Factory
+	Chain      *params.ChainConfig
+	SigService *SigProvider
 }
 
-func NewEthereum(factory *factory.Factory, zero *universe.Zero) *Ethereum {
-	eth := &Ethereum{
-		Factory:   factory,
-		Zero:      zero,
-		Chain:     params.MainnetChainConfig,
-		ABIs:      make(map[string]abi.ABI),
-		Signature: make(map[string]string),
+func New(factory *factory.Factory, ethURL, sigProviderURL string) (*Ethereum, error) {
+
+	ethereum := &Ethereum{
+		Factory:    factory,
+		Chain:      params.MainnetChainConfig,
+		SigService: NewSigProvider(sigProviderURL),
 	}
-	eth.LoadSignatures()
-	eth.PopulateABIs()
-	return eth
+	return ethereum, nil
 }
 
-// PopulateABIs loads and parses all contract ABIs into the ABIs map.
-func (e *Ethereum) PopulateABIs() {
-	for addr, abiJSON := range e.Zero.Maps.ABI {
-		if abiJSON.ABI == "" || abiJSON.ABI == "." {
-			continue
+func (e *Ethereum) FetchAndDecodeBlock(ctx context.Context, blockNum int64) (*types.Block, []map[string]interface{}, []map[string]interface{}, error) {
+	block, err := e.Factory.Eth.BlockByNumber(ctx, big.NewInt(blockNum))
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	var decodedInputs []map[string]interface{}
+	var decodedEvents []map[string]interface{}
+
+	for _, tx := range block.Transactions() {
+		// Decode transaction input
+		if len(tx.Data()) > 0 {
+			input, err := e.SigService.DecodeFunctionInput(fmt.Sprintf("0x%x", tx.Data()))
+			if err == nil && len(input) > 0 {
+				decodedInputs = append(decodedInputs, input...)
+			}
 		}
-		parsedABI, err := abi.JSON(strings.NewReader(abiJSON.ABI))
+
+		// Fetch receipt and decode logs/events
+		receipt, err := e.Factory.Eth.TransactionReceipt(ctx, tx.Hash())
 		if err != nil {
-			log.Printf("Failed to parse ABI for %s: %v", addr, err)
-			continue
+			continue // skip if receipt not found
 		}
-		e.ABIs[addr] = parsedABI
+		for _, logEntry := range receipt.Logs {
+			topics := make([]string, len(logEntry.Topics))
+			for i, t := range logEntry.Topics {
+				topics[i] = t.Hex()
+			}
+			dataHex := fmt.Sprintf("0x%x", logEntry.Data)
+			var topic string
+			if len(topics) > 0 {
+				topic = topics[0]
+			} else {
+				topic = ""
+			}
+			decoded, err := e.SigService.DecodeEvent(dataHex, topic)
+			if err == nil && len(decoded) > 0 {
+				decodedEvents = append(decodedEvents, decoded...)
+			}
+		}
 	}
-}
 
-// Signer returns a signer for Ethereum mainnet at the given block number and time.
-func (e *Ethereum) Signer(blockNumber *big.Int, blockTime uint64) types.Signer {
-	return types.MakeSigner(e.Chain, blockNumber, blockTime)
+	return block, decodedInputs, decodedEvents, nil
 }
