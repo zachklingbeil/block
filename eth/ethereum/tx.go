@@ -58,17 +58,17 @@ package ethereum
 // 	}
 // }
 
-// Who returns the ENS, Token, or Address for a given hex address.
-func (e *Ethereum) Who(hex string) string {
-	one := e.Zero.Source(hex)
-	if one == nil {
-		return hex
-	}
-	if one.ENS != "" && one.ENS != "." {
-		return one.ENS
-	}
-	if one.Token != "" {
-		return one.Token
-	}
-	return one.Address
-}
+// // Who returns the ENS, Token, or Address for a given hex address.
+// func (e *Ethereum) Who(hex string) string {
+// 	one := e.Zero.Source(hex)
+// 	if one == nil {
+// 		return hex
+// 	}
+// 	if one.ENS != "" && one.ENS != "." {
+// 		return one.ENS
+// 	}
+// 	if one.Token != "" {
+// 		return one.Token
+// 	}
+// 	return one.Address
+// }
