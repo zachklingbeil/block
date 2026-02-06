@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/zachklingbeil/factory"
 )
 
 type Zero struct {
@@ -37,7 +36,7 @@ type Maps struct {
 	ABI     map[string]*One
 }
 
-func NewZero(factory *factory.Factory) *Zero {
+func NewZero() *Zero {
 	z := &Zero{
 		// Factory: factory,
 		Map: make(map[string]*One),

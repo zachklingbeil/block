@@ -1,37 +1,30 @@
 package ethereum
 
-import (
-	"fmt"
-	"log"
+// // ListenForNewBlocksIPC subscribes to new block headers using IPC and updates e.Header.
+// func (e *Ethereum) Listen() error {
+// 	headers := make(chan *types.Header)
+// 	sub, err := e.Factory.Eth.SubscribeNewHead(e.Factory.Ctx, headers)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to subscribe to new heads: %w", err)
+// 	}
 
-	"github.com/ethereum/go-ethereum/core/types"
-)
-
-// ListenForNewBlocksIPC subscribes to new block headers using IPC and updates e.Header.
-func (e *Ethereum) Listen() error {
-	headers := make(chan *types.Header)
-	sub, err := e.Factory.Eth.SubscribeNewHead(e.Factory.Ctx, headers)
-	if err != nil {
-		return fmt.Errorf("failed to subscribe to new heads: %w", err)
-	}
-
-	go func() {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case <-e.Factory.Ctx.Done():
-				return
-			case err := <-sub.Err():
-				log.Printf("Subscription error: %v", err)
-				return
-			case header := <-headers:
-				e.Header = header.Number
-				e.BlockByBlock()
-			}
-		}
-	}()
-	return nil
-}
+// 	go func() {
+// 		defer sub.Unsubscribe()
+// 		for {
+// 			select {
+// 			case <-e.Factory.Ctx.Done():
+// 				return
+// 			case err := <-sub.Err():
+// 				log.Printf("Subscription error: %v", err)
+// 				return
+// 			case header := <-headers:
+// 				e.Header = header.Number
+// 				e.BlockByBlock()
+// 			}
+// 		}
+// 	}()
+// 	return nil
+// }
 
 // // BlockByBlock processes and stores the latest block, one at a time.
 // func (e *Ethereum) BlockByBlock() error {
