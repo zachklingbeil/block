@@ -19,12 +19,12 @@ func Init(url string) *Fx {
 }
 
 func (fx *Fx) Test() error {
-	raw, err := fx.Block(nil)
+	block, err := fx.Block(nil)
 	if err != nil {
 		return fmt.Errorf("Block: %w", err)
 	}
 
-	output, err := json.MarshalIndent(json.RawMessage(raw), "", "  ")
+	output, err := json.MarshalIndent(block, "", "  ")
 	if err != nil {
 		return fmt.Errorf("MarshalIndent: %w", err)
 	}
