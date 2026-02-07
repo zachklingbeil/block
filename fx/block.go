@@ -5,17 +5,44 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 type Block struct {
-	Number       *big.Int      `json:"number"`
-	Hash         common.Hash   `json:"hash"`
-	ParentHash   common.Hash   `json:"parentHash"`
-	Timestamp    uint64        `json:"timestamp"`
-	GasLimit     uint64        `json:"gasLimit"`
-	GasUsed      uint64        `json:"gasUsed"`
-	BaseFee      *big.Int      `json:"baseFeePerGas,omitempty"`
-	Transactions []common.Hash `json:"transactions"`
+	Number       *big.Int       `json:"number"`
+	Hash         common.Hash    `json:"hash"`
+	ParentHash   common.Hash    `json:"parentHash"`
+	Timestamp    uint64         `json:"timestamp"`
+	GasLimit     uint64         `json:"gasLimit"`
+	GasUsed      uint64         `json:"gasUsed"`
+	BaseFee      *big.Int       `json:"baseFeePerGas,omitempty"`
+	Transactions []*Transaction `json:"transactions"`
+}
+
+// Transaction pairs the intent with the outcome.
+type Transaction struct {
+	// Intent
+	Hash      common.Hash     `json:"hash"`
+	Nonce     uint64          `json:"nonce"`
+	To        *common.Address `json:"to,omitempty"`
+	Value     *big.Int        `json:"value"`
+	Gas       uint64          `json:"gas"`
+	GasPrice  *big.Int        `json:"gasPrice"`
+	GasTipCap *big.Int        `json:"maxPriorityFeePerGas,omitempty"`
+	GasFeeCap *big.Int        `json:"maxFeePerGas,omitempty"`
+	Data      []byte          `json:"input"`
+	Type      uint8           `json:"type"`
+	ChainID   *big.Int        `json:"chainId"`
+
+	// Outcome
+	Status            uint64         `json:"status"`
+	GasUsed           uint64         `json:"gasUsed"`
+	CumulativeGasUsed uint64         `json:"cumulativeGasUsed"`
+	EffectiveGasPrice *big.Int       `json:"effectiveGasPrice"`
+	ContractAddress   common.Address `json:"contractAddress,omitempty"`
+	BlobGasUsed       uint64         `json:"blobGasUsed,omitempty"`
+	BlobGasPrice      *big.Int       `json:"blobGasPrice,omitempty"`
+	Logs              []*types.Log   `json:"logs"`
 }
 
 func (fx *Fx) Block(number *big.Int) (*Block, error) {
@@ -24,9 +51,35 @@ func (fx *Fx) Block(number *big.Int) (*Block, error) {
 		return nil, fmt.Errorf("block: %w", err)
 	}
 
-	txs := make([]common.Hash, len(block.Transactions()))
+	txs := make([]*Transaction, len(block.Transactions()))
 	for i, tx := range block.Transactions() {
-		txs[i] = tx.Hash()
+		r, err := fx.Eth.TransactionReceipt(fx.Context, tx.Hash())
+		if err != nil {
+			return nil, fmt.Errorf("receipt[%d]: %w", i, err)
+		}
+
+		txs[i] = &Transaction{
+			Hash:      tx.Hash(),
+			Nonce:     tx.Nonce(),
+			To:        tx.To(),
+			Value:     tx.Value(),
+			Gas:       tx.Gas(),
+			GasPrice:  tx.GasPrice(),
+			GasTipCap: tx.GasTipCap(),
+			GasFeeCap: tx.GasFeeCap(),
+			Data:      tx.Data(),
+			Type:      tx.Type(),
+			ChainID:   tx.ChainId(),
+
+			Status:            r.Status,
+			GasUsed:           r.GasUsed,
+			CumulativeGasUsed: r.CumulativeGasUsed,
+			EffectiveGasPrice: r.EffectiveGasPrice,
+			ContractAddress:   r.ContractAddress,
+			BlobGasUsed:       r.BlobGasUsed,
+			BlobGasPrice:      r.BlobGasPrice,
+			Logs:              r.Logs,
+		}
 	}
 
 	return &Block{
