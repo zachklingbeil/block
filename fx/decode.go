@@ -4,12 +4,16 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"math/big"
+	"reflect"
 	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/timefactoryio/block/zero/proto/bytecodedb"
 	"github.com/timefactoryio/block/zero/proto/sigprovider"
@@ -19,75 +23,71 @@ import (
 // output types
 
 type DecodedMethod struct {
-	Selector  string            `json:"selector"`
-	Name      string            `json:"name,omitempty"`
-	Signature string            `json:"signature,omitempty"`
-	Params    map[string]string `json:"params,omitempty"`
+	Selector  string         `json:"selector"`
+	Name      string         `json:"name,omitempty"`
+	Signature string         `json:"signature,omitempty"`
+	Params    map[string]any `json:"params,omitempty"`
 }
 
 type DecodedEvent struct {
-	Index     uint              `json:"index"`
-	Address   common.Address    `json:"address"`
-	Topic     common.Hash       `json:"topic"`
-	Name      string            `json:"name,omitempty"`
-	Signature string            `json:"signature,omitempty"`
-	Params    map[string]string `json:"params,omitempty"`
+	Index     uint           `json:"index"`
+	Address   string         `json:"address"`
+	Topic     string         `json:"topic"`
+	Name      string         `json:"name,omitempty"`
+	Signature string         `json:"signature,omitempty"`
+	Params    map[string]any `json:"params,omitempty"`
 }
 
 type DecodedUserOp struct {
-	Sender   common.Address `json:"sender"`
+	Sender   string         `json:"sender"`
 	Nonce    string         `json:"nonce"`
-	CallData hexutil.Bytes  `json:"callData"`
+	CallData string         `json:"callData,omitempty"`
 	Method   *DecodedMethod `json:"method,omitempty"`
 }
 
 type DecodedTx struct {
-	// transaction fields
-	Hash           common.Hash      `json:"hash"`
-	Nonce          uint64           `json:"nonce"`
-	From           common.Address   `json:"from"`
-	To             *common.Address  `json:"to,omitempty"`
-	Value          *hexutil.Big     `json:"value"`
-	Input          hexutil.Bytes    `json:"input"`
-	Type           uint8            `json:"type"`
-	Gas            uint64           `json:"gas"`
-	GasPrice       *hexutil.Big     `json:"gasPrice,omitempty"`
-	MaxFeePerGas   *hexutil.Big     `json:"maxFeePerGas,omitempty"`
-	MaxPriorityFee *hexutil.Big     `json:"maxPriorityFeePerGas,omitempty"`
-	ChainID        *hexutil.Big     `json:"chainId,omitempty"`
-	AccessList     types.AccessList `json:"accessList,omitempty"`
-	BlobGas        uint64           `json:"blobGas,omitempty"`
-	BlobGasFeeCap  *hexutil.Big     `json:"maxFeePerBlobGas,omitempty"`
-	BlobHashes     []common.Hash    `json:"blobVersionedHashes,omitempty"`
-	V              *hexutil.Big     `json:"v"`
-	R              *hexutil.Big     `json:"r"`
-	S              *hexutil.Big     `json:"s"`
+	Hash              string           `json:"hash"`
+	Nonce             uint64           `json:"nonce"`
+	From              string           `json:"from"`
+	To                string           `json:"to,omitempty"`
+	Value             string           `json:"value"`
+	Input             string           `json:"input,omitempty"`
+	Type              string           `json:"type"`
+	Gas               uint64           `json:"gas"`
+	GasPrice          string           `json:"gasPrice,omitempty"`
+	MaxFeePerGas      string           `json:"maxFeePerGas,omitempty"`
+	MaxPriorityFee    string           `json:"maxPriorityFeePerGas,omitempty"`
+	ChainID           string           `json:"chainId,omitempty"`
+	AccessList        []AccessListItem `json:"accessList,omitempty"`
+	BlobGas           uint64           `json:"blobGas,omitempty"`
+	BlobGasFeeCap     string           `json:"maxFeePerBlobGas,omitempty"`
+	BlobHashes        []string         `json:"blobVersionedHashes,omitempty"`
+	Status            string           `json:"status"`
+	GasUsed           uint64           `json:"gasUsed"`
+	EffectiveGasPrice string           `json:"effectiveGasPrice"`
+	CumulativeGasUsed uint64           `json:"cumulativeGasUsed"`
+	ContractAddress   string           `json:"contractAddress,omitempty"`
+	Deploy            bool             `json:"deploy,omitempty"`
+	Method            *DecodedMethod   `json:"method,omitempty"`
+	Events            []DecodedEvent   `json:"events"`
+	UserOps           []DecodedUserOp  `json:"userOps,omitempty"`
+}
 
-	// receipt fields
-	Status            uint64          `json:"status"`
-	GasUsed           uint64          `json:"gasUsed"`
-	EffectiveGasPrice *hexutil.Big    `json:"effectiveGasPrice"`
-	CumulativeGasUsed uint64          `json:"cumulativeGasUsed"`
-	ContractAddress   *common.Address `json:"contractAddress,omitempty"`
-
-	// decoded fields
-	Deploy  bool            `json:"deploy,omitempty"`
-	Method  *DecodedMethod  `json:"method,omitempty"`
-	Events  []DecodedEvent  `json:"events"`
-	UserOps []DecodedUserOp `json:"userOps,omitempty"`
+type AccessListItem struct {
+	Address     string   `json:"address"`
+	StorageKeys []string `json:"storageKeys"`
 }
 
 type DecodedBlock struct {
-	Number     *hexutil.Big   `json:"number"`
-	Hash       common.Hash    `json:"hash"`
-	ParentHash common.Hash    `json:"parentHash"`
-	Timestamp  hexutil.Uint64 `json:"timestamp"`
-	GasUsed    hexutil.Uint64 `json:"gasUsed"`
-	GasLimit   hexutil.Uint64 `json:"gasLimit"`
-	BaseFee    *hexutil.Big   `json:"baseFeePerGas,omitempty"`
-	Miner      common.Address `json:"miner"`
-	Txs        []DecodedTx    `json:"transactions"`
-	Signer     types.Signer   `json:"-"`
+	Number     string      `json:"number"`
+	Hash       string      `json:"hash"`
+	ParentHash string      `json:"parentHash"`
+	Timestamp  string      `json:"timestamp"`
+	GasUsed    uint64      `json:"gasUsed"`
+	GasLimit   uint64      `json:"gasLimit"`
+	BaseFee    string      `json:"baseFeePerGas,omitempty"`
+	Miner      string      `json:"miner"`
+	Txs        []DecodedTx `json:"transactions"`
 }
 
 var entryPoints = map[common.Address]bool{
@@ -97,6 +97,92 @@ var entryPoints = map[common.Address]bool{
 
 // helper functions
 
+func weiToEther(wei *big.Int) string {
+	if wei == nil {
+		return "0 ETH"
+	}
+	ether := new(big.Float).Quo(
+		new(big.Float).SetInt(wei),
+		new(big.Float).SetInt(big.NewInt(params.Ether)),
+	)
+	return fmt.Sprintf("%s ETH", ether.Text('f', 18))
+}
+
+func weiToGwei(wei *big.Int) string {
+	if wei == nil {
+		return "0 Gwei"
+	}
+	gwei := new(big.Float).Quo(
+		new(big.Float).SetInt(wei),
+		new(big.Float).SetInt(big.NewInt(params.GWei)),
+	)
+	return fmt.Sprintf("%s Gwei", gwei.Text('f', 9))
+}
+
+func formatTimestamp(ts uint64) string {
+	return time.Unix(int64(ts), 0).UTC().Format(time.RFC3339)
+}
+
+func txTypeToString(txType uint8) string {
+	switch txType {
+	case 0:
+		return "Legacy"
+	case 1:
+		return "EIP-2930 (Access List)"
+	case 2:
+		return "EIP-1559 (Dynamic Fee)"
+	case 3:
+		return "EIP-4844 (Blob)"
+	default:
+		return fmt.Sprintf("Unknown (%d)", txType)
+	}
+}
+
+func statusToString(status uint64) string {
+	if status == 1 {
+		return "Success"
+	}
+	return "Failed"
+}
+
+func formatValue(argType abi.Type, value any) any {
+	switch argType.T {
+	case abi.AddressTy:
+		if addr, ok := value.(common.Address); ok {
+			return addr.Hex()
+		}
+	case abi.UintTy, abi.IntTy:
+		if v, ok := value.(*big.Int); ok {
+			// Try to detect if it's a wei amount (> 1000 gwei suggests it might be)
+			if v.Cmp(big.NewInt(params.GWei*1000)) > 0 {
+				return weiToEther(v)
+			}
+			return v.String()
+		}
+	case abi.BytesTy, abi.FixedBytesTy:
+		if b, ok := value.([]byte); ok {
+			return hexutil.Encode(b)
+		}
+	case abi.StringTy:
+		return value
+	case abi.BoolTy:
+		return value
+	case abi.SliceTy, abi.ArrayTy:
+		if argType.Elem != nil {
+			// Format array elements
+			if reflect.TypeOf(value).Kind() == reflect.Slice {
+				s := reflect.ValueOf(value)
+				result := make([]any, s.Len())
+				for i := 0; i < s.Len(); i++ {
+					result[i] = formatValue(*argType.Elem, s.Index(i).Interface())
+				}
+				return result
+			}
+		}
+	}
+	return fmt.Sprintf("%v", value)
+}
+
 func firstAbi(abis []*sigprovider.Abi) *sigprovider.Abi {
 	if len(abis) > 0 {
 		return abis[0]
@@ -104,15 +190,17 @@ func firstAbi(abis []*sigprovider.Abi) *sigprovider.Abi {
 	return nil
 }
 
-func unpackArgs(args abi.Arguments, data []byte) (map[string]string, error) {
+func unpackArgs(args abi.Arguments, data []byte) (map[string]any, error) {
 	values, err := args.Unpack(data)
 	if err != nil {
 		return nil, err
 	}
 
-	params := make(map[string]string, len(args))
+	params := make(map[string]any, len(args))
 	for i, arg := range args {
-		params[arg.Name] = fmt.Sprintf("%v", values[i])
+		if i < len(values) {
+			params[arg.Name] = formatValue(arg.Type, values[i])
+		}
 	}
 	return params, nil
 }
@@ -128,10 +216,11 @@ func splitEventInputs(event *abi.Event) (indexed, nonIndexed abi.Arguments) {
 	return
 }
 
-func decodeTopics(indexed abi.Arguments, topics []common.Hash) map[string]string {
-	params := make(map[string]string)
+func decodeTopics(indexed abi.Arguments, topics []common.Hash) map[string]any {
+	params := make(map[string]any)
 	for i, arg := range indexed {
 		if i+1 < len(topics) {
+			// Indexed parameters are hashed, show the hash
 			params[arg.Name] = topics[i+1].Hex()
 		}
 	}
@@ -291,11 +380,18 @@ func (f *Fx) lookupUserOps(ctx context.Context, txHash common.Hash) []DecodedUse
 		if err != nil {
 			continue
 		}
-		ops = append(ops, DecodedUserOp{
-			Sender:   common.HexToAddress(full.GetSender()),
-			Nonce:    full.GetNonce(),
-			CallData: common.FromHex(full.GetCallData()),
-		})
+
+		callData := full.GetCallData()
+		op := DecodedUserOp{
+			Sender: full.GetSender(),
+			Nonce:  full.GetNonce(),
+		}
+
+		if callData != "" && callData != "0x" {
+			op.CallData = callData
+		}
+
+		ops = append(ops, op)
 	}
 	return ops
 }
@@ -307,7 +403,8 @@ func (f *Fx) decodeMethod(contractABI *abi.ABI, data []byte) *DecodedMethod {
 		return nil
 	}
 
-	dm := &DecodedMethod{Selector: hexutil.Encode(data[:4])}
+	selector := hexutil.Encode(data[:4])
+	dm := &DecodedMethod{Selector: selector}
 
 	if contractABI != nil {
 		method, err := contractABI.MethodById(data[:4])
@@ -315,23 +412,26 @@ func (f *Fx) decodeMethod(contractABI *abi.ABI, data []byte) *DecodedMethod {
 			dm.Name = method.Name
 			dm.Signature = method.Sig
 			dm.Params, _ = unpackArgs(method.Inputs, data[4:])
+			return dm
 		}
 	}
 
+	// Fallback: show it's unknown
+	dm.Name = "Unknown"
 	return dm
 }
 
 func (f *Fx) decodeEvent(contractABI *abi.ABI, log *types.Log) DecodedEvent {
 	de := DecodedEvent{
 		Index:   log.Index,
-		Address: log.Address,
+		Address: log.Address.Hex(),
 	}
 
 	if len(log.Topics) == 0 {
 		return de
 	}
 
-	de.Topic = log.Topics[0]
+	de.Topic = log.Topics[0].Hex()
 
 	if contractABI != nil {
 		event, err := contractABI.EventByID(log.Topics[0])
@@ -347,9 +447,12 @@ func (f *Fx) decodeEvent(contractABI *abi.ABI, log *types.Log) DecodedEvent {
 					maps.Copy(de.Params, dataParams)
 				}
 			}
+			return de
 		}
 	}
 
+	// Fallback: show it's unknown
+	de.Name = "Unknown"
 	return de
 }
 
@@ -370,59 +473,91 @@ func (f *Fx) collectSelectors(block *Block) []string {
 
 func (f *Fx) decodeTx(t Transaction, contractABI *abi.ABI, funcAbis, eventAbis map[string]*sigprovider.Abi, ctx context.Context) DecodedTx {
 	tx := t.Tx
-	v, r, s := tx.RawSignatureValues()
 
 	dt := DecodedTx{
-		Hash:              tx.Hash(),
+		Hash:              tx.Hash().Hex(),
 		Nonce:             tx.Nonce(),
-		From:              t.From,
-		To:                tx.To(),
-		Value:             (*hexutil.Big)(tx.Value()),
-		Input:             tx.Data(),
-		Type:              tx.Type(),
+		From:              t.From.Hex(),
+		Value:             weiToEther(tx.Value()),
+		Type:              txTypeToString(tx.Type()),
 		Gas:               tx.Gas(),
-		GasPrice:          (*hexutil.Big)(tx.GasPrice()),
-		ChainID:           (*hexutil.Big)(tx.ChainId()),
-		V:                 (*hexutil.Big)(v),
-		R:                 (*hexutil.Big)(r),
-		S:                 (*hexutil.Big)(s),
-		Status:            t.Receipt.Status,
+		Status:            statusToString(t.Receipt.Status),
 		GasUsed:           t.Receipt.GasUsed,
-		EffectiveGasPrice: (*hexutil.Big)(t.Receipt.EffectiveGasPrice),
+		EffectiveGasPrice: weiToGwei(t.Receipt.EffectiveGasPrice),
 		CumulativeGasUsed: t.Receipt.CumulativeGasUsed,
 		Events:            make([]DecodedEvent, 0, len(t.Receipt.Logs)),
 	}
 
+	if tx.To() != nil {
+		dt.To = tx.To().Hex()
+	}
+
+	if tx.ChainId() != nil {
+		dt.ChainID = tx.ChainId().String()
+	}
+
+	if tx.GasPrice() != nil {
+		dt.GasPrice = weiToGwei(tx.GasPrice())
+	}
+
 	if tx.Type() >= 1 {
-		dt.AccessList = tx.AccessList()
+		accessList := tx.AccessList()
+		dt.AccessList = make([]AccessListItem, len(accessList))
+		for i, item := range accessList {
+			keys := make([]string, len(item.StorageKeys))
+			for j, key := range item.StorageKeys {
+				keys[j] = key.Hex()
+			}
+			dt.AccessList[i] = AccessListItem{
+				Address:     item.Address.Hex(),
+				StorageKeys: keys,
+			}
+		}
 	}
+
 	if tx.Type() >= 2 {
-		dt.MaxFeePerGas = (*hexutil.Big)(tx.GasFeeCap())
-		dt.MaxPriorityFee = (*hexutil.Big)(tx.GasTipCap())
+		if tx.GasFeeCap() != nil {
+			dt.MaxFeePerGas = weiToGwei(tx.GasFeeCap())
+		}
+		if tx.GasTipCap() != nil {
+			dt.MaxPriorityFee = weiToGwei(tx.GasTipCap())
+		}
 	}
+
 	if tx.Type() == 3 {
 		dt.BlobGas = tx.BlobGas()
-		dt.BlobGasFeeCap = (*hexutil.Big)(tx.BlobGasFeeCap())
-		dt.BlobHashes = tx.BlobHashes()
+		if tx.BlobGasFeeCap() != nil {
+			dt.BlobGasFeeCap = weiToGwei(tx.BlobGasFeeCap())
+		}
+		hashes := tx.BlobHashes()
+		dt.BlobHashes = make([]string, len(hashes))
+		for i, h := range hashes {
+			dt.BlobHashes[i] = h.Hex()
+		}
 	}
 
 	if t.Receipt.ContractAddress != (common.Address{}) {
-		dt.ContractAddress = &t.Receipt.ContractAddress
-	}
-
-	if tx.To() == nil {
+		dt.ContractAddress = t.Receipt.ContractAddress.Hex()
 		dt.Deploy = true
 		return dt
 	}
 
-	dt.Method = f.decodeMethod(contractABI, tx.Data())
-	if dt.Method != nil {
-		applyFallbackName(&dt.Method.Name, funcAbis, dt.Method.Selector)
+	// Only show input if it's not a simple transfer and method decode failed
+	txData := tx.Data()
+	if len(txData) > 0 {
+		dt.Method = f.decodeMethod(contractABI, txData)
+		if dt.Method != nil {
+			applyFallbackName(&dt.Method.Name, funcAbis, dt.Method.Selector)
+			// Only show raw input if method is unknown
+			if dt.Method.Name == "Unknown" {
+				dt.Input = hexutil.Encode(txData)
+			}
+		}
 	}
 
 	for _, log := range t.Receipt.Logs {
 		logABI := contractABI
-		if log.Address != *tx.To() {
+		if tx.To() != nil && log.Address != *tx.To() {
 			logABI = f.lookupABI(ctx, log.Address)
 		}
 
@@ -434,12 +569,15 @@ func (f *Fx) decodeTx(t Transaction, contractABI *abi.ABI, funcAbis, eventAbis m
 		dt.Events = append(dt.Events, de)
 	}
 
-	if entryPoints[*tx.To()] {
+	if tx.To() != nil && entryPoints[*tx.To()] {
 		ops := f.lookupUserOps(ctx, tx.Hash())
 		for j := range ops {
-			if len(ops[j].CallData) >= 4 {
-				opABI := f.lookupABI(ctx, ops[j].Sender)
-				ops[j].Method = f.decodeMethod(opABI, ops[j].CallData)
+			if ops[j].CallData != "" {
+				callData := common.FromHex(ops[j].CallData)
+				if len(callData) >= 4 {
+					opABI := f.lookupABI(ctx, common.HexToAddress(ops[j].Sender))
+					ops[j].Method = f.decodeMethod(opABI, callData)
+				}
 			}
 		}
 		dt.UserOps = ops
@@ -463,15 +601,14 @@ func (f *Fx) Decode(ctx context.Context, block *Block) (*DecodedBlock, error) {
 	}
 
 	return &DecodedBlock{
-		Number:     (*hexutil.Big)(block.Header.Number),
-		Hash:       block.Header.Hash(),
-		ParentHash: block.Header.ParentHash,
-		Timestamp:  hexutil.Uint64(block.Header.Time),
-		GasUsed:    hexutil.Uint64(block.Header.GasUsed),
-		GasLimit:   hexutil.Uint64(block.Header.GasLimit),
-		BaseFee:    (*hexutil.Big)(block.Header.BaseFee),
-		Miner:      block.Header.Coinbase,
+		Number:     block.Header.Number.String(),
+		Hash:       block.Header.Hash().Hex(),
+		ParentHash: block.Header.ParentHash.Hex(),
+		Timestamp:  formatTimestamp(block.Header.Time),
+		GasUsed:    block.Header.GasUsed,
+		GasLimit:   block.Header.GasLimit,
+		BaseFee:    weiToGwei(block.Header.BaseFee),
+		Miner:      block.Header.Coinbase.Hex(),
 		Txs:        decoded,
-		Signer:     block.Signer,
 	}, nil
 }

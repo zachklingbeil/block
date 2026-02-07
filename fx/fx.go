@@ -49,18 +49,18 @@ func (fx *Fx) Test() error {
 		return fmt.Errorf("Decode: %w", err)
 	}
 
-	fmt.Printf("Block %s: %d transactions\n", decoded.Hash.Hex(), len(decoded.Txs))
+	fmt.Printf("Block %s: %d transactions\n", decoded.Hash, len(decoded.Txs))
 
 	for i, dt := range decoded.Txs {
 		switch {
 		case dt.Deploy:
-			fmt.Printf("  tx[%d] %s DEPLOY to %s\n", i, dt.Hash.Hex(), dt.ContractAddress.Hex())
+			fmt.Printf("  tx[%d] %s DEPLOY to %s\n", i, dt.Hash, dt.ContractAddress)
 		case dt.Method != nil && dt.Method.Name != "":
-			fmt.Printf("  tx[%d] %s %s() — %d events\n", i, dt.Hash.Hex(), dt.Method.Name, len(dt.Events))
+			fmt.Printf("  tx[%d] %s %s() — %d events\n", i, dt.Hash, dt.Method.Name, len(dt.Events))
 		case dt.Method != nil:
-			fmt.Printf("  tx[%d] %s %s — %d events\n", i, dt.Hash.Hex(), dt.Method.Selector, len(dt.Events))
+			fmt.Printf("  tx[%d] %s %s — %d events\n", i, dt.Hash, dt.Method.Selector, len(dt.Events))
 		default:
-			fmt.Printf("  tx[%d] %s transfer — %d events\n", i, dt.Hash.Hex(), len(dt.Events))
+			fmt.Printf("  tx[%d] %s transfer — %d events\n", i, dt.Hash, len(dt.Events))
 		}
 
 		if len(dt.UserOps) > 0 {

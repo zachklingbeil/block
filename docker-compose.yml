@@ -1,10 +1,10 @@
 services:
     block:
         container_name: block
-        image: timefactory/block
+        image: timefactory/block:dev
         volumes:
             - geth:/.ethereum
-            - ./outpout:/output
+            - ./output:/output
         # user: 0:0
         networks:
             - timefactory
