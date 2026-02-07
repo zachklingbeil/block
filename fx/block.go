@@ -36,14 +36,14 @@ type Transaction struct {
 	ChainID   *big.Int        `json:"chainId,omitempty"`
 
 	// Outcome
-	Status            uint64         `json:"status"`
-	GasUsed           uint64         `json:"gasUsed"`
-	CumulativeGasUsed uint64         `json:"cumulativeGasUsed"`
-	EffectiveGasPrice *big.Int       `json:"effectiveGasPrice"`
-	ContractAddress   common.Address `json:"contractAddress,omitempty"`
-	BlobGasUsed       uint64         `json:"blobGasUsed,omitempty"`
-	BlobGasPrice      *big.Int       `json:"blobGasPrice,omitempty"`
-	Logs              []*Log         `json:"logs,omitempty"`
+	Status            uint64          `json:"status"`
+	GasUsed           uint64          `json:"gasUsed"`
+	CumulativeGasUsed uint64          `json:"cumulativeGasUsed"`
+	EffectiveGasPrice *big.Int        `json:"effectiveGasPrice"`
+	ContractAddress   *common.Address `json:"contractAddress,omitempty"`
+	BlobGasUsed       uint64          `json:"blobGasUsed,omitempty"`
+	BlobGasPrice      *big.Int        `json:"blobGasPrice,omitempty"`
+	Logs              []*Log          `json:"logs,omitempty"`
 }
 
 // Log is a contract event — the economic activity.
@@ -82,6 +82,11 @@ func (fx *Fx) Block(number *big.Int) (*Block, error) {
 			return nil, fmt.Errorf("receipt[%d]: %w", i, err)
 		}
 
+		var contractAddr *common.Address
+		if r.ContractAddress != (common.Address{}) {
+			contractAddr = &r.ContractAddress
+		}
+
 		txs[i] = &Transaction{
 			Hash:      tx.Hash(),
 			Nonce:     tx.Nonce(),
@@ -99,7 +104,7 @@ func (fx *Fx) Block(number *big.Int) (*Block, error) {
 			GasUsed:           r.GasUsed,
 			CumulativeGasUsed: r.CumulativeGasUsed,
 			EffectiveGasPrice: r.EffectiveGasPrice,
-			ContractAddress:   r.ContractAddress,
+			ContractAddress:   contractAddr,
 			BlobGasUsed:       r.BlobGasUsed,
 			BlobGasPrice:      r.BlobGasPrice,
 			Logs:              toLogs(r.Logs),
@@ -111,10 +116,10 @@ func (fx *Fx) Block(number *big.Int) (*Block, error) {
 		Hash:         block.Hash(),
 		ParentHash:   block.ParentHash(),
 		Timestamp:    block.Time(),
-		TxCount:      uint(len(txs)),
 		GasLimit:     block.GasLimit(),
 		GasUsed:      block.GasUsed(),
 		BaseFee:      block.BaseFee(),
+		TxCount:      uint(len(txs)),
 		Transactions: txs,
 	}, nil
 }
