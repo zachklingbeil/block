@@ -12,11 +12,17 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/timefactoryio/block/zero/proto/bytecodedb"
 	"github.com/timefactoryio/block/zero/proto/sigprovider"
 	"github.com/timefactoryio/block/zero/proto/userops"
+)
+
+// well-known event signatures
+var (
+	transferEventSig = crypto.Keccak256Hash([]byte("Transfer(address,address,uint256)"))
+	approvalEventSig = crypto.Keccak256Hash([]byte("Approval(address,address,uint256)"))
 )
 
 // output types
@@ -37,6 +43,20 @@ type DecodedEvent struct {
 	Params    map[string]string `json:"params,omitempty"`
 }
 
+type TokenTransfer struct {
+	Token string `json:"token"`
+	From  string `json:"from"`
+	To    string `json:"to"`
+	Value string `json:"value"`
+}
+
+type TokenApproval struct {
+	Token   string `json:"token"`
+	Owner   string `json:"owner"`
+	Spender string `json:"spender"`
+	Value   string `json:"value"`
+}
+
 type DecodedUserOp struct {
 	Sender   string         `json:"sender"`
 	Nonce    string         `json:"nonce"`
@@ -50,31 +70,27 @@ type DecodedTx struct {
 	From              string           `json:"from"`
 	To                string           `json:"to,omitempty"`
 	Value             string           `json:"value"`
-	ValueUnit         string           `json:"valueUnit"`
 	Input             string           `json:"input,omitempty"`
 	Type              string           `json:"type"`
 	Gas               uint64           `json:"gas"`
 	GasPrice          string           `json:"gasPrice,omitempty"`
-	GasPriceUnit      string           `json:"gasPriceUnit,omitempty"`
 	MaxFeePerGas      string           `json:"maxFeePerGas,omitempty"`
-	MaxFeeUnit        string           `json:"maxFeeUnit,omitempty"`
 	MaxPriorityFee    string           `json:"maxPriorityFeePerGas,omitempty"`
-	MaxPriorityUnit   string           `json:"maxPriorityUnit,omitempty"`
 	ChainID           string           `json:"chainId,omitempty"`
 	AccessList        []AccessListItem `json:"accessList,omitempty"`
 	BlobGas           uint64           `json:"blobGas,omitempty"`
 	BlobGasFeeCap     string           `json:"maxFeePerBlobGas,omitempty"`
-	BlobGasFeeUnit    string           `json:"blobGasFeeUnit,omitempty"`
 	BlobHashes        []string         `json:"blobVersionedHashes,omitempty"`
 	Status            string           `json:"status"`
 	GasUsed           uint64           `json:"gasUsed"`
 	EffectiveGasPrice string           `json:"effectiveGasPrice"`
-	EffectiveGasUnit  string           `json:"effectiveGasUnit"`
 	CumulativeGasUsed uint64           `json:"cumulativeGasUsed"`
 	ContractAddress   string           `json:"contractAddress,omitempty"`
 	Deploy            bool             `json:"deploy,omitempty"`
 	Method            *DecodedMethod   `json:"method,omitempty"`
 	Events            []DecodedEvent   `json:"events"`
+	Transfers         []TokenTransfer  `json:"transfers,omitempty"`
+	Approvals         []TokenApproval  `json:"approvals,omitempty"`
 	UserOps           []DecodedUserOp  `json:"userOps,omitempty"`
 }
 
@@ -84,16 +100,15 @@ type AccessListItem struct {
 }
 
 type DecodedBlock struct {
-	Number      string      `json:"number"`
-	Hash        string      `json:"hash"`
-	ParentHash  string      `json:"parentHash"`
-	Timestamp   string      `json:"timestamp"`
-	GasUsed     uint64      `json:"gasUsed"`
-	GasLimit    uint64      `json:"gasLimit"`
-	BaseFee     string      `json:"baseFeePerGas,omitempty"`
-	BaseFeeUnit string      `json:"baseFeeUnit,omitempty"`
-	Miner       string      `json:"miner"`
-	Txs         []DecodedTx `json:"transactions"`
+	Number     string      `json:"number"`
+	Hash       string      `json:"hash"`
+	ParentHash string      `json:"parentHash"`
+	Timestamp  string      `json:"timestamp"`
+	GasUsed    uint64      `json:"gasUsed"`
+	GasLimit   uint64      `json:"gasLimit"`
+	BaseFee    string      `json:"baseFeePerGas,omitempty"`
+	Miner      string      `json:"miner"`
+	Txs        []DecodedTx `json:"transactions"`
 }
 
 var entryPoints = map[common.Address]bool{
@@ -104,7 +119,7 @@ var entryPoints = map[common.Address]bool{
 // helper functions
 
 func formatTimestamp(ts uint64) string {
-	return fmt.Sprintf("%d", time.Unix(int64(ts), 0).UnixMicro())
+	return fmt.Sprintf("%d", time.Unix(int64(ts), 0).Unix())
 }
 
 func txTypeToString(txType uint8) string {
@@ -136,24 +151,15 @@ func formatBigInt(value *big.Int) string {
 	return value.String()
 }
 
-func determineUnit(value *big.Int) string {
-	if value == nil || value.Sign() == 0 {
-		return "wei"
-	}
+func topicToAddress(topic common.Hash) string {
+	return common.BytesToAddress(topic.Bytes()).Hex()
+}
 
-	// If >= 1 ETH, use ETH
-	oneEth := new(big.Int).SetUint64(params.Ether)
-	if value.Cmp(oneEth) >= 0 {
-		return "wei" // Keep as wei for precision
+func topicToAmount(data []byte) string {
+	if len(data) < 32 {
+		return "0"
 	}
-
-	// If >= 1 Gwei, use Gwei
-	oneGwei := new(big.Int).SetUint64(params.GWei)
-	if value.Cmp(oneGwei) >= 0 {
-		return "wei"
-	}
-
-	return "wei"
+	return new(big.Int).SetBytes(data[:32]).String()
 }
 
 func firstAbi(abis []*sigprovider.Abi) *sigprovider.Abi {
@@ -204,6 +210,32 @@ func applyFallbackName(name *string, abis map[string]*sigprovider.Abi, key strin
 		if sigAbi, ok := abis[key]; ok {
 			*name = sigAbi.GetName()
 		}
+	}
+}
+
+// extractTransfer pulls a TokenTransfer from a Transfer(address,address,uint256) log
+func extractTransfer(log *types.Log) *TokenTransfer {
+	if len(log.Topics) != 3 || log.Topics[0] != transferEventSig {
+		return nil
+	}
+	return &TokenTransfer{
+		Token: log.Address.Hex(),
+		From:  topicToAddress(log.Topics[1]),
+		To:    topicToAddress(log.Topics[2]),
+		Value: topicToAmount(log.Data),
+	}
+}
+
+// extractApproval pulls a TokenApproval from an Approval(address,address,uint256) log
+func extractApproval(log *types.Log) *TokenApproval {
+	if len(log.Topics) != 3 || log.Topics[0] != approvalEventSig {
+		return nil
+	}
+	return &TokenApproval{
+		Token:   log.Address.Hex(),
+		Owner:   topicToAddress(log.Topics[1]),
+		Spender: topicToAddress(log.Topics[2]),
+		Value:   topicToAmount(log.Data),
 	}
 }
 
@@ -449,13 +481,11 @@ func (f *Fx) decodeTx(t Transaction, contractABI *abi.ABI, funcAbis, eventAbis m
 		Nonce:             tx.Nonce(),
 		From:              t.From.Hex(),
 		Value:             formatBigInt(tx.Value()),
-		ValueUnit:         determineUnit(tx.Value()),
 		Type:              txTypeToString(tx.Type()),
 		Gas:               tx.Gas(),
 		Status:            statusToString(t.Receipt.Status),
 		GasUsed:           t.Receipt.GasUsed,
 		EffectiveGasPrice: formatBigInt(t.Receipt.EffectiveGasPrice),
-		EffectiveGasUnit:  determineUnit(t.Receipt.EffectiveGasPrice),
 		CumulativeGasUsed: t.Receipt.CumulativeGasUsed,
 		Events:            make([]DecodedEvent, 0, len(t.Receipt.Logs)),
 	}
@@ -470,7 +500,6 @@ func (f *Fx) decodeTx(t Transaction, contractABI *abi.ABI, funcAbis, eventAbis m
 
 	if tx.GasPrice() != nil {
 		dt.GasPrice = formatBigInt(tx.GasPrice())
-		dt.GasPriceUnit = determineUnit(tx.GasPrice())
 	}
 
 	if tx.Type() >= 1 {
@@ -491,11 +520,9 @@ func (f *Fx) decodeTx(t Transaction, contractABI *abi.ABI, funcAbis, eventAbis m
 	if tx.Type() >= 2 {
 		if tx.GasFeeCap() != nil {
 			dt.MaxFeePerGas = formatBigInt(tx.GasFeeCap())
-			dt.MaxFeeUnit = determineUnit(tx.GasFeeCap())
 		}
 		if tx.GasTipCap() != nil {
 			dt.MaxPriorityFee = formatBigInt(tx.GasTipCap())
-			dt.MaxPriorityUnit = determineUnit(tx.GasTipCap())
 		}
 	}
 
@@ -503,7 +530,6 @@ func (f *Fx) decodeTx(t Transaction, contractABI *abi.ABI, funcAbis, eventAbis m
 		dt.BlobGas = tx.BlobGas()
 		if tx.BlobGasFeeCap() != nil {
 			dt.BlobGasFeeCap = formatBigInt(tx.BlobGasFeeCap())
-			dt.BlobGasFeeUnit = determineUnit(tx.BlobGasFeeCap())
 		}
 		hashes := tx.BlobHashes()
 		dt.BlobHashes = make([]string, len(hashes))
@@ -530,6 +556,15 @@ func (f *Fx) decodeTx(t Transaction, contractABI *abi.ABI, funcAbis, eventAbis m
 	}
 
 	for _, log := range t.Receipt.Logs {
+		// Extract token transfers and approvals directly from log structure
+		if transfer := extractTransfer(log); transfer != nil {
+			dt.Transfers = append(dt.Transfers, *transfer)
+		}
+		if approval := extractApproval(log); approval != nil {
+			dt.Approvals = append(dt.Approvals, *approval)
+		}
+
+		// Full event decode
 		logABI := contractABI
 		if tx.To() != nil && log.Address != *tx.To() {
 			logABI = f.lookupABI(ctx, log.Address)
@@ -587,7 +622,6 @@ func (f *Fx) Decode(ctx context.Context, block *Block) (*DecodedBlock, error) {
 
 	if block.Header.BaseFee != nil {
 		db.BaseFee = formatBigInt(block.Header.BaseFee)
-		db.BaseFeeUnit = determineUnit(block.Header.BaseFee)
 	}
 
 	return db, nil
