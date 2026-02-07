@@ -3,6 +3,7 @@ package fx
 import (
 	"context"
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -41,8 +42,35 @@ type DecodedUserOp struct {
 }
 
 type DecodedTx struct {
-	Hash    common.Hash     `json:"hash"`
-	From    common.Address  `json:"from"`
+	// transaction fields
+	Hash           common.Hash      `json:"hash"`
+	Nonce          uint64           `json:"nonce"`
+	From           common.Address   `json:"from"`
+	To             *common.Address  `json:"to,omitempty"`
+	Value          *hexutil.Big     `json:"value"`
+	Input          hexutil.Bytes    `json:"input"`
+	Type           uint8            `json:"type"`
+	Gas            uint64           `json:"gas"`
+	GasPrice       *hexutil.Big     `json:"gasPrice,omitempty"`
+	MaxFeePerGas   *hexutil.Big     `json:"maxFeePerGas,omitempty"`
+	MaxPriorityFee *hexutil.Big     `json:"maxPriorityFeePerGas,omitempty"`
+	ChainID        *hexutil.Big     `json:"chainId,omitempty"`
+	AccessList     types.AccessList `json:"accessList,omitempty"`
+	BlobGas        uint64           `json:"blobGas,omitempty"`
+	BlobGasFeeCap  *hexutil.Big     `json:"maxFeePerBlobGas,omitempty"`
+	BlobHashes     []common.Hash    `json:"blobVersionedHashes,omitempty"`
+	V              *hexutil.Big     `json:"v"`
+	R              *hexutil.Big     `json:"r"`
+	S              *hexutil.Big     `json:"s"`
+
+	// receipt fields
+	Status            uint64          `json:"status"`
+	GasUsed           uint64          `json:"gasUsed"`
+	EffectiveGasPrice *hexutil.Big    `json:"effectiveGasPrice"`
+	CumulativeGasUsed uint64          `json:"cumulativeGasUsed"`
+	ContractAddress   *common.Address `json:"contractAddress,omitempty"`
+
+	// decoded fields
 	Deploy  bool            `json:"deploy,omitempty"`
 	Method  *DecodedMethod  `json:"method,omitempty"`
 	Events  []DecodedEvent  `json:"events"`
@@ -50,13 +78,72 @@ type DecodedTx struct {
 }
 
 type DecodedBlock struct {
-	*Block
-	Decoded []DecodedTx `json:"decoded"`
+	Number     *hexutil.Big   `json:"number"`
+	Hash       common.Hash    `json:"hash"`
+	ParentHash common.Hash    `json:"parentHash"`
+	Timestamp  hexutil.Uint64 `json:"timestamp"`
+	GasUsed    hexutil.Uint64 `json:"gasUsed"`
+	GasLimit   hexutil.Uint64 `json:"gasLimit"`
+	BaseFee    *hexutil.Big   `json:"baseFeePerGas,omitempty"`
+	Miner      common.Address `json:"miner"`
+	Txs        []DecodedTx    `json:"transactions"`
+	Signer     types.Signer   `json:"-"`
 }
 
 var entryPoints = map[common.Address]bool{
 	common.HexToAddress("0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789"): true,
 	common.HexToAddress("0x0000000071727De22E5E9d8BAf0edAc6f37da032"): true,
+}
+
+// helper functions
+
+func firstAbi(abis []*sigprovider.Abi) *sigprovider.Abi {
+	if len(abis) > 0 {
+		return abis[0]
+	}
+	return nil
+}
+
+func unpackArgs(args abi.Arguments, data []byte) (map[string]string, error) {
+	values, err := args.Unpack(data)
+	if err != nil {
+		return nil, err
+	}
+
+	params := make(map[string]string, len(args))
+	for i, arg := range args {
+		params[arg.Name] = fmt.Sprintf("%v", values[i])
+	}
+	return params, nil
+}
+
+func splitEventInputs(event *abi.Event) (indexed, nonIndexed abi.Arguments) {
+	for _, input := range event.Inputs {
+		if input.Indexed {
+			indexed = append(indexed, input)
+		} else {
+			nonIndexed = append(nonIndexed, input)
+		}
+	}
+	return
+}
+
+func decodeTopics(indexed abi.Arguments, topics []common.Hash) map[string]string {
+	params := make(map[string]string)
+	for i, arg := range indexed {
+		if i+1 < len(topics) {
+			params[arg.Name] = topics[i+1].Hex()
+		}
+	}
+	return params
+}
+
+func applyFallbackName(name *string, abis map[string]*sigprovider.Abi, key string) {
+	if *name == "" && abis != nil {
+		if sigAbi, ok := abis[key]; ok {
+			*name = sigAbi.GetName()
+		}
+	}
 }
 
 // gRPC lookups
@@ -65,15 +152,17 @@ func (f *Fx) lookupFunctions(ctx context.Context, selectors []string) map[string
 	if len(selectors) == 0 || f.Sig == nil {
 		return nil
 	}
+
 	out := make(map[string]*sigprovider.Abi)
 	for _, sel := range selectors {
 		resp, err := f.Sig.GetFunctionAbi(ctx, &sigprovider.GetFunctionAbiRequest{
 			TxInput: sel,
 		})
-		if err != nil || len(resp.GetAbi()) == 0 {
-			continue
+		if err == nil {
+			if abi := firstAbi(resp.GetAbi()); abi != nil {
+				out[sel] = abi
+			}
 		}
-		out[sel] = resp.GetAbi()[0]
 	}
 	return out
 }
@@ -126,9 +215,8 @@ func (f *Fx) lookupEvents(ctx context.Context, block *Block) map[string]*sigprov
 	responses := resp.GetResponses()
 	for i, key := range keys {
 		if i < len(responses) {
-			abis := responses[i].GetAbi()
-			if len(abis) > 0 {
-				out[key] = abis[0]
+			if abi := firstAbi(responses[i].GetAbi()); abi != nil {
+				out[key] = abi
 			}
 		}
 	}
@@ -136,7 +224,7 @@ func (f *Fx) lookupEvents(ctx context.Context, block *Block) map[string]*sigprov
 }
 
 func (f *Fx) lookupABI(ctx context.Context, addr common.Address) *abi.ABI {
-	if f.DB == nil {
+	if f.ByteDB == nil {
 		return nil
 	}
 
@@ -147,7 +235,7 @@ func (f *Fx) lookupABI(ctx context.Context, addr common.Address) *abi.ABI {
 	}
 	f.RUnlock()
 
-	resp, err := f.DB.SearchSources(ctx, &bytecodedb.SearchSourcesRequest{
+	resp, err := f.ByteDB.SearchSources(ctx, &bytecodedb.SearchSourcesRequest{
 		Bytecode:     addr.Hex(),
 		BytecodeType: bytecodedb.BytecodeType_DEPLOYED_BYTECODE,
 	})
@@ -226,12 +314,7 @@ func (f *Fx) decodeMethod(contractABI *abi.ABI, data []byte) *DecodedMethod {
 		if err == nil {
 			dm.Name = method.Name
 			dm.Signature = method.Sig
-			dm.Params = make(map[string]string)
-			if args, err := method.Inputs.Unpack(data[4:]); err == nil {
-				for i, input := range method.Inputs {
-					dm.Params[input.Name] = fmt.Sprintf("%v", args[i])
-				}
-			}
+			dm.Params, _ = unpackArgs(method.Inputs, data[4:])
 		}
 	}
 
@@ -255,29 +338,13 @@ func (f *Fx) decodeEvent(contractABI *abi.ABI, log *types.Log) DecodedEvent {
 		if err == nil {
 			de.Name = event.Name
 			de.Signature = event.Sig
-			de.Params = make(map[string]string)
 
-			indexed := make([]abi.Argument, 0)
-			nonIndexed := make([]abi.Argument, 0)
-			for _, input := range event.Inputs {
-				if input.Indexed {
-					indexed = append(indexed, input)
-				} else {
-					nonIndexed = append(nonIndexed, input)
-				}
-			}
-
-			for i, arg := range indexed {
-				if i+1 < len(log.Topics) {
-					de.Params[arg.Name] = log.Topics[i+1].Hex()
-				}
-			}
+			indexed, nonIndexed := splitEventInputs(event)
+			de.Params = decodeTopics(indexed, log.Topics)
 
 			if len(log.Data) > 0 {
-				if args, err := abi.Arguments(nonIndexed).Unpack(log.Data); err == nil {
-					for i, arg := range nonIndexed {
-						de.Params[arg.Name] = fmt.Sprintf("%v", args[i])
-					}
+				if dataParams, err := unpackArgs(nonIndexed, log.Data); err == nil {
+					maps.Copy(de.Params, dataParams)
 				}
 			}
 		}
@@ -288,7 +355,6 @@ func (f *Fx) decodeEvent(contractABI *abi.ABI, log *types.Log) DecodedEvent {
 
 func (f *Fx) collectSelectors(block *Block) []string {
 	funcSet := make(map[string]bool)
-
 	for _, t := range block.Transactions {
 		if t.Tx.To() != nil && len(t.Tx.Data()) >= 4 {
 			funcSet[hexutil.Encode(t.Tx.Data()[:4])] = true
@@ -302,67 +368,110 @@ func (f *Fx) collectSelectors(block *Block) []string {
 	return funcs
 }
 
+func (f *Fx) decodeTx(t Transaction, contractABI *abi.ABI, funcAbis, eventAbis map[string]*sigprovider.Abi, ctx context.Context) DecodedTx {
+	tx := t.Tx
+	v, r, s := tx.RawSignatureValues()
+
+	dt := DecodedTx{
+		Hash:              tx.Hash(),
+		Nonce:             tx.Nonce(),
+		From:              t.From,
+		To:                tx.To(),
+		Value:             (*hexutil.Big)(tx.Value()),
+		Input:             tx.Data(),
+		Type:              tx.Type(),
+		Gas:               tx.Gas(),
+		GasPrice:          (*hexutil.Big)(tx.GasPrice()),
+		ChainID:           (*hexutil.Big)(tx.ChainId()),
+		V:                 (*hexutil.Big)(v),
+		R:                 (*hexutil.Big)(r),
+		S:                 (*hexutil.Big)(s),
+		Status:            t.Receipt.Status,
+		GasUsed:           t.Receipt.GasUsed,
+		EffectiveGasPrice: (*hexutil.Big)(t.Receipt.EffectiveGasPrice),
+		CumulativeGasUsed: t.Receipt.CumulativeGasUsed,
+		Events:            make([]DecodedEvent, 0, len(t.Receipt.Logs)),
+	}
+
+	if tx.Type() >= 1 {
+		dt.AccessList = tx.AccessList()
+	}
+	if tx.Type() >= 2 {
+		dt.MaxFeePerGas = (*hexutil.Big)(tx.GasFeeCap())
+		dt.MaxPriorityFee = (*hexutil.Big)(tx.GasTipCap())
+	}
+	if tx.Type() == 3 {
+		dt.BlobGas = tx.BlobGas()
+		dt.BlobGasFeeCap = (*hexutil.Big)(tx.BlobGasFeeCap())
+		dt.BlobHashes = tx.BlobHashes()
+	}
+
+	if t.Receipt.ContractAddress != (common.Address{}) {
+		dt.ContractAddress = &t.Receipt.ContractAddress
+	}
+
+	if tx.To() == nil {
+		dt.Deploy = true
+		return dt
+	}
+
+	dt.Method = f.decodeMethod(contractABI, tx.Data())
+	if dt.Method != nil {
+		applyFallbackName(&dt.Method.Name, funcAbis, dt.Method.Selector)
+	}
+
+	for _, log := range t.Receipt.Logs {
+		logABI := contractABI
+		if log.Address != *tx.To() {
+			logABI = f.lookupABI(ctx, log.Address)
+		}
+
+		de := f.decodeEvent(logABI, log)
+		if len(log.Topics) > 0 {
+			applyFallbackName(&de.Name, eventAbis, log.Topics[0].Hex())
+		}
+
+		dt.Events = append(dt.Events, de)
+	}
+
+	if entryPoints[*tx.To()] {
+		ops := f.lookupUserOps(ctx, tx.Hash())
+		for j := range ops {
+			if len(ops[j].CallData) >= 4 {
+				opABI := f.lookupABI(ctx, ops[j].Sender)
+				ops[j].Method = f.decodeMethod(opABI, ops[j].CallData)
+			}
+		}
+		dt.UserOps = ops
+	}
+
+	return dt
+}
+
 func (f *Fx) Decode(ctx context.Context, block *Block) (*DecodedBlock, error) {
 	selectors := f.collectSelectors(block)
 	funcAbis := f.lookupFunctions(ctx, selectors)
 	eventAbis := f.lookupEvents(ctx, block)
-
 	decoded := make([]DecodedTx, len(block.Transactions))
 
 	for i, t := range block.Transactions {
-		dt := DecodedTx{
-			Hash:   t.Tx.Hash(),
-			From:   t.From,
-			Events: make([]DecodedEvent, 0, len(t.Receipt.Logs)),
+		var contractABI *abi.ABI
+		if t.Tx.To() != nil {
+			contractABI = f.lookupABI(ctx, *t.Tx.To())
 		}
-
-		if t.Tx.To() == nil {
-			dt.Deploy = true
-			decoded[i] = dt
-			continue
-		}
-
-		contractABI := f.lookupABI(ctx, *t.Tx.To())
-		dt.Method = f.decodeMethod(contractABI, t.Tx.Data())
-
-		// fallback: sig-provider
-		if dt.Method != nil && dt.Method.Name == "" && funcAbis != nil {
-			if sigAbi, ok := funcAbis[dt.Method.Selector]; ok {
-				dt.Method.Name = sigAbi.GetName()
-			}
-		}
-
-		for _, log := range t.Receipt.Logs {
-			logABI := contractABI
-			if log.Address != *t.Tx.To() {
-				logABI = f.lookupABI(ctx, log.Address)
-			}
-
-			de := f.decodeEvent(logABI, log)
-
-			// fallback: sig-provider
-			if de.Name == "" && eventAbis != nil && len(log.Topics) > 0 {
-				if sigAbi, ok := eventAbis[log.Topics[0].Hex()]; ok {
-					de.Name = sigAbi.GetName()
-				}
-			}
-
-			dt.Events = append(dt.Events, de)
-		}
-
-		if entryPoints[*t.Tx.To()] {
-			ops := f.lookupUserOps(ctx, t.Tx.Hash())
-			for j := range ops {
-				if len(ops[j].CallData) >= 4 {
-					opABI := f.lookupABI(ctx, ops[j].Sender)
-					ops[j].Method = f.decodeMethod(opABI, ops[j].CallData)
-				}
-			}
-			dt.UserOps = ops
-		}
-
-		decoded[i] = dt
+		decoded[i] = f.decodeTx(t, contractABI, funcAbis, eventAbis, ctx)
 	}
 
-	return &DecodedBlock{Block: block, Decoded: decoded}, nil
+	return &DecodedBlock{
+		Number:     (*hexutil.Big)(block.Header.Number),
+		Hash:       block.Header.Hash(),
+		ParentHash: block.Header.ParentHash,
+		Timestamp:  hexutil.Uint64(block.Header.Time),
+		GasUsed:    hexutil.Uint64(block.Header.GasUsed),
+		GasLimit:   hexutil.Uint64(block.Header.GasLimit),
+		BaseFee:    (*hexutil.Big)(block.Header.BaseFee),
+		Miner:      block.Header.Coinbase,
+		Txs:        decoded,
+		Signer:     block.Signer,
+	}, nil
 }
