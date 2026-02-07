@@ -1,9 +1,9 @@
 services:
     block:
         container_name: block
-        image: docker.zachklingbeil.com/block
+        image: timefactory/block
         volumes:
-            - ethereum:/ethereum
+            - geth:/.ethereum
         user: 0:0
         networks:
             - timefactory
@@ -16,12 +16,9 @@ services:
         networks:
             - timefactory
         expose:
-            - 8050
             - 8051
         environment:
-            - SMART_CONTRACT_VERIFIER__SERVER__HTTP__ENABLED=true
-            - SMART_CONTRACT_VERIFIER__SERVER__HTTP__ADDR=0.0.0.0:8050
-            - SMART_CONTRACT_VERIFIER__SERVER__HTTP__MAX_BODY_SIZE=2097152
+            - SMART_CONTRACT_VERIFIER__SERVER__HTTP__ENABLED=false
             - SMART_CONTRACT_VERIFIER__SERVER__GRPC__ENABLED=true
             - SMART_CONTRACT_VERIFIER__SERVER__GRPC__ADDR=0.0.0.0:8051
             - SMART_CONTRACT_VERIFIER__SOLIDITY__ENABLED=true
@@ -50,12 +47,9 @@ services:
         networks:
             - timefactory
         expose:
-            - 8050
             - 8051
         environment:
-            - ETH_BYTECODE_DB__SERVER__HTTP__ENABLED=true
-            - ETH_BYTECODE_DB__SERVER__HTTP__ADDR=0.0.0.0:8050
-            - ETH_BYTECODE_DB__SERVER__HTTP__MAX_BODY_SIZE=2097152
+            - ETH_BYTECODE_DB__SERVER__HTTP__ENABLED=false
             - ETH_BYTECODE_DB__SERVER__GRPC__ENABLED=true
             - ETH_BYTECODE_DB__SERVER__GRPC__ADDR=0.0.0.0:8051
             - ETH_BYTECODE_DB__DATABASE__URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/eth_bytecode_db
@@ -63,7 +57,7 @@ services:
             - ETH_BYTECODE_DB__DATABASE__RUN_MIGRATIONS=true
             - ETH_BYTECODE_DB__VERIFIER__HTTP_URL=http://smart-contract-verifier:8050
             - ETH_BYTECODE_DB__VERIFIER__MAX_RETRIES=3
-            - ETH_BYTECODE_DB__VERIFIER__PROBE_URL=true
+            - ETH_BYTECODE_DB__VERIFIER__PROBE_URL=false
             - ETH_BYTECODE_DB__SOURCIFY__BASE_URL=https://sourcify.dev/server/
             - ETH_BYTECODE_DB__SOURCIFY__MAX_RETRIES=3
             - ETH_BYTECODE_DB__VERIFIER_ALLIANCE_DATABASE__ENABLED=false
@@ -80,11 +74,9 @@ services:
         networks:
             - timefactory
         expose:
-            - 8050
             - 8051
         environment:
-            - SIG_PROVIDER__SERVER__HTTP__ENABLED=true
-            - SIG_PROVIDER__SERVER__HTTP__ADDR=0.0.0.0:8050
+            - SIG_PROVIDER__SERVER__HTTP__ENABLED=false
             - SIG_PROVIDER__SERVER__GRPC__ENABLED=true
             - SIG_PROVIDER__SERVER__GRPC__ADDR=0.0.0.0:8051
             - SIG_PROVIDER__SOURCES__FOURBYTE=https://www.4byte.directory/
@@ -102,12 +94,9 @@ services:
         networks:
             - timefactory
         expose:
-            - 8050
             - 8051
         environment:
-            - USER_OPS_INDEXER__SERVER__HTTP__ENABLED=true
-            - USER_OPS_INDEXER__SERVER__HTTP__ADDR=0.0.0.0:8050
-            - USER_OPS_INDEXER__SERVER__HTTP__MAX_BODY_SIZE=2097152
+            - USER_OPS_INDEXER__SERVER__HTTP__ENABLED=false
             - USER_OPS_INDEXER__SERVER__GRPC__ENABLED=true
             - USER_OPS_INDEXER__SERVER__GRPC__ADDR=0.0.0.0:8051
             - USER_OPS_INDEXER__DATABASE__CONNECT__URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/user_ops
@@ -120,13 +109,10 @@ services:
             - USER_OPS_INDEXER__INDEXER__PAST_DB_LOGS_INDEXER__ENABLED=false
             - USER_OPS_INDEXER__METRICS__ENABLED=false
             - USER_OPS_INDEXER__JAEGER__ENABLED=false
-            # - USER_OPS_INDEXER__INDEXER__REALTIME__POLLING_INTERVAL=6
-            # - USER_OPS_INDEXER__INDEXER__REALTIME__POLLING_BLOCK_RANGE=6
-            # - USER_OPS_INDEXER__INDEXER__REALTIME__MAX_BLOCK_RANGE=10000
 
 networks:
     timefactory:
         external: true
 volumes:
-    ethereum:
+    geth:
         external: true
