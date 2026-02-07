@@ -17,6 +17,7 @@ type Block struct {
 	GasUsed      uint64         `json:"gasUsed"`
 	BaseFee      *big.Int       `json:"baseFeePerGas,omitempty"`
 	Transactions []*Transaction `json:"transactions"`
+	TxCount      uint           `json:"txCount"`
 }
 
 // Transaction pairs the intent with the outcome.
@@ -42,7 +43,30 @@ type Transaction struct {
 	ContractAddress   common.Address `json:"contractAddress,omitempty"`
 	BlobGasUsed       uint64         `json:"blobGasUsed,omitempty"`
 	BlobGasPrice      *big.Int       `json:"blobGasPrice,omitempty"`
-	Logs              []*types.Log   `json:"logs"`
+	Logs              []*Log         `json:"logs"`
+}
+
+// Log is a contract event — the economic activity.
+type Log struct {
+	Address common.Address `json:"address"`
+	Topics  []common.Hash  `json:"topics"`
+	Data    []byte         `json:"data"`
+	Index   uint           `json:"logIndex"`
+	Removed bool           `json:"removed"`
+}
+
+func toLogs(logs []*types.Log) []*Log {
+	out := make([]*Log, len(logs))
+	for i, l := range logs {
+		out[i] = &Log{
+			Address: l.Address,
+			Topics:  l.Topics,
+			Data:    l.Data,
+			Index:   l.Index,
+			Removed: l.Removed,
+		}
+	}
+	return out
 }
 
 func (fx *Fx) Block(number *big.Int) (*Block, error) {
@@ -78,7 +102,7 @@ func (fx *Fx) Block(number *big.Int) (*Block, error) {
 			ContractAddress:   r.ContractAddress,
 			BlobGasUsed:       r.BlobGasUsed,
 			BlobGasPrice:      r.BlobGasPrice,
-			Logs:              r.Logs,
+			Logs:              toLogs(r.Logs),
 		}
 	}
 
@@ -90,6 +114,7 @@ func (fx *Fx) Block(number *big.Int) (*Block, error) {
 		GasLimit:     block.GasLimit(),
 		GasUsed:      block.GasUsed(),
 		BaseFee:      block.BaseFee(),
+		TxCount:      uint(len(txs)),
 		Transactions: txs,
 	}, nil
 }
