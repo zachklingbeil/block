@@ -19,20 +19,20 @@ func Init(url string) *Fx {
 }
 
 func (fx *Fx) Test() error {
-	// Fetch block
-	block, err := fx.Block(nil)
+	raw, err := fx.Block(nil)
 	if err != nil {
 		return fmt.Errorf("Block: %w", err)
 	}
-	// Write raw block
-	rawOutput, err := json.MarshalIndent(block, "", "  ")
+
+	output, err := json.MarshalIndent(json.RawMessage(raw), "", "  ")
 	if err != nil {
-		return fmt.Errorf("Marshal block: %w", err)
+		return fmt.Errorf("MarshalIndent: %w", err)
 	}
 
-	if err := os.WriteFile("../output/block.json", rawOutput, 0644); err != nil {
-		return fmt.Errorf("WriteFile block: %w", err)
+	if err := os.WriteFile("../output/block.json", output, 0644); err != nil {
+		return fmt.Errorf("WriteFile: %w", err)
 	}
+
 	fmt.Println("Block written to output/block.json")
 	return nil
 }
