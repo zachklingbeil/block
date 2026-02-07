@@ -12,17 +12,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/timefactoryio/block/zero/proto/bytecodedb"
 	"github.com/timefactoryio/block/zero/proto/sigprovider"
 	"github.com/timefactoryio/block/zero/proto/userops"
-)
-
-// well-known event signatures
-var (
-	transferEventSig = crypto.Keccak256Hash([]byte("Transfer(address,address,uint256)"))
-	approvalEventSig = crypto.Keccak256Hash([]byte("Approval(address,address,uint256)"))
 )
 
 // output types
@@ -116,7 +109,7 @@ var entryPoints = map[common.Address]bool{
 	common.HexToAddress("0x0000000071727De22E5E9d8BAf0edAc6f37da032"): true,
 }
 
-// helper functions
+// helpers
 
 func formatTimestamp(ts uint64) string {
 	return fmt.Sprintf("%d", time.Unix(int64(ts), 0).Unix())
@@ -174,7 +167,6 @@ func unpackArgs(args abi.Arguments, data []byte) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	params := make(map[string]string, len(args))
 	for i, arg := range args {
 		if i < len(values) {
@@ -205,17 +197,8 @@ func decodeTopics(indexed abi.Arguments, topics []common.Hash) map[string]string
 	return params
 }
 
-func applyFallbackName(name *string, abis map[string]*sigprovider.Abi, key string) {
-	if *name == "" && abis != nil {
-		if sigAbi, ok := abis[key]; ok {
-			*name = sigAbi.GetName()
-		}
-	}
-}
-
-// extractTransfer pulls a TokenTransfer from a Transfer(address,address,uint256) log
 func extractTransfer(log *types.Log) *TokenTransfer {
-	if len(log.Topics) != 3 || log.Topics[0] != transferEventSig {
+	if len(log.Topics) != 3 || log.Topics[0] != TopicTransfer {
 		return nil
 	}
 	return &TokenTransfer{
@@ -226,9 +209,8 @@ func extractTransfer(log *types.Log) *TokenTransfer {
 	}
 }
 
-// extractApproval pulls a TokenApproval from an Approval(address,address,uint256) log
 func extractApproval(log *types.Log) *TokenApproval {
-	if len(log.Topics) != 3 || log.Topics[0] != approvalEventSig {
+	if len(log.Topics) != 3 || log.Topics[0] != TopicApproval {
 		return nil
 	}
 	return &TokenApproval{
@@ -239,47 +221,172 @@ func extractApproval(log *types.Log) *TokenApproval {
 	}
 }
 
-// gRPC lookups
+// resolve — populate caches from services before decoding
 
-func (f *Fx) lookupFunctions(ctx context.Context, selectors []string) map[string]*sigprovider.Abi {
-	if len(selectors) == 0 || f.Sig == nil {
-		return nil
+func (f *Fx) resolveABIs(ctx context.Context, block *Block) {
+	if f.ByteDB == nil {
+		return
 	}
 
-	out := make(map[string]*sigprovider.Abi)
-	for _, sel := range selectors {
+	seen := make(map[common.Address]bool)
+	var addrs []common.Address
+
+	for _, t := range block.Transactions {
+		if t.Tx.To() != nil {
+			addrs = append(addrs, *t.Tx.To())
+		}
+		for _, log := range t.Receipt.Logs {
+			addrs = append(addrs, log.Address)
+		}
+	}
+
+	for _, addr := range addrs {
+		if seen[addr] {
+			continue
+		}
+		seen[addr] = true
+
+		f.RLock()
+		_, cached := f.abis[addr]
+		f.RUnlock()
+		if cached {
+			continue
+		}
+
+		resp, err := f.ByteDB.SearchSources(ctx, &bytecodedb.SearchSourcesRequest{
+			Bytecode:     addr.Hex(),
+			BytecodeType: bytecodedb.BytecodeType_DEPLOYED_BYTECODE,
+		})
+		if err != nil {
+			continue
+		}
+
+		sources := resp.GetSources()
+		if len(sources) == 0 {
+			continue
+		}
+
+		raw := sources[0].GetAbi()
+		if raw == "" {
+			continue
+		}
+
+		parsed, err := abi.JSON(strings.NewReader(raw))
+		if err != nil {
+			continue
+		}
+
+		f.Lock()
+		f.abis[addr] = &parsed
+		for _, event := range parsed.Events {
+			e := event
+			if _, exists := f.events[e.ID]; !exists {
+				f.events[e.ID] = &e
+			}
+		}
+		for _, method := range parsed.Methods {
+			m := method
+			sel := hexutil.Encode(m.ID)
+			if _, exists := f.methods[sel]; !exists {
+				f.methods[sel] = &m
+			}
+		}
+		f.Unlock()
+	}
+}
+
+func (f *Fx) resolveMethods(ctx context.Context, block *Block) {
+	if f.Sig == nil {
+		return
+	}
+
+	seen := make(map[string]bool)
+
+	for _, t := range block.Transactions {
+		data := t.Tx.Data()
+		if t.Tx.To() == nil || len(data) < 4 {
+			continue
+		}
+		sel := hexutil.Encode(data[:4])
+		if seen[sel] {
+			continue
+		}
+		seen[sel] = true
+
+		f.RLock()
+		_, cached := f.methods[sel]
+		f.RUnlock()
+		if cached {
+			continue
+		}
+
 		resp, err := f.Sig.GetFunctionAbi(ctx, &sigprovider.GetFunctionAbiRequest{
 			TxInput: sel,
 		})
-		if err == nil {
-			if abi := firstAbi(resp.GetAbi()); abi != nil {
-				out[sel] = abi
-			}
+		if err != nil {
+			continue
 		}
+
+		sigAbi := firstAbi(resp.GetAbi())
+		if sigAbi == nil {
+			continue
+		}
+
+		args := make(abi.Arguments, 0, len(sigAbi.GetInputs()))
+		var sigParts []string
+		for _, input := range sigAbi.GetInputs() {
+			argType, err := abi.NewType(input.GetType(), "", nil)
+			if err != nil {
+				continue
+			}
+			args = append(args, abi.Argument{
+				Name: input.GetName(),
+				Type: argType,
+			})
+			sigParts = append(sigParts, input.GetType())
+		}
+
+		name := sigAbi.GetName()
+		sig := fmt.Sprintf("%s(%s)", name, strings.Join(sigParts, ","))
+		method := abi.NewMethod(name, name, abi.Function, "", false, false, args, nil)
+		method.Sig = sig
+
+		f.Lock()
+		f.methods[sel] = &method
+		f.Unlock()
 	}
-	return out
 }
 
-func (f *Fx) lookupEvents(ctx context.Context, block *Block) map[string]*sigprovider.Abi {
+func (f *Fx) resolveEvents(ctx context.Context, block *Block) {
 	if f.Sig == nil {
-		return nil
+		return
+	}
+
+	type pending struct {
+		topic common.Hash
 	}
 
 	var reqs []*sigprovider.GetEventAbiRequest
-	keys := make([]string, 0)
-	seen := make(map[string]bool)
+	var items []pending
+	seen := make(map[common.Hash]bool)
 
 	for _, t := range block.Transactions {
 		for _, log := range t.Receipt.Logs {
 			if len(log.Topics) == 0 {
 				continue
 			}
-			key := log.Topics[0].Hex()
-			if seen[key] {
+			topic := log.Topics[0]
+			if seen[topic] {
 				continue
 			}
-			seen[key] = true
-			keys = append(keys, key)
+			seen[topic] = true
+
+			f.RLock()
+			_, cached := f.events[topic]
+			f.RUnlock()
+			if cached {
+				continue
+			}
 
 			topics := make([]string, len(log.Topics))
 			for i, t := range log.Topics {
@@ -290,75 +397,115 @@ func (f *Fx) lookupEvents(ctx context.Context, block *Block) map[string]*sigprov
 				Data:   hexutil.Encode(log.Data),
 				Topics: strings.Join(topics, ","),
 			})
+			items = append(items, pending{topic: topic})
 		}
 	}
 
 	if len(reqs) == 0 {
-		return nil
+		return
 	}
 
 	resp, err := f.Sig.BatchGetEventAbis(ctx, &sigprovider.BatchGetEventAbisRequest{
 		Requests: reqs,
 	})
 	if err != nil {
-		return nil
+		return
 	}
 
-	out := make(map[string]*sigprovider.Abi)
 	responses := resp.GetResponses()
-	for i, key := range keys {
-		if i < len(responses) {
-			if abi := firstAbi(responses[i].GetAbi()); abi != nil {
-				out[key] = abi
-			}
+	f.Lock()
+	for i, p := range items {
+		if i >= len(responses) {
+			break
 		}
+		sigAbi := firstAbi(responses[i].GetAbi())
+		if sigAbi == nil {
+			continue
+		}
+
+		args := make(abi.Arguments, 0, len(sigAbi.GetInputs()))
+		for _, input := range sigAbi.GetInputs() {
+			argType, err := abi.NewType(input.GetType(), "", nil)
+			if err != nil {
+				continue
+			}
+			args = append(args, abi.Argument{
+				Name:    input.GetName(),
+				Type:    argType,
+				Indexed: input.GetIndexed(),
+			})
+		}
+
+		name := sigAbi.GetName()
+		event := abi.NewEvent(name, name, false, args)
+		f.events[p.topic] = &event
 	}
-	return out
+	f.Unlock()
 }
 
-func (f *Fx) lookupABI(ctx context.Context, addr common.Address) *abi.ABI {
-	if f.ByteDB == nil {
+// decode — read from caches only
+
+func (f *Fx) decodeMethod(data []byte) *DecodedMethod {
+	if len(data) < 4 {
 		return nil
 	}
+
+	sel := hexutil.Encode(data[:4])
+	dm := &DecodedMethod{Selector: sel}
 
 	f.RLock()
-	if cached, ok := f.abiCache[addr]; ok {
-		f.RUnlock()
-		return cached
-	}
+	method, ok := f.methods[sel]
 	f.RUnlock()
 
-	resp, err := f.ByteDB.SearchSources(ctx, &bytecodedb.SearchSourcesRequest{
-		Bytecode:     addr.Hex(),
-		BytecodeType: bytecodedb.BytecodeType_DEPLOYED_BYTECODE,
-	})
-	if err != nil {
-		return nil
+	if !ok {
+		dm.Name = "Unknown"
+		return dm
 	}
 
-	sources := resp.GetSources()
-	if len(sources) == 0 {
-		return nil
+	dm.Name = method.Name
+	dm.Signature = method.Sig
+	if len(data) > 4 {
+		dm.Params, _ = unpackArgs(method.Inputs, data[4:])
 	}
-
-	raw := sources[0].GetAbi()
-	if raw == "" {
-		return nil
-	}
-
-	parsed, err := abi.JSON(strings.NewReader(raw))
-	if err != nil {
-		return nil
-	}
-
-	f.Lock()
-	f.abiCache[addr] = &parsed
-	f.Unlock()
-
-	return &parsed
+	return dm
 }
 
-func (f *Fx) lookupUserOps(ctx context.Context, txHash common.Hash) []DecodedUserOp {
+func (f *Fx) decodeEvent(log *types.Log) DecodedEvent {
+	de := DecodedEvent{
+		Index:   log.Index,
+		Address: log.Address.Hex(),
+	}
+
+	if len(log.Topics) == 0 {
+		return de
+	}
+
+	de.Topic = log.Topics[0].Hex()
+
+	f.RLock()
+	event, ok := f.events[log.Topics[0]]
+	f.RUnlock()
+
+	if !ok {
+		de.Name = "Unknown"
+		return de
+	}
+
+	de.Name = event.Name
+	de.Signature = event.Sig
+
+	indexed, nonIndexed := splitEventInputs(event)
+	de.Params = decodeTopics(indexed, log.Topics)
+
+	if len(log.Data) > 0 {
+		if dataParams, err := unpackArgs(nonIndexed, log.Data); err == nil {
+			maps.Copy(de.Params, dataParams)
+		}
+	}
+	return de
+}
+
+func (f *Fx) decodeUserOps(ctx context.Context, txHash common.Hash) []DecodedUserOp {
 	if f.Ops == nil {
 		return nil
 	}
@@ -385,14 +532,18 @@ func (f *Fx) lookupUserOps(ctx context.Context, txHash common.Hash) []DecodedUse
 			continue
 		}
 
-		callData := full.GetCallData()
 		op := DecodedUserOp{
 			Sender: full.GetSender(),
 			Nonce:  full.GetNonce(),
 		}
 
+		callData := full.GetCallData()
 		if callData != "" && callData != "0x" {
 			op.CallData = callData
+			cd := common.FromHex(callData)
+			if len(cd) >= 4 {
+				op.Method = f.decodeMethod(cd)
+			}
 		}
 
 		ops = append(ops, op)
@@ -400,80 +551,7 @@ func (f *Fx) lookupUserOps(ctx context.Context, txHash common.Hash) []DecodedUse
 	return ops
 }
 
-// decode logic
-
-func (f *Fx) decodeMethod(contractABI *abi.ABI, data []byte) *DecodedMethod {
-	if len(data) < 4 {
-		return nil
-	}
-
-	selector := hexutil.Encode(data[:4])
-	dm := &DecodedMethod{Selector: selector}
-
-	if contractABI != nil {
-		method, err := contractABI.MethodById(data[:4])
-		if err == nil {
-			dm.Name = method.Name
-			dm.Signature = method.Sig
-			dm.Params, _ = unpackArgs(method.Inputs, data[4:])
-			return dm
-		}
-	}
-
-	dm.Name = "Unknown"
-	return dm
-}
-
-func (f *Fx) decodeEvent(contractABI *abi.ABI, log *types.Log) DecodedEvent {
-	de := DecodedEvent{
-		Index:   log.Index,
-		Address: log.Address.Hex(),
-	}
-
-	if len(log.Topics) == 0 {
-		return de
-	}
-
-	de.Topic = log.Topics[0].Hex()
-
-	if contractABI != nil {
-		event, err := contractABI.EventByID(log.Topics[0])
-		if err == nil {
-			de.Name = event.Name
-			de.Signature = event.Sig
-
-			indexed, nonIndexed := splitEventInputs(event)
-			de.Params = decodeTopics(indexed, log.Topics)
-
-			if len(log.Data) > 0 {
-				if dataParams, err := unpackArgs(nonIndexed, log.Data); err == nil {
-					maps.Copy(de.Params, dataParams)
-				}
-			}
-			return de
-		}
-	}
-
-	de.Name = "Unknown"
-	return de
-}
-
-func (f *Fx) collectSelectors(block *Block) []string {
-	funcSet := make(map[string]bool)
-	for _, t := range block.Transactions {
-		if t.Tx.To() != nil && len(t.Tx.Data()) >= 4 {
-			funcSet[hexutil.Encode(t.Tx.Data()[:4])] = true
-		}
-	}
-
-	funcs := make([]string, 0, len(funcSet))
-	for k := range funcSet {
-		funcs = append(funcs, k)
-	}
-	return funcs
-}
-
-func (f *Fx) decodeTx(t Transaction, contractABI *abi.ABI, funcAbis, eventAbis map[string]*sigprovider.Abi, ctx context.Context) DecodedTx {
+func (f *Fx) decodeTx(ctx context.Context, t Transaction) DecodedTx {
 	tx := t.Tx
 
 	dt := DecodedTx{
@@ -493,11 +571,9 @@ func (f *Fx) decodeTx(t Transaction, contractABI *abi.ABI, funcAbis, eventAbis m
 	if tx.To() != nil {
 		dt.To = tx.To().Hex()
 	}
-
 	if tx.ChainId() != nil {
 		dt.ChainID = tx.ChainId().String()
 	}
-
 	if tx.GasPrice() != nil {
 		dt.GasPrice = formatBigInt(tx.GasPrice())
 	}
@@ -546,67 +622,40 @@ func (f *Fx) decodeTx(t Transaction, contractABI *abi.ABI, funcAbis, eventAbis m
 
 	txData := tx.Data()
 	if len(txData) > 0 {
-		dt.Method = f.decodeMethod(contractABI, txData)
-		if dt.Method != nil {
-			applyFallbackName(&dt.Method.Name, funcAbis, dt.Method.Selector)
-			if dt.Method.Name == "Unknown" {
-				dt.Input = hexutil.Encode(txData)
-			}
+		dt.Method = f.decodeMethod(txData)
+		if dt.Method != nil && dt.Method.Name == "Unknown" {
+			dt.Input = hexutil.Encode(txData)
 		}
 	}
 
 	for _, log := range t.Receipt.Logs {
-		// Extract token transfers and approvals directly from log structure
 		if transfer := extractTransfer(log); transfer != nil {
 			dt.Transfers = append(dt.Transfers, *transfer)
 		}
 		if approval := extractApproval(log); approval != nil {
 			dt.Approvals = append(dt.Approvals, *approval)
 		}
-
-		// Full event decode
-		logABI := contractABI
-		if tx.To() != nil && log.Address != *tx.To() {
-			logABI = f.lookupABI(ctx, log.Address)
-		}
-
-		de := f.decodeEvent(logABI, log)
-		if len(log.Topics) > 0 {
-			applyFallbackName(&de.Name, eventAbis, log.Topics[0].Hex())
-		}
-
-		dt.Events = append(dt.Events, de)
+		dt.Events = append(dt.Events, f.decodeEvent(log))
 	}
 
 	if tx.To() != nil && entryPoints[*tx.To()] {
-		ops := f.lookupUserOps(ctx, tx.Hash())
-		for j := range ops {
-			if ops[j].CallData != "" {
-				callData := common.FromHex(ops[j].CallData)
-				if len(callData) >= 4 {
-					opABI := f.lookupABI(ctx, common.HexToAddress(ops[j].Sender))
-					ops[j].Method = f.decodeMethod(opABI, callData)
-				}
-			}
-		}
-		dt.UserOps = ops
+		dt.UserOps = f.decodeUserOps(ctx, tx.Hash())
 	}
 
 	return dt
 }
 
+// Decode resolves everything upfront, then decodes.
 func (f *Fx) Decode(ctx context.Context, block *Block) (*DecodedBlock, error) {
-	selectors := f.collectSelectors(block)
-	funcAbis := f.lookupFunctions(ctx, selectors)
-	eventAbis := f.lookupEvents(ctx, block)
-	decoded := make([]DecodedTx, len(block.Transactions))
+	// Phase 1: resolve — populate all caches from services
+	f.resolveABIs(ctx, block)
+	f.resolveMethods(ctx, block)
+	f.resolveEvents(ctx, block)
 
+	// Phase 2: decode — read from caches only
+	decoded := make([]DecodedTx, len(block.Transactions))
 	for i, t := range block.Transactions {
-		var contractABI *abi.ABI
-		if t.Tx.To() != nil {
-			contractABI = f.lookupABI(ctx, *t.Tx.To())
-		}
-		decoded[i] = f.decodeTx(t, contractABI, funcAbis, eventAbis, ctx)
+		decoded[i] = f.decodeTx(ctx, t)
 	}
 
 	db := &DecodedBlock{

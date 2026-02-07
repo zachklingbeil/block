@@ -4,23 +4,35 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/timefactoryio/block/zero"
 )
 
 type Fx struct {
 	*zero.Zero
-	abiCache map[common.Address]*abi.ABI
+	sync.RWMutex
+	abis    map[common.Address]*abi.ABI
+	events  map[common.Hash]*abi.Event
+	methods map[string]*abi.Method
 }
 
 func Init(url string) *Fx {
 	return &Fx{
-		Zero:     zero.Init(url),
-		abiCache: make(map[common.Address]*abi.ABI),
+		Zero:    zero.Init(url),
+		abis:    make(map[common.Address]*abi.ABI),
+		events:  make(map[common.Hash]*abi.Event),
+		methods: make(map[string]*abi.Method),
 	}
 }
+
+var (
+	TopicTransfer = crypto.Keccak256Hash([]byte("Transfer(address,address,uint256)"))
+	TopicApproval = crypto.Keccak256Hash([]byte("Approval(address,address,uint256)"))
+)
 
 func (fx *Fx) Test() error {
 	// Fetch block
