@@ -13,11 +13,11 @@ type Block struct {
 	Hash         common.Hash    `json:"hash"`
 	ParentHash   common.Hash    `json:"parentHash"`
 	Timestamp    uint64         `json:"timestamp"`
+	TxCount      uint           `json:"txCount"`
 	GasLimit     uint64         `json:"gasLimit"`
 	GasUsed      uint64         `json:"gasUsed"`
 	BaseFee      *big.Int       `json:"baseFeePerGas,omitempty"`
 	Transactions []*Transaction `json:"transactions"`
-	TxCount      uint           `json:"txCount"`
 }
 
 // Transaction pairs the intent with the outcome.
@@ -26,14 +26,14 @@ type Transaction struct {
 	Hash      common.Hash     `json:"hash"`
 	Nonce     uint64          `json:"nonce"`
 	To        *common.Address `json:"to,omitempty"`
-	Value     *big.Int        `json:"value"`
+	Value     *big.Int        `json:"value,omitempty"`
 	Gas       uint64          `json:"gas"`
-	GasPrice  *big.Int        `json:"gasPrice"`
+	GasPrice  *big.Int        `json:"gasPrice,omitempty"`
 	GasTipCap *big.Int        `json:"maxPriorityFeePerGas,omitempty"`
 	GasFeeCap *big.Int        `json:"maxFeePerGas,omitempty"`
-	Data      []byte          `json:"input"`
+	Data      []byte          `json:"input,omitempty"`
 	Type      uint8           `json:"type"`
-	ChainID   *big.Int        `json:"chainId"`
+	ChainID   *big.Int        `json:"chainId,omitempty"`
 
 	// Outcome
 	Status            uint64         `json:"status"`
@@ -43,16 +43,16 @@ type Transaction struct {
 	ContractAddress   common.Address `json:"contractAddress,omitempty"`
 	BlobGasUsed       uint64         `json:"blobGasUsed,omitempty"`
 	BlobGasPrice      *big.Int       `json:"blobGasPrice,omitempty"`
-	Logs              []*Log         `json:"logs"`
+	Logs              []*Log         `json:"logs,omitempty"`
 }
 
 // Log is a contract event — the economic activity.
 type Log struct {
 	Address common.Address `json:"address"`
 	Topics  []common.Hash  `json:"topics"`
-	Data    []byte         `json:"data"`
+	Data    []byte         `json:"data,omitempty"`
 	Index   uint           `json:"logIndex"`
-	Removed bool           `json:"removed"`
+	Removed bool           `json:"removed,omitempty"`
 }
 
 func toLogs(logs []*types.Log) []*Log {
@@ -111,10 +111,10 @@ func (fx *Fx) Block(number *big.Int) (*Block, error) {
 		Hash:         block.Hash(),
 		ParentHash:   block.ParentHash(),
 		Timestamp:    block.Time(),
+		TxCount:      uint(len(txs)),
 		GasLimit:     block.GasLimit(),
 		GasUsed:      block.GasUsed(),
 		BaseFee:      block.BaseFee(),
-		TxCount:      uint(len(txs)),
 		Transactions: txs,
 	}, nil
 }
