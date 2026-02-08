@@ -100,43 +100,36 @@ func toArgs(inputs []*sigprovider.Argument) []*Arg {
 	return args
 }
 
-// decodeEvents batch-decodes all logs via sigprovider.
+// decodeEvents decodes all logs via sigprovider.
 func (fx *Fx) decodeEvents(logs []*Log) {
 	if len(logs) == 0 {
 		return
 	}
 
-	reqs := make([]*sigprovider.GetEventAbiRequest, len(logs))
-	for i, l := range logs {
+	decoded := 0
+	for _, l := range logs {
+		if len(l.Topics) == 0 {
+			continue
+		}
 		topics := make([]string, len(l.Topics))
 		for j, t := range l.Topics {
 			topics[j] = t.Hex()
 		}
-		reqs[i] = &sigprovider.GetEventAbiRequest{
+
+		resp, err := fx.Sig.GetEventAbi(fx.Context, &sigprovider.GetEventAbiRequest{
 			Data:   "0x" + hex.EncodeToString(l.Data),
 			Topics: strings.Join(topics, ","),
+		})
+		if err != nil {
+			continue
 		}
-	}
 
-	resp, err := fx.Sig.BatchGetEventAbis(fx.Context, &sigprovider.BatchGetEventAbisRequest{
-		Requests: reqs,
-	})
-	if err != nil {
-		fmt.Printf("sig-provider error: %v\n", err)
-		return
-	}
-
-	decoded := 0
-	for i, r := range resp.GetResponses() {
-		if i >= len(logs) {
-			break
-		}
-		abis := r.GetAbi()
+		abis := resp.GetAbi()
 		if len(abis) == 0 {
 			continue
 		}
-		logs[i].Event = abis[0].GetName()
-		logs[i].Args = toArgs(abis[0].GetInputs())
+		l.Event = abis[0].GetName()
+		l.Args = toArgs(abis[0].GetInputs())
 		decoded++
 	}
 	fmt.Printf("sig-provider: decoded %d/%d logs\n", decoded, len(logs))
