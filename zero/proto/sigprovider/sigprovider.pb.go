@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v6.33.4
-// source: sigprovider/sigprovider.proto
+// source: zero/proto/sigprovider/sigprovider.proto
 
 package sigprovider
 
@@ -30,7 +30,7 @@ type CreateSignaturesRequest struct {
 
 func (x *CreateSignaturesRequest) Reset() {
 	*x = CreateSignaturesRequest{}
-	mi := &file_sigprovider_sigprovider_proto_msgTypes[0]
+	mi := &file_zero_proto_sigprovider_sigprovider_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42,7 +42,7 @@ func (x *CreateSignaturesRequest) String() string {
 func (*CreateSignaturesRequest) ProtoMessage() {}
 
 func (x *CreateSignaturesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sigprovider_sigprovider_proto_msgTypes[0]
+	mi := &file_zero_proto_sigprovider_sigprovider_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -55,7 +55,7 @@ func (x *CreateSignaturesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateSignaturesRequest.ProtoReflect.Descriptor instead.
 func (*CreateSignaturesRequest) Descriptor() ([]byte, []int) {
-	return file_sigprovider_sigprovider_proto_rawDescGZIP(), []int{0}
+	return file_zero_proto_sigprovider_sigprovider_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *CreateSignaturesRequest) GetAbi() string {
@@ -73,7 +73,7 @@ type CreateSignaturesResponse struct {
 
 func (x *CreateSignaturesResponse) Reset() {
 	*x = CreateSignaturesResponse{}
-	mi := &file_sigprovider_sigprovider_proto_msgTypes[1]
+	mi := &file_zero_proto_sigprovider_sigprovider_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -85,7 +85,7 @@ func (x *CreateSignaturesResponse) String() string {
 func (*CreateSignaturesResponse) ProtoMessage() {}
 
 func (x *CreateSignaturesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sigprovider_sigprovider_proto_msgTypes[1]
+	mi := &file_zero_proto_sigprovider_sigprovider_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -98,7 +98,7 @@ func (x *CreateSignaturesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateSignaturesResponse.ProtoReflect.Descriptor instead.
 func (*CreateSignaturesResponse) Descriptor() ([]byte, []int) {
-	return file_sigprovider_sigprovider_proto_rawDescGZIP(), []int{1}
+	return file_zero_proto_sigprovider_sigprovider_proto_rawDescGZIP(), []int{1}
 }
 
 type Argument struct {
@@ -116,7 +116,7 @@ type Argument struct {
 
 func (x *Argument) Reset() {
 	*x = Argument{}
-	mi := &file_sigprovider_sigprovider_proto_msgTypes[2]
+	mi := &file_zero_proto_sigprovider_sigprovider_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -128,7 +128,7 @@ func (x *Argument) String() string {
 func (*Argument) ProtoMessage() {}
 
 func (x *Argument) ProtoReflect() protoreflect.Message {
-	mi := &file_sigprovider_sigprovider_proto_msgTypes[2]
+	mi := &file_zero_proto_sigprovider_sigprovider_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -141,7 +141,7 @@ func (x *Argument) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Argument.ProtoReflect.Descriptor instead.
 func (*Argument) Descriptor() ([]byte, []int) {
-	return file_sigprovider_sigprovider_proto_rawDescGZIP(), []int{2}
+	return file_zero_proto_sigprovider_sigprovider_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Argument) GetName() string {
@@ -189,7 +189,7 @@ type Abi struct {
 
 func (x *Abi) Reset() {
 	*x = Abi{}
-	mi := &file_sigprovider_sigprovider_proto_msgTypes[3]
+	mi := &file_zero_proto_sigprovider_sigprovider_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -201,7 +201,7 @@ func (x *Abi) String() string {
 func (*Abi) ProtoMessage() {}
 
 func (x *Abi) ProtoReflect() protoreflect.Message {
-	mi := &file_sigprovider_sigprovider_proto_msgTypes[3]
+	mi := &file_zero_proto_sigprovider_sigprovider_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -214,7 +214,7 @@ func (x *Abi) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Abi.ProtoReflect.Descriptor instead.
 func (*Abi) Descriptor() ([]byte, []int) {
-	return file_sigprovider_sigprovider_proto_rawDescGZIP(), []int{3}
+	return file_zero_proto_sigprovider_sigprovider_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Abi) GetName() string {
@@ -240,7 +240,7 @@ type GetFunctionAbiRequest struct {
 
 func (x *GetFunctionAbiRequest) Reset() {
 	*x = GetFunctionAbiRequest{}
-	mi := &file_sigprovider_sigprovider_proto_msgTypes[4]
+	mi := &file_zero_proto_sigprovider_sigprovider_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -252,7 +252,7 @@ func (x *GetFunctionAbiRequest) String() string {
 func (*GetFunctionAbiRequest) ProtoMessage() {}
 
 func (x *GetFunctionAbiRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sigprovider_sigprovider_proto_msgTypes[4]
+	mi := &file_zero_proto_sigprovider_sigprovider_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -265,7 +265,7 @@ func (x *GetFunctionAbiRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetFunctionAbiRequest.ProtoReflect.Descriptor instead.
 func (*GetFunctionAbiRequest) Descriptor() ([]byte, []int) {
-	return file_sigprovider_sigprovider_proto_rawDescGZIP(), []int{4}
+	return file_zero_proto_sigprovider_sigprovider_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetFunctionAbiRequest) GetTxInput() string {
@@ -284,7 +284,7 @@ type GetFunctionAbiResponse struct {
 
 func (x *GetFunctionAbiResponse) Reset() {
 	*x = GetFunctionAbiResponse{}
-	mi := &file_sigprovider_sigprovider_proto_msgTypes[5]
+	mi := &file_zero_proto_sigprovider_sigprovider_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -296,7 +296,7 @@ func (x *GetFunctionAbiResponse) String() string {
 func (*GetFunctionAbiResponse) ProtoMessage() {}
 
 func (x *GetFunctionAbiResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sigprovider_sigprovider_proto_msgTypes[5]
+	mi := &file_zero_proto_sigprovider_sigprovider_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -309,7 +309,7 @@ func (x *GetFunctionAbiResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetFunctionAbiResponse.ProtoReflect.Descriptor instead.
 func (*GetFunctionAbiResponse) Descriptor() ([]byte, []int) {
-	return file_sigprovider_sigprovider_proto_rawDescGZIP(), []int{5}
+	return file_zero_proto_sigprovider_sigprovider_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetFunctionAbiResponse) GetAbi() []*Abi {
@@ -330,7 +330,7 @@ type GetEventAbiRequest struct {
 
 func (x *GetEventAbiRequest) Reset() {
 	*x = GetEventAbiRequest{}
-	mi := &file_sigprovider_sigprovider_proto_msgTypes[6]
+	mi := &file_zero_proto_sigprovider_sigprovider_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -342,7 +342,7 @@ func (x *GetEventAbiRequest) String() string {
 func (*GetEventAbiRequest) ProtoMessage() {}
 
 func (x *GetEventAbiRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sigprovider_sigprovider_proto_msgTypes[6]
+	mi := &file_zero_proto_sigprovider_sigprovider_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -355,7 +355,7 @@ func (x *GetEventAbiRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEventAbiRequest.ProtoReflect.Descriptor instead.
 func (*GetEventAbiRequest) Descriptor() ([]byte, []int) {
-	return file_sigprovider_sigprovider_proto_rawDescGZIP(), []int{6}
+	return file_zero_proto_sigprovider_sigprovider_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GetEventAbiRequest) GetData() string {
@@ -381,7 +381,7 @@ type GetEventAbiResponse struct {
 
 func (x *GetEventAbiResponse) Reset() {
 	*x = GetEventAbiResponse{}
-	mi := &file_sigprovider_sigprovider_proto_msgTypes[7]
+	mi := &file_zero_proto_sigprovider_sigprovider_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -393,7 +393,7 @@ func (x *GetEventAbiResponse) String() string {
 func (*GetEventAbiResponse) ProtoMessage() {}
 
 func (x *GetEventAbiResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sigprovider_sigprovider_proto_msgTypes[7]
+	mi := &file_zero_proto_sigprovider_sigprovider_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -406,7 +406,7 @@ func (x *GetEventAbiResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEventAbiResponse.ProtoReflect.Descriptor instead.
 func (*GetEventAbiResponse) Descriptor() ([]byte, []int) {
-	return file_sigprovider_sigprovider_proto_rawDescGZIP(), []int{7}
+	return file_zero_proto_sigprovider_sigprovider_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GetEventAbiResponse) GetAbi() []*Abi {
@@ -425,7 +425,7 @@ type BatchGetEventAbisRequest struct {
 
 func (x *BatchGetEventAbisRequest) Reset() {
 	*x = BatchGetEventAbisRequest{}
-	mi := &file_sigprovider_sigprovider_proto_msgTypes[8]
+	mi := &file_zero_proto_sigprovider_sigprovider_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -437,7 +437,7 @@ func (x *BatchGetEventAbisRequest) String() string {
 func (*BatchGetEventAbisRequest) ProtoMessage() {}
 
 func (x *BatchGetEventAbisRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sigprovider_sigprovider_proto_msgTypes[8]
+	mi := &file_zero_proto_sigprovider_sigprovider_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -450,7 +450,7 @@ func (x *BatchGetEventAbisRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchGetEventAbisRequest.ProtoReflect.Descriptor instead.
 func (*BatchGetEventAbisRequest) Descriptor() ([]byte, []int) {
-	return file_sigprovider_sigprovider_proto_rawDescGZIP(), []int{8}
+	return file_zero_proto_sigprovider_sigprovider_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *BatchGetEventAbisRequest) GetRequests() []*GetEventAbiRequest {
@@ -469,7 +469,7 @@ type BatchGetEventAbisResponse struct {
 
 func (x *BatchGetEventAbisResponse) Reset() {
 	*x = BatchGetEventAbisResponse{}
-	mi := &file_sigprovider_sigprovider_proto_msgTypes[9]
+	mi := &file_zero_proto_sigprovider_sigprovider_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -481,7 +481,7 @@ func (x *BatchGetEventAbisResponse) String() string {
 func (*BatchGetEventAbisResponse) ProtoMessage() {}
 
 func (x *BatchGetEventAbisResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sigprovider_sigprovider_proto_msgTypes[9]
+	mi := &file_zero_proto_sigprovider_sigprovider_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -494,7 +494,7 @@ func (x *BatchGetEventAbisResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchGetEventAbisResponse.ProtoReflect.Descriptor instead.
 func (*BatchGetEventAbisResponse) Descriptor() ([]byte, []int) {
-	return file_sigprovider_sigprovider_proto_rawDescGZIP(), []int{9}
+	return file_zero_proto_sigprovider_sigprovider_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *BatchGetEventAbisResponse) GetResponses() []*GetEventAbiResponse {
@@ -504,88 +504,88 @@ func (x *BatchGetEventAbisResponse) GetResponses() []*GetEventAbiResponse {
 	return nil
 }
 
-var File_sigprovider_sigprovider_proto protoreflect.FileDescriptor
+var File_zero_proto_sigprovider_sigprovider_proto protoreflect.FileDescriptor
 
-const file_sigprovider_sigprovider_proto_rawDesc = "" +
+const file_zero_proto_sigprovider_sigprovider_proto_rawDesc = "" +
 	"\n" +
-	"\x1dsigprovider/sigprovider.proto\x12\vsigprovider\"+\n" +
+	"(zero/proto/sigprovider/sigprovider.proto\x12\x1ablockscout.sig_provider.v1\"+\n" +
 	"\x17CreateSignaturesRequest\x12\x10\n" +
 	"\x03abi\x18\x01 \x01(\tR\x03abi\"\x1a\n" +
-	"\x18CreateSignaturesResponse\"\xaa\x01\n" +
+	"\x18CreateSignaturesResponse\"\xb9\x01\n" +
 	"\bArgument\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
-	"\x04type\x18\x02 \x01(\tR\x04type\x125\n" +
+	"\x04type\x18\x02 \x01(\tR\x04type\x12D\n" +
 	"\n" +
-	"components\x18\x03 \x03(\v2\x15.sigprovider.ArgumentR\n" +
+	"components\x18\x03 \x03(\v2$.blockscout.sig_provider.v1.ArgumentR\n" +
 	"components\x12\x1d\n" +
 	"\aindexed\x18\x04 \x01(\bH\x00R\aindexed\x88\x01\x01\x12\x14\n" +
 	"\x05value\x18\x05 \x01(\tR\x05valueB\n" +
 	"\n" +
-	"\b_indexed\"H\n" +
+	"\b_indexed\"W\n" +
 	"\x03Abi\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12-\n" +
-	"\x06inputs\x18\x02 \x03(\v2\x15.sigprovider.ArgumentR\x06inputs\"2\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12<\n" +
+	"\x06inputs\x18\x02 \x03(\v2$.blockscout.sig_provider.v1.ArgumentR\x06inputs\"2\n" +
 	"\x15GetFunctionAbiRequest\x12\x19\n" +
-	"\btx_input\x18\x01 \x01(\tR\atxInput\"<\n" +
-	"\x16GetFunctionAbiResponse\x12\"\n" +
-	"\x03abi\x18\x01 \x03(\v2\x10.sigprovider.AbiR\x03abi\"@\n" +
+	"\btx_input\x18\x01 \x01(\tR\atxInput\"K\n" +
+	"\x16GetFunctionAbiResponse\x121\n" +
+	"\x03abi\x18\x01 \x03(\v2\x1f.blockscout.sig_provider.v1.AbiR\x03abi\"@\n" +
 	"\x12GetEventAbiRequest\x12\x12\n" +
 	"\x04data\x18\x01 \x01(\tR\x04data\x12\x16\n" +
-	"\x06topics\x18\x02 \x01(\tR\x06topics\"9\n" +
-	"\x13GetEventAbiResponse\x12\"\n" +
-	"\x03abi\x18\x01 \x03(\v2\x10.sigprovider.AbiR\x03abi\"W\n" +
-	"\x18BatchGetEventAbisRequest\x12;\n" +
-	"\brequests\x18\x01 \x03(\v2\x1f.sigprovider.GetEventAbiRequestR\brequests\"[\n" +
-	"\x19BatchGetEventAbisResponse\x12>\n" +
-	"\tresponses\x18\x01 \x03(\v2 .sigprovider.GetEventAbiResponseR\tresponses2u\n" +
-	"\x10SignatureService\x12a\n" +
-	"\x10CreateSignatures\x12$.sigprovider.CreateSignaturesRequest\x1a%.sigprovider.CreateSignaturesResponse\"\x002\xa3\x02\n" +
+	"\x06topics\x18\x02 \x01(\tR\x06topics\"H\n" +
+	"\x13GetEventAbiResponse\x121\n" +
+	"\x03abi\x18\x01 \x03(\v2\x1f.blockscout.sig_provider.v1.AbiR\x03abi\"f\n" +
+	"\x18BatchGetEventAbisRequest\x12J\n" +
+	"\brequests\x18\x01 \x03(\v2..blockscout.sig_provider.v1.GetEventAbiRequestR\brequests\"j\n" +
+	"\x19BatchGetEventAbisResponse\x12M\n" +
+	"\tresponses\x18\x01 \x03(\v2/.blockscout.sig_provider.v1.GetEventAbiResponseR\tresponses2\x93\x01\n" +
+	"\x10SignatureService\x12\x7f\n" +
+	"\x10CreateSignatures\x123.blockscout.sig_provider.v1.CreateSignaturesRequest\x1a4.blockscout.sig_provider.v1.CreateSignaturesResponse\"\x002\xfe\x02\n" +
 	"\n" +
-	"AbiService\x12[\n" +
-	"\x0eGetFunctionAbi\x12\".sigprovider.GetFunctionAbiRequest\x1a#.sigprovider.GetFunctionAbiResponse\"\x00\x12R\n" +
-	"\vGetEventAbi\x12\x1f.sigprovider.GetEventAbiRequest\x1a .sigprovider.GetEventAbiResponse\"\x00\x12d\n" +
-	"\x11BatchGetEventAbis\x12%.sigprovider.BatchGetEventAbisRequest\x1a&.sigprovider.BatchGetEventAbisResponse\"\x00B7Z5github.com/timefactoryio/block/zero/proto/sigproviderb\x06proto3"
+	"AbiService\x12y\n" +
+	"\x0eGetFunctionAbi\x121.blockscout.sig_provider.v1.GetFunctionAbiRequest\x1a2.blockscout.sig_provider.v1.GetFunctionAbiResponse\"\x00\x12p\n" +
+	"\vGetEventAbi\x12..blockscout.sig_provider.v1.GetEventAbiRequest\x1a/.blockscout.sig_provider.v1.GetEventAbiResponse\"\x00\x12\x82\x01\n" +
+	"\x11BatchGetEventAbis\x124.blockscout.sig_provider.v1.BatchGetEventAbisRequest\x1a5.blockscout.sig_provider.v1.BatchGetEventAbisResponse\"\x00B7Z5github.com/timefactoryio/block/zero/proto/sigproviderb\x06proto3"
 
 var (
-	file_sigprovider_sigprovider_proto_rawDescOnce sync.Once
-	file_sigprovider_sigprovider_proto_rawDescData []byte
+	file_zero_proto_sigprovider_sigprovider_proto_rawDescOnce sync.Once
+	file_zero_proto_sigprovider_sigprovider_proto_rawDescData []byte
 )
 
-func file_sigprovider_sigprovider_proto_rawDescGZIP() []byte {
-	file_sigprovider_sigprovider_proto_rawDescOnce.Do(func() {
-		file_sigprovider_sigprovider_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_sigprovider_sigprovider_proto_rawDesc), len(file_sigprovider_sigprovider_proto_rawDesc)))
+func file_zero_proto_sigprovider_sigprovider_proto_rawDescGZIP() []byte {
+	file_zero_proto_sigprovider_sigprovider_proto_rawDescOnce.Do(func() {
+		file_zero_proto_sigprovider_sigprovider_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_zero_proto_sigprovider_sigprovider_proto_rawDesc), len(file_zero_proto_sigprovider_sigprovider_proto_rawDesc)))
 	})
-	return file_sigprovider_sigprovider_proto_rawDescData
+	return file_zero_proto_sigprovider_sigprovider_proto_rawDescData
 }
 
-var file_sigprovider_sigprovider_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
-var file_sigprovider_sigprovider_proto_goTypes = []any{
-	(*CreateSignaturesRequest)(nil),   // 0: sigprovider.CreateSignaturesRequest
-	(*CreateSignaturesResponse)(nil),  // 1: sigprovider.CreateSignaturesResponse
-	(*Argument)(nil),                  // 2: sigprovider.Argument
-	(*Abi)(nil),                       // 3: sigprovider.Abi
-	(*GetFunctionAbiRequest)(nil),     // 4: sigprovider.GetFunctionAbiRequest
-	(*GetFunctionAbiResponse)(nil),    // 5: sigprovider.GetFunctionAbiResponse
-	(*GetEventAbiRequest)(nil),        // 6: sigprovider.GetEventAbiRequest
-	(*GetEventAbiResponse)(nil),       // 7: sigprovider.GetEventAbiResponse
-	(*BatchGetEventAbisRequest)(nil),  // 8: sigprovider.BatchGetEventAbisRequest
-	(*BatchGetEventAbisResponse)(nil), // 9: sigprovider.BatchGetEventAbisResponse
+var file_zero_proto_sigprovider_sigprovider_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_zero_proto_sigprovider_sigprovider_proto_goTypes = []any{
+	(*CreateSignaturesRequest)(nil),   // 0: blockscout.sig_provider.v1.CreateSignaturesRequest
+	(*CreateSignaturesResponse)(nil),  // 1: blockscout.sig_provider.v1.CreateSignaturesResponse
+	(*Argument)(nil),                  // 2: blockscout.sig_provider.v1.Argument
+	(*Abi)(nil),                       // 3: blockscout.sig_provider.v1.Abi
+	(*GetFunctionAbiRequest)(nil),     // 4: blockscout.sig_provider.v1.GetFunctionAbiRequest
+	(*GetFunctionAbiResponse)(nil),    // 5: blockscout.sig_provider.v1.GetFunctionAbiResponse
+	(*GetEventAbiRequest)(nil),        // 6: blockscout.sig_provider.v1.GetEventAbiRequest
+	(*GetEventAbiResponse)(nil),       // 7: blockscout.sig_provider.v1.GetEventAbiResponse
+	(*BatchGetEventAbisRequest)(nil),  // 8: blockscout.sig_provider.v1.BatchGetEventAbisRequest
+	(*BatchGetEventAbisResponse)(nil), // 9: blockscout.sig_provider.v1.BatchGetEventAbisResponse
 }
-var file_sigprovider_sigprovider_proto_depIdxs = []int32{
-	2,  // 0: sigprovider.Argument.components:type_name -> sigprovider.Argument
-	2,  // 1: sigprovider.Abi.inputs:type_name -> sigprovider.Argument
-	3,  // 2: sigprovider.GetFunctionAbiResponse.abi:type_name -> sigprovider.Abi
-	3,  // 3: sigprovider.GetEventAbiResponse.abi:type_name -> sigprovider.Abi
-	6,  // 4: sigprovider.BatchGetEventAbisRequest.requests:type_name -> sigprovider.GetEventAbiRequest
-	7,  // 5: sigprovider.BatchGetEventAbisResponse.responses:type_name -> sigprovider.GetEventAbiResponse
-	0,  // 6: sigprovider.SignatureService.CreateSignatures:input_type -> sigprovider.CreateSignaturesRequest
-	4,  // 7: sigprovider.AbiService.GetFunctionAbi:input_type -> sigprovider.GetFunctionAbiRequest
-	6,  // 8: sigprovider.AbiService.GetEventAbi:input_type -> sigprovider.GetEventAbiRequest
-	8,  // 9: sigprovider.AbiService.BatchGetEventAbis:input_type -> sigprovider.BatchGetEventAbisRequest
-	1,  // 10: sigprovider.SignatureService.CreateSignatures:output_type -> sigprovider.CreateSignaturesResponse
-	5,  // 11: sigprovider.AbiService.GetFunctionAbi:output_type -> sigprovider.GetFunctionAbiResponse
-	7,  // 12: sigprovider.AbiService.GetEventAbi:output_type -> sigprovider.GetEventAbiResponse
-	9,  // 13: sigprovider.AbiService.BatchGetEventAbis:output_type -> sigprovider.BatchGetEventAbisResponse
+var file_zero_proto_sigprovider_sigprovider_proto_depIdxs = []int32{
+	2,  // 0: blockscout.sig_provider.v1.Argument.components:type_name -> blockscout.sig_provider.v1.Argument
+	2,  // 1: blockscout.sig_provider.v1.Abi.inputs:type_name -> blockscout.sig_provider.v1.Argument
+	3,  // 2: blockscout.sig_provider.v1.GetFunctionAbiResponse.abi:type_name -> blockscout.sig_provider.v1.Abi
+	3,  // 3: blockscout.sig_provider.v1.GetEventAbiResponse.abi:type_name -> blockscout.sig_provider.v1.Abi
+	6,  // 4: blockscout.sig_provider.v1.BatchGetEventAbisRequest.requests:type_name -> blockscout.sig_provider.v1.GetEventAbiRequest
+	7,  // 5: blockscout.sig_provider.v1.BatchGetEventAbisResponse.responses:type_name -> blockscout.sig_provider.v1.GetEventAbiResponse
+	0,  // 6: blockscout.sig_provider.v1.SignatureService.CreateSignatures:input_type -> blockscout.sig_provider.v1.CreateSignaturesRequest
+	4,  // 7: blockscout.sig_provider.v1.AbiService.GetFunctionAbi:input_type -> blockscout.sig_provider.v1.GetFunctionAbiRequest
+	6,  // 8: blockscout.sig_provider.v1.AbiService.GetEventAbi:input_type -> blockscout.sig_provider.v1.GetEventAbiRequest
+	8,  // 9: blockscout.sig_provider.v1.AbiService.BatchGetEventAbis:input_type -> blockscout.sig_provider.v1.BatchGetEventAbisRequest
+	1,  // 10: blockscout.sig_provider.v1.SignatureService.CreateSignatures:output_type -> blockscout.sig_provider.v1.CreateSignaturesResponse
+	5,  // 11: blockscout.sig_provider.v1.AbiService.GetFunctionAbi:output_type -> blockscout.sig_provider.v1.GetFunctionAbiResponse
+	7,  // 12: blockscout.sig_provider.v1.AbiService.GetEventAbi:output_type -> blockscout.sig_provider.v1.GetEventAbiResponse
+	9,  // 13: blockscout.sig_provider.v1.AbiService.BatchGetEventAbis:output_type -> blockscout.sig_provider.v1.BatchGetEventAbisResponse
 	10, // [10:14] is the sub-list for method output_type
 	6,  // [6:10] is the sub-list for method input_type
 	6,  // [6:6] is the sub-list for extension type_name
@@ -593,27 +593,27 @@ var file_sigprovider_sigprovider_proto_depIdxs = []int32{
 	0,  // [0:6] is the sub-list for field type_name
 }
 
-func init() { file_sigprovider_sigprovider_proto_init() }
-func file_sigprovider_sigprovider_proto_init() {
-	if File_sigprovider_sigprovider_proto != nil {
+func init() { file_zero_proto_sigprovider_sigprovider_proto_init() }
+func file_zero_proto_sigprovider_sigprovider_proto_init() {
+	if File_zero_proto_sigprovider_sigprovider_proto != nil {
 		return
 	}
-	file_sigprovider_sigprovider_proto_msgTypes[2].OneofWrappers = []any{}
+	file_zero_proto_sigprovider_sigprovider_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_sigprovider_sigprovider_proto_rawDesc), len(file_sigprovider_sigprovider_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_zero_proto_sigprovider_sigprovider_proto_rawDesc), len(file_zero_proto_sigprovider_sigprovider_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   2,
 		},
-		GoTypes:           file_sigprovider_sigprovider_proto_goTypes,
-		DependencyIndexes: file_sigprovider_sigprovider_proto_depIdxs,
-		MessageInfos:      file_sigprovider_sigprovider_proto_msgTypes,
+		GoTypes:           file_zero_proto_sigprovider_sigprovider_proto_goTypes,
+		DependencyIndexes: file_zero_proto_sigprovider_sigprovider_proto_depIdxs,
+		MessageInfos:      file_zero_proto_sigprovider_sigprovider_proto_msgTypes,
 	}.Build()
-	File_sigprovider_sigprovider_proto = out.File
-	file_sigprovider_sigprovider_proto_goTypes = nil
-	file_sigprovider_sigprovider_proto_depIdxs = nil
+	File_zero_proto_sigprovider_sigprovider_proto = out.File
+	file_zero_proto_sigprovider_sigprovider_proto_goTypes = nil
+	file_zero_proto_sigprovider_sigprovider_proto_depIdxs = nil
 }

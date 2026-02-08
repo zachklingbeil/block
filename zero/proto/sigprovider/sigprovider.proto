@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package sigprovider;
+package blockscout.sig_provider.v1;
 
 option go_package = "github.com/timefactoryio/block/zero/proto/sigprovider";
 

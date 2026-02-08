@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.1
 // - protoc             v6.33.4
-// source: sigprovider/sigprovider.proto
+// source: zero/proto/sigprovider/sigprovider.proto
 
 package sigprovider
 
@@ -19,7 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	SignatureService_CreateSignatures_FullMethodName = "/sigprovider.SignatureService/CreateSignatures"
+	SignatureService_CreateSignatures_FullMethodName = "/blockscout.sig_provider.v1.SignatureService/CreateSignatures"
 )
 
 // SignatureServiceClient is the client API for SignatureService service.
@@ -108,7 +108,7 @@ func _SignatureService_CreateSignatures_Handler(srv interface{}, ctx context.Con
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var SignatureService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "sigprovider.SignatureService",
+	ServiceName: "blockscout.sig_provider.v1.SignatureService",
 	HandlerType: (*SignatureServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -117,13 +117,13 @@ var SignatureService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "sigprovider/sigprovider.proto",
+	Metadata: "zero/proto/sigprovider/sigprovider.proto",
 }
 
 const (
-	AbiService_GetFunctionAbi_FullMethodName    = "/sigprovider.AbiService/GetFunctionAbi"
-	AbiService_GetEventAbi_FullMethodName       = "/sigprovider.AbiService/GetEventAbi"
-	AbiService_BatchGetEventAbis_FullMethodName = "/sigprovider.AbiService/BatchGetEventAbis"
+	AbiService_GetFunctionAbi_FullMethodName    = "/blockscout.sig_provider.v1.AbiService/GetFunctionAbi"
+	AbiService_GetEventAbi_FullMethodName       = "/blockscout.sig_provider.v1.AbiService/GetEventAbi"
+	AbiService_BatchGetEventAbis_FullMethodName = "/blockscout.sig_provider.v1.AbiService/BatchGetEventAbis"
 )
 
 // AbiServiceClient is the client API for AbiService service.
@@ -278,7 +278,7 @@ func _AbiService_BatchGetEventAbis_Handler(srv interface{}, ctx context.Context,
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var AbiService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "sigprovider.AbiService",
+	ServiceName: "blockscout.sig_provider.v1.AbiService",
 	HandlerType: (*AbiServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -295,5 +295,5 @@ var AbiService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "sigprovider/sigprovider.proto",
+	Metadata: "zero/proto/sigprovider/sigprovider.proto",
 }
