@@ -122,9 +122,11 @@ func (fx *Fx) decodeEvents(logs []*Log) {
 		Requests: reqs,
 	})
 	if err != nil {
+		fmt.Printf("sig-provider error: %v\n", err)
 		return
 	}
 
+	decoded := 0
 	for i, r := range resp.GetResponses() {
 		if i >= len(logs) {
 			break
@@ -133,10 +135,11 @@ func (fx *Fx) decodeEvents(logs []*Log) {
 		if len(abis) == 0 {
 			continue
 		}
-		// Take the first match
 		logs[i].Event = abis[0].GetName()
 		logs[i].Args = toArgs(abis[0].GetInputs())
+		decoded++
 	}
+	fmt.Printf("sig-provider: decoded %d/%d logs\n", decoded, len(logs))
 }
 
 func (fx *Fx) Block(number *big.Int) (*Block, error) {
