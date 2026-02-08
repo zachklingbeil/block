@@ -107,7 +107,7 @@ func (fx *Fx) decodeEvents(logs []*Log) {
 	}
 
 	decoded := 0
-	for _, l := range logs {
+	for i, l := range logs {
 		if len(l.Topics) == 0 {
 			continue
 		}
@@ -116,12 +116,26 @@ func (fx *Fx) decodeEvents(logs []*Log) {
 			topics[j] = t.Hex()
 		}
 
+		data := "0x" + hex.EncodeToString(l.Data)
+		topicsStr := strings.Join(topics, ",")
+
+		if i == 0 {
+			fmt.Printf("sig-provider debug [log 0]:\n  topics: %s\n  data: %s\n", topicsStr, data)
+		}
+
 		resp, err := fx.Sig.GetEventAbi(fx.Context, &sigprovider.GetEventAbiRequest{
-			Data:   "0x" + hex.EncodeToString(l.Data),
-			Topics: strings.Join(topics, ","),
+			Data:   data,
+			Topics: topicsStr,
 		})
 		if err != nil {
+			if i == 0 {
+				fmt.Printf("sig-provider debug [log 0] error: %v\n", err)
+			}
 			continue
+		}
+
+		if i == 0 {
+			fmt.Printf("sig-provider debug [log 0] response abis: %d\n", len(resp.GetAbi()))
 		}
 
 		abis := resp.GetAbi()
