@@ -1,11 +1,14 @@
 package fx
 
 import (
+	"encoding/hex"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/timefactoryio/block/zero/proto/sigprovider"
 )
 
 type Block struct {
@@ -53,6 +56,18 @@ type Log struct {
 	Data    []byte         `json:"data,omitempty"`
 	Index   uint           `json:"logIndex"`
 	Removed bool           `json:"removed,omitempty"`
+
+	// Decoded
+	Event string `json:"event,omitempty"`
+	Args  []*Arg `json:"args,omitempty"`
+}
+
+// Arg is a decoded event argument.
+type Arg struct {
+	Name    string `json:"name"`
+	Type    string `json:"type"`
+	Indexed bool   `json:"indexed,omitempty"`
+	Value   string `json:"value"`
 }
 
 func toLogs(logs []*types.Log) []*Log {
@@ -69,6 +84,61 @@ func toLogs(logs []*types.Log) []*Log {
 	return out
 }
 
+func toArgs(inputs []*sigprovider.Argument) []*Arg {
+	if len(inputs) == 0 {
+		return nil
+	}
+	args := make([]*Arg, len(inputs))
+	for i, in := range inputs {
+		args[i] = &Arg{
+			Name:    in.GetName(),
+			Type:    in.GetType(),
+			Indexed: in.GetIndexed(),
+			Value:   in.GetValue(),
+		}
+	}
+	return args
+}
+
+// decodeEvents batch-decodes all logs via sigprovider.
+func (fx *Fx) decodeEvents(logs []*Log) {
+	if len(logs) == 0 {
+		return
+	}
+
+	reqs := make([]*sigprovider.GetEventAbiRequest, len(logs))
+	for i, l := range logs {
+		topics := make([]string, len(l.Topics))
+		for j, t := range l.Topics {
+			topics[j] = t.Hex()
+		}
+		reqs[i] = &sigprovider.GetEventAbiRequest{
+			Data:   "0x" + hex.EncodeToString(l.Data),
+			Topics: strings.Join(topics, ","),
+		}
+	}
+
+	resp, err := fx.Sig.BatchGetEventAbis(fx.Context, &sigprovider.BatchGetEventAbisRequest{
+		Requests: reqs,
+	})
+	if err != nil {
+		return
+	}
+
+	for i, r := range resp.GetResponses() {
+		if i >= len(logs) {
+			break
+		}
+		abis := r.GetAbi()
+		if len(abis) == 0 {
+			continue
+		}
+		// Take the first match
+		logs[i].Event = abis[0].GetName()
+		logs[i].Args = toArgs(abis[0].GetInputs())
+	}
+}
+
 func (fx *Fx) Block(number *big.Int) (*Block, error) {
 	block, err := fx.Eth.BlockByNumber(fx.Context, number)
 	if err != nil {
@@ -76,6 +146,8 @@ func (fx *Fx) Block(number *big.Int) (*Block, error) {
 	}
 
 	txs := make([]*Transaction, len(block.Transactions()))
+	var allLogs []*Log
+
 	for i, tx := range block.Transactions() {
 		r, err := fx.Eth.TransactionReceipt(fx.Context, tx.Hash())
 		if err != nil {
@@ -86,6 +158,9 @@ func (fx *Fx) Block(number *big.Int) (*Block, error) {
 		if r.ContractAddress != (common.Address{}) {
 			contractAddr = &r.ContractAddress
 		}
+
+		logs := toLogs(r.Logs)
+		allLogs = append(allLogs, logs...)
 
 		txs[i] = &Transaction{
 			Hash:      tx.Hash(),
@@ -107,9 +182,11 @@ func (fx *Fx) Block(number *big.Int) (*Block, error) {
 			ContractAddress:   contractAddr,
 			BlobGasUsed:       r.BlobGasUsed,
 			BlobGasPrice:      r.BlobGasPrice,
-			Logs:              toLogs(r.Logs),
+			Logs:              logs,
 		}
 	}
+
+	fx.decodeEvents(allLogs)
 
 	return &Block{
 		Number:       block.Number(),
