@@ -31,24 +31,6 @@ func Init(password string) *Zero {
 		log.Fatalf("ethereum: %v", err)
 	}
 
-	sourcifyConn := fmt.Sprintf("user=postgres password=%s dbname=sourcify host=postgres port=5432 sslmode=disable", password)
-	sourcifyDb, err := sql.Open("postgres", sourcifyConn)
-	if err != nil {
-		log.Fatalf("postgres open sourcify: %v", err)
-	}
-	if err := sourcifyDb.Ping(); err != nil {
-		log.Fatalf("postgres ping sourcify: %v", err)
-	}
-
-	contractConn := fmt.Sprintf("user=postgres password=%s dbname=contractdb host=postgres port=5432 sslmode=disable", password)
-	contractDb, err := sql.Open("postgres", contractConn)
-	if err != nil {
-		log.Fatalf("postgres open contractdb: %v", err)
-	}
-	if err := contractDb.Ping(); err != nil {
-		log.Fatalf("postgres ping contractdb: %v", err)
-	}
-
 	rw := &sync.RWMutex{}
 	return &Zero{
 		RWMutex: rw,
