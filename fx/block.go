@@ -33,6 +33,14 @@ type Receipt struct {
 	Logs              []*Log          `json:"logs,omitempty"`
 }
 
+type Log struct {
+	Address common.Address `json:"address"`
+	Topics  []common.Hash  `json:"topics"`
+	Data    []byte         `json:"data,omitempty"`
+	Index   uint           `json:"logIndex"`
+	TxIndex uint           `json:"transactionIndex"`
+}
+
 func (fx *Fx) Block(number *big.Int) (*Block, error) {
 	block, err := fx.Eth.BlockByNumber(fx.Context, number)
 	if err != nil {
@@ -94,4 +102,18 @@ func (fx *Fx) blockReceipts(number *big.Int) ([]*types.Receipt, error) {
 		return nil, fmt.Errorf("block receipts: %w", err)
 	}
 	return receipts, nil
+}
+
+func (fx *Fx) Logs(raw []*types.Log) []*Log {
+	logs := make([]*Log, len(raw))
+	for i, l := range raw {
+		logs[i] = &Log{
+			Address: l.Address,
+			Topics:  l.Topics,
+			Data:    l.Data,
+			Index:   l.Index,
+			TxIndex: l.TxIndex,
+		}
+	}
+	return logs
 }
