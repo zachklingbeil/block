@@ -26,12 +26,13 @@ type Zero struct {
 
 func Init(password string) *Zero {
 	ctx := context.Background()
+
 	rpcClient, err := rpc.DialIPC(ctx, "/.ethereum/geth.ipc")
 	if err != nil {
 		log.Fatalf("ethereum: %v", err)
 	}
 
-	connStr := fmt.Sprintf("user=postgres password=%s dbname=sourcify host=postgres port=5432", password)
+	connStr := fmt.Sprintf("user=postgres password=%s dbname=sourcify host=postgres port=5432 sslmode=disable", password)
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatalf("postgres open: %v", err)
