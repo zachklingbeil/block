@@ -36,7 +36,6 @@ type Log struct {
 	Address common.Address `json:"address"`
 	Topics  []common.Hash  `json:"topics"`
 	Data    []byte         `json:"data,omitempty"`
-	Index   uint           `json:"logIndex"`
 }
 
 func (fx *Fx) Block(number *big.Int) (*Block, error) {
@@ -108,7 +107,6 @@ func (fx *Fx) Logs(raw []*types.Log) []*Log {
 			Address: l.Address,
 			Topics:  l.Topics,
 			Data:    l.Data,
-			Index:   l.Index,
 		}
 	}
 	return logs
