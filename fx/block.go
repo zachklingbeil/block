@@ -22,6 +22,7 @@ type Block struct {
 
 type Receipt struct {
 	TxHash            common.Hash     `json:"transactionHash"`
+	TxIndex           uint            `json:"index"`
 	From              common.Address  `json:"from"`
 	To                *common.Address `json:"to,omitempty"`
 	Value             *big.Int        `json:"value,omitempty"`
@@ -38,7 +39,6 @@ type Log struct {
 	Topics  []common.Hash  `json:"topics"`
 	Data    []byte         `json:"data,omitempty"`
 	Index   uint           `json:"logIndex"`
-	TxIndex uint           `json:"transactionIndex"`
 }
 
 func (fx *Fx) Block(number *big.Int) (*Block, error) {
@@ -67,6 +67,7 @@ func (fx *Fx) Block(number *big.Int) (*Block, error) {
 
 		txs[i] = &Receipt{
 			TxHash:            tx.Hash(),
+			TxIndex:           uint(i),
 			From:              from,
 			To:                tx.To(),
 			Value:             tx.Value(),
@@ -112,7 +113,6 @@ func (fx *Fx) Logs(raw []*types.Log) []*Log {
 			Topics:  l.Topics,
 			Data:    l.Data,
 			Index:   l.Index,
-			TxIndex: l.TxIndex,
 		}
 	}
 	return logs
