@@ -1,14 +1,12 @@
 package fx
 
 import (
-	"encoding/hex"
 	"fmt"
 	"math/big"
-	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/timefactoryio/block/zero/proto/sigprovider"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 type Block struct {
@@ -16,16 +14,14 @@ type Block struct {
 	Hash         common.Hash    `json:"hash"`
 	ParentHash   common.Hash    `json:"parentHash"`
 	Timestamp    uint64         `json:"timestamp"`
-	TxCount      uint           `json:"txCount"`
+	TxCount      int            `json:"txCount"`
 	GasLimit     uint64         `json:"gasLimit"`
 	GasUsed      uint64         `json:"gasUsed"`
 	BaseFee      *big.Int       `json:"baseFeePerGas,omitempty"`
 	Transactions []*Transaction `json:"transactions"`
 }
 
-// Transaction pairs the intent with the outcome.
 type Transaction struct {
-	// Intent
 	Hash      common.Hash     `json:"hash"`
 	Nonce     uint64          `json:"nonce"`
 	To        *common.Address `json:"to,omitempty"`
@@ -38,7 +34,6 @@ type Transaction struct {
 	Type      uint8           `json:"type"`
 	ChainID   *big.Int        `json:"chainId,omitempty"`
 
-	// Outcome
 	Status            uint64          `json:"status"`
 	GasUsed           uint64          `json:"gasUsed"`
 	CumulativeGasUsed uint64          `json:"cumulativeGasUsed"`
@@ -49,128 +44,28 @@ type Transaction struct {
 	Logs              []*Log          `json:"logs,omitempty"`
 }
 
-// Log is a contract event — the economic activity.
-type Log struct {
-	Address common.Address `json:"address"`
-	Topics  []common.Hash  `json:"topics"`
-	Data    []byte         `json:"data,omitempty"`
-	Index   uint           `json:"logIndex"`
-	Removed bool           `json:"removed,omitempty"`
-
-	// Decoded
-	Event string `json:"event,omitempty"`
-	Args  []*Arg `json:"args,omitempty"`
-}
-
-// Arg is a decoded event argument.
-type Arg struct {
-	Name    string `json:"name"`
-	Type    string `json:"type"`
-	Indexed bool   `json:"indexed,omitempty"`
-	Value   string `json:"value"`
-}
-
-func toLogs(logs []*types.Log) []*Log {
-	out := make([]*Log, len(logs))
-	for i, l := range logs {
-		out[i] = &Log{
-			Address: l.Address,
-			Topics:  l.Topics,
-			Data:    l.Data,
-			Index:   l.Index,
-			Removed: l.Removed,
-		}
-	}
-	return out
-}
-
-func toArgs(inputs []*sigprovider.Argument) []*Arg {
-	if len(inputs) == 0 {
-		return nil
-	}
-	args := make([]*Arg, len(inputs))
-	for i, in := range inputs {
-		args[i] = &Arg{
-			Name:    in.GetName(),
-			Type:    in.GetType(),
-			Indexed: in.GetIndexed(),
-			Value:   in.GetValue(),
-		}
-	}
-	return args
-}
-
-// decodeEvents decodes all logs via sigprovider.
-func (fx *Fx) decodeEvents(logs []*Log) {
-	if len(logs) == 0 {
-		return
-	}
-
-	decoded := 0
-	for i, l := range logs {
-		if len(l.Topics) == 0 {
-			continue
-		}
-		topics := make([]string, len(l.Topics))
-		for j, t := range l.Topics {
-			topics[j] = t.Hex()
-		}
-
-		data := "0x" + hex.EncodeToString(l.Data)
-		topicsStr := strings.Join(topics, ",")
-
-		if i == 0 {
-			fmt.Printf("sig-provider debug [log 0]:\n  topics: %s\n  data: %s\n", topicsStr, data)
-		}
-
-		resp, err := fx.Sig.GetEventAbi(fx.Context, &sigprovider.GetEventAbiRequest{
-			Data:   data,
-			Topics: topicsStr,
-		})
-		if err != nil {
-			if i == 0 {
-				fmt.Printf("sig-provider debug [log 0] error: %v\n", err)
-			}
-			continue
-		}
-
-		if i == 0 {
-			fmt.Printf("sig-provider debug [log 0] response abis: %d\n", len(resp.GetAbi()))
-		}
-
-		abis := resp.GetAbi()
-		if len(abis) == 0 {
-			continue
-		}
-		l.Event = abis[0].GetName()
-		l.Args = toArgs(abis[0].GetInputs())
-		decoded++
-	}
-	fmt.Printf("sig-provider: decoded %d/%d logs\n", decoded, len(logs))
-}
-
 func (fx *Fx) Block(number *big.Int) (*Block, error) {
 	block, err := fx.Eth.BlockByNumber(fx.Context, number)
 	if err != nil {
 		return nil, fmt.Errorf("block: %w", err)
 	}
 
-	txs := make([]*Transaction, len(block.Transactions()))
-	var allLogs []*Log
+	ethTxs := block.Transactions()
+	n := len(ethTxs)
 
-	for i, tx := range block.Transactions() {
-		r, err := fx.Eth.TransactionReceipt(fx.Context, tx.Hash())
-		if err != nil {
-			return nil, fmt.Errorf("receipt[%d]: %w", i, err)
-		}
+	receipts, err := fx.receipts(ethTxs)
+	if err != nil {
+		return nil, err
+	}
+
+	txs := make([]*Transaction, n)
+	for i, tx := range ethTxs {
+		r := receipts[i]
 
 		var contractAddr *common.Address
 		if r.ContractAddress != (common.Address{}) {
 			contractAddr = &r.ContractAddress
 		}
-
-		logs := toLogs(r.Logs)
-		allLogs = append(allLogs, logs...)
 
 		txs[i] = &Transaction{
 			Hash:      tx.Hash(),
@@ -192,11 +87,9 @@ func (fx *Fx) Block(number *big.Int) (*Block, error) {
 			ContractAddress:   contractAddr,
 			BlobGasUsed:       r.BlobGasUsed,
 			BlobGasPrice:      r.BlobGasPrice,
-			Logs:              logs,
+			Logs:              fx.Logs(r.Logs),
 		}
 	}
-
-	fx.decodeEvents(allLogs)
 
 	return &Block{
 		Number:       block.Number(),
@@ -206,7 +99,33 @@ func (fx *Fx) Block(number *big.Int) (*Block, error) {
 		GasLimit:     block.GasLimit(),
 		GasUsed:      block.GasUsed(),
 		BaseFee:      block.BaseFee(),
-		TxCount:      uint(len(txs)),
+		TxCount:      n,
 		Transactions: txs,
 	}, nil
+}
+
+func (fx *Fx) receipts(txs types.Transactions) ([]*types.Receipt, error) {
+	n := len(txs)
+	if n == 0 {
+		return nil, nil
+	}
+	receipts := make([]*types.Receipt, n)
+	batch := make([]rpc.BatchElem, n)
+	for i, tx := range txs {
+		receipts[i] = &types.Receipt{}
+		batch[i] = rpc.BatchElem{
+			Method: "eth_getTransactionReceipt",
+			Args:   []any{tx.Hash()},
+			Result: receipts[i],
+		}
+	}
+	if err := fx.Rpc.BatchCallContext(fx.Context, batch); err != nil {
+		return nil, fmt.Errorf("batch receipts: %w", err)
+	}
+	for i, elem := range batch {
+		if elem.Error != nil {
+			return nil, fmt.Errorf("receipt[%d]: %w", i, elem.Error)
+		}
+	}
+	return receipts, nil
 }

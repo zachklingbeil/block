@@ -12,10 +12,12 @@ type Fx struct {
 	*zero.Zero
 }
 
-func Init(url string) *Fx {
-	return &Fx{
-		Zero: zero.Init(url),
+func Init(password string) *Fx {
+	fx := &Fx{
+		Zero: zero.Init(),
 	}
+	fx.ConnectPostgres("sourcify", password)
+	return fx
 }
 
 func (fx *Fx) Test() error {
