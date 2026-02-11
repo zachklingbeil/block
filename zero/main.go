@@ -15,11 +15,9 @@ import (
 )
 
 type Zero struct {
-	Rpc        *rpc.Client
-	Eth        *ethclient.Client
-	Sourcify   *sql.DB
-	ContractDb *sql.DB
-	Http       *http.Client
+	Rpc  *rpc.Client
+	Eth  *ethclient.Client
+	Http *http.Client
 	context.Context
 	*sync.RWMutex
 	*sync.Cond
@@ -53,14 +51,12 @@ func Init(password string) *Zero {
 
 	rw := &sync.RWMutex{}
 	return &Zero{
-		RWMutex:    rw,
-		Cond:       sync.NewCond(rw),
-		Context:    ctx,
-		Http:       &http.Client{},
-		Rpc:        rpcClient,
-		Eth:        ethclient.NewClient(rpcClient),
-		Sourcify:   sourcifyDb,
-		ContractDb: contractDb,
+		RWMutex: rw,
+		Cond:    sync.NewCond(rw),
+		Context: ctx,
+		Http:    &http.Client{},
+		Rpc:     rpcClient,
+		Eth:     ethclient.NewClient(rpcClient),
 	}
 }
 
@@ -68,12 +64,7 @@ func (z *Zero) Close() {
 	if z.Rpc != nil {
 		z.Rpc.Close()
 	}
-	if z.Sourcify != nil {
-		z.Sourcify.Close()
-	}
-	if z.ContractDb != nil {
-		z.ContractDb.Close()
-	}
+
 }
 
 func (z *Zero) ConnectPostgres(dbName, password string) (*sql.DB, error) {
@@ -86,6 +77,6 @@ func (z *Zero) ConnectPostgres(dbName, password string) (*sql.DB, error) {
 		db.Close()
 		return nil, fmt.Errorf("failed to connect to database '%s': %w", dbName, err)
 	}
-	z.Sourcify = db
+
 	return db, nil
 }
