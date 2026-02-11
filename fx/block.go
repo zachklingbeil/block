@@ -11,9 +11,7 @@ import (
 type Block struct {
 	Number       *big.Int    `json:"number"`
 	Hash         common.Hash `json:"hash"`
-	ParentHash   common.Hash `json:"parentHash"`
 	Timestamp    uint64      `json:"timestamp"`
-	TxCount      int         `json:"txCount"`
 	GasLimit     uint64      `json:"gasLimit"`
 	GasUsed      uint64      `json:"gasUsed"`
 	BaseFee      *big.Int    `json:"baseFeePerGas,omitempty"`
@@ -21,15 +19,15 @@ type Block struct {
 }
 
 type Receipt struct {
-	TxHash            common.Hash     `json:"transactionHash"`
+	TxHash            common.Hash     `json:"hash"`
 	TxIndex           uint            `json:"index"`
 	From              common.Address  `json:"from"`
 	To                *common.Address `json:"to,omitempty"`
 	Value             *big.Int        `json:"value,omitempty"`
 	Input             []byte          `json:"input,omitempty"`
 	Status            uint64          `json:"status"`
-	GasUsed           uint64          `json:"gasUsed"`
-	EffectiveGasPrice *big.Int        `json:"effectiveGasPrice"`
+	Gas               uint64          `json:"gas"`
+	EffectiveGasPrice *big.Int        `json:"gasPrice"`
 	ContractAddress   *common.Address `json:"contractAddress,omitempty"`
 	Logs              []*Log          `json:"logs,omitempty"`
 }
@@ -73,7 +71,7 @@ func (fx *Fx) Block(number *big.Int) (*Block, error) {
 			Value:             tx.Value(),
 			Input:             tx.Data(),
 			Status:            r.Status,
-			GasUsed:           r.GasUsed,
+			Gas:               r.GasUsed,
 			EffectiveGasPrice: r.EffectiveGasPrice,
 			ContractAddress:   contractAddr,
 			Logs:              fx.Logs(r.Logs),
@@ -83,12 +81,10 @@ func (fx *Fx) Block(number *big.Int) (*Block, error) {
 	return &Block{
 		Number:       block.Number(),
 		Hash:         block.Hash(),
-		ParentHash:   block.ParentHash(),
 		Timestamp:    block.Time(),
 		GasLimit:     block.GasLimit(),
 		GasUsed:      block.GasUsed(),
 		BaseFee:      block.BaseFee(),
-		TxCount:      len(txs),
 		Transactions: txs,
 	}, nil
 }
