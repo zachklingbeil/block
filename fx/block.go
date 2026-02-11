@@ -1,6 +1,7 @@
 package fx
 
 import (
+	"encoding/hex"
 	"fmt"
 	"math/big"
 
@@ -68,7 +69,7 @@ func (fx *Fx) Block(number *big.Int) (*Block, error) {
 			From:              from,
 			To:                tx.To(),
 			Value:             tx.Value(),
-			Input:             tx.Data(),
+			Input:             []byte("0x" + hex.EncodeToString(tx.Data())),
 			Status:            r.Status,
 			Gas:               r.GasUsed,
 			EffectiveGasPrice: r.EffectiveGasPrice,
@@ -106,7 +107,7 @@ func (fx *Fx) Logs(raw []*types.Log) []*Log {
 		logs[i] = &Log{
 			Address: l.Address,
 			Topics:  l.Topics,
-			Data:    l.Data,
+			Data:    []byte("0x" + hex.EncodeToString(l.Data)),
 		}
 	}
 	return logs
