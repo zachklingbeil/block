@@ -15,10 +15,11 @@ import (
 )
 
 type Zero struct {
-	Rpc  *rpc.Client
-	Eth  *ethclient.Client
-	DB   *sql.DB
-	Http *http.Client
+	Rpc        *rpc.Client
+	Eth        *ethclient.Client
+	Sourcify   *sql.DB
+	ContractDb *sql.DB
+	Http       *http.Client
 	context.Context
 	*sync.RWMutex
 	*sync.Cond
@@ -32,23 +33,33 @@ func Init(password string) *Zero {
 		log.Fatalf("ethereum: %v", err)
 	}
 
-	connStr := fmt.Sprintf("user=postgres password=%s dbname=sourcify host=postgres port=5432 sslmode=disable", password)
-	db, err := sql.Open("postgres", connStr)
+	sourcifyConn := fmt.Sprintf("user=postgres password=%s dbname=sourcify host=postgres port=5432 sslmode=disable", password)
+	sourcifyDb, err := sql.Open("postgres", sourcifyConn)
 	if err != nil {
-		log.Fatalf("postgres open: %v", err)
+		log.Fatalf("postgres open sourcify: %v", err)
 	}
-	if err := db.Ping(); err != nil {
-		log.Fatalf("postgres ping: %v", err)
+	if err := sourcifyDb.Ping(); err != nil {
+		log.Fatalf("postgres ping sourcify: %v", err)
+	}
+
+	contractConn := fmt.Sprintf("user=postgres password=%s dbname=contractdb host=postgres port=5432 sslmode=disable", password)
+	contractDb, err := sql.Open("postgres", contractConn)
+	if err != nil {
+		log.Fatalf("postgres open contractdb: %v", err)
+	}
+	if err := contractDb.Ping(); err != nil {
+		log.Fatalf("postgres ping contractdb: %v", err)
 	}
 
 	rw := &sync.RWMutex{}
 	return &Zero{
-		RWMutex: rw,
-		Cond:    sync.NewCond(rw),
-		Context: ctx,
-		Rpc:     rpcClient,
-		Eth:     ethclient.NewClient(rpcClient),
-		DB:      db,
+		RWMutex:    rw,
+		Cond:       sync.NewCond(rw),
+		Context:    ctx,
+		Rpc:        rpcClient,
+		Eth:        ethclient.NewClient(rpcClient),
+		Sourcify:   sourcifyDb,
+		ContractDb: contractDb,
 	}
 }
 
@@ -56,8 +67,11 @@ func (z *Zero) Close() {
 	if z.Rpc != nil {
 		z.Rpc.Close()
 	}
-	if z.DB != nil {
-		z.DB.Close()
+	if z.Sourcify != nil {
+		z.Sourcify.Close()
+	}
+	if z.ContractDb != nil {
+		z.ContractDb.Close()
 	}
 }
 
@@ -71,6 +85,6 @@ func (z *Zero) ConnectPostgres(dbName, password string) (*sql.DB, error) {
 		db.Close()
 		return nil, fmt.Errorf("failed to connect to database '%s': %w", dbName, err)
 	}
-	z.DB = db
+	z.Sourcify = db
 	return db, nil
 }

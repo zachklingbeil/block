@@ -25,7 +25,7 @@ type Receipt struct {
 	From              common.Address  `json:"from"`
 	To                *common.Address `json:"to,omitempty"`
 	Value             *big.Int        `json:"value,omitempty"`
-	Input             []byte          `json:"input,omitempty"`
+	Input             string          `json:"input,omitempty"`
 	Status            uint64          `json:"status"`
 	Gas               uint64          `json:"gas"`
 	EffectiveGasPrice *big.Int        `json:"gasPrice"`
@@ -34,9 +34,17 @@ type Receipt struct {
 }
 
 type Log struct {
-	Address common.Address `json:"address"`
-	Topics  []common.Hash  `json:"topics"`
-	Data    []byte         `json:"data,omitempty"`
+	Address common.Address    `json:"address"`
+	Topics  *Topics           `json:"topics"`
+	Data    string            `json:"data,omitempty"`
+	Indexed map[string]string `json:"indexed,omitempty"`
+}
+
+type Topics struct {
+	Zero  string `json:"0"`
+	One   string `json:"1,omitempty"`
+	Two   string `json:"2,omitempty"`
+	Three string `json:"3,omitempty"`
 }
 
 func (fx *Fx) Block(number *big.Int) (*Block, error) {
@@ -69,7 +77,7 @@ func (fx *Fx) Block(number *big.Int) (*Block, error) {
 			From:              from,
 			To:                tx.To(),
 			Value:             tx.Value(),
-			Input:             []byte("0x" + hex.EncodeToString(tx.Data())),
+			Input:             "0x" + hex.EncodeToString(tx.Data()),
 			Status:            r.Status,
 			Gas:               r.GasUsed,
 			EffectiveGasPrice: r.EffectiveGasPrice,
@@ -102,12 +110,62 @@ func (fx *Fx) blockReceipts(number *big.Int) ([]*types.Receipt, error) {
 }
 
 func (fx *Fx) Logs(raw []*types.Log) []*Log {
+	// Collect unique contract addresses
+	addrSeen := make(map[common.Address]struct{})
+	var addrs []common.Address
+	for _, l := range raw {
+		if _, ok := addrSeen[l.Address]; !ok {
+			addrSeen[l.Address] = struct{}{}
+			addrs = append(addrs, l.Address)
+		}
+	}
+
+	// Build event ABI map per contract address
+	abiMap := make(map[common.Address]map[common.Hash]*EventABI)
+	for _, addr := range addrs {
+		abi, err := fx.ContractABI(addr)
+		if err != nil {
+			continue
+		}
+		abiMap[addr] = ParseEvents(abi)
+	}
+
 	logs := make([]*Log, len(raw))
 	for i, l := range raw {
+		t := &Topics{}
+		data := "0x" + hex.EncodeToString(l.Data)
+		var indexed map[string]string
+
+		if len(l.Topics) > 0 {
+			resolved := false
+
+			if events, ok := abiMap[l.Address]; ok {
+				if event, ok := events[l.Topics[0]]; ok {
+					resolved = true
+					t.Zero = event.Sig
+					indexed = DecodeIndexed(event, l.Topics)
+				}
+			}
+
+			if !resolved {
+				t.Zero = l.Topics[0].Hex()
+				if len(l.Topics) > 1 {
+					t.One = l.Topics[1].Hex()
+				}
+				if len(l.Topics) > 2 {
+					t.Two = l.Topics[2].Hex()
+				}
+				if len(l.Topics) > 3 {
+					t.Three = l.Topics[3].Hex()
+				}
+			}
+		}
+
 		logs[i] = &Log{
 			Address: l.Address,
-			Topics:  l.Topics,
-			Data:    []byte("0x" + hex.EncodeToString(l.Data)),
+			Topics:  t,
+			Indexed: indexed,
+			Data:    data,
 		}
 	}
 	return logs
