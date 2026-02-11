@@ -14,9 +14,8 @@ type Fx struct {
 
 func Init(password string) *Fx {
 	fx := &Fx{
-		Zero: zero.Init(),
+		Zero: zero.Init(password),
 	}
-	fx.ConnectPostgres("sourcify", password)
 	return fx
 }
 

@@ -8,7 +8,8 @@ import (
 )
 
 func main() {
-	f := fx.Init(os.Getenv("PASSWORD"))
+	pw := os.Getenv("PASSWORD")
+	f := fx.Init(pw)
 	defer f.Close()
 	if err := f.Test(); err != nil {
 		log.Fatalf("Test failed: %v", err)

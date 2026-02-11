@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"sync"
 
+	_ "github.com/lib/pq"
+
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -22,14 +24,20 @@ type Zero struct {
 	*sync.Cond
 }
 
-func Init() *Zero {
+func Init(password string) *Zero {
 	ctx := context.Background()
-	var rpcClient *rpc.Client
-	var err error
-
-	rpcClient, err = rpc.DialIPC(ctx, "/.ethereum/geth.ipc")
+	rpcClient, err := rpc.DialIPC(ctx, "/.ethereum/geth.ipc")
 	if err != nil {
 		log.Fatalf("ethereum: %v", err)
+	}
+
+	connStr := fmt.Sprintf("user=postgres password=%s dbname=sourcify host=postgres port=5432", password)
+	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+		log.Fatalf("postgres open: %v", err)
+	}
+	if err := db.Ping(); err != nil {
+		log.Fatalf("postgres ping: %v", err)
 	}
 
 	rw := &sync.RWMutex{}
@@ -39,6 +47,7 @@ func Init() *Zero {
 		Context: ctx,
 		Rpc:     rpcClient,
 		Eth:     ethclient.NewClient(rpcClient),
+		DB:      db,
 	}
 }
 
