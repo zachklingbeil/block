@@ -5,16 +5,19 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/timefactoryio/block/zero"
 )
 
 type Fx struct {
 	*zero.Zero
+	Chain *params.ChainConfig
 }
 
 func Init(password string) *Fx {
 	fx := &Fx{
-		Zero: zero.Init(password),
+		Zero:  zero.Init(password),
+		Chain: params.MainnetChainConfig,
 	}
 	return fx
 }
