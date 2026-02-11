@@ -56,6 +56,7 @@ func Init(password string) *Zero {
 		RWMutex:    rw,
 		Cond:       sync.NewCond(rw),
 		Context:    ctx,
+		Http:       &http.Client{},
 		Rpc:        rpcClient,
 		Eth:        ethclient.NewClient(rpcClient),
 		Sourcify:   sourcifyDb,
