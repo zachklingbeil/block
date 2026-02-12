@@ -41,7 +41,7 @@ type sourcifyResponse struct {
 
 // ContractABI fetches the ABI from the local Sourcify v2 API.
 func (fx *Fx) ContractABI(addr common.Address) ([]ABIEntry, error) {
-	url := fmt.Sprintf("http://sourcify:5555/v2/contract/1/%s?fields=abi", addr.Hex())
+	url := fmt.Sprintf("http://sourcify:5555/server/v2/contract/1/%s?fields=abi", addr.Hex())
 	resp, err := fx.Http.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("sourcify request [%s]: %w", addr.Hex(), err)
