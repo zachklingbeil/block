@@ -1,152 +1,148 @@
 package fx
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
-	"math/big"
 	"net/http"
 	"strings"
+	"sync"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
-type ABIEntry struct {
-	Name      string     `json:"name"`
-	Type      string     `json:"type"`
-	Inputs    []ABIParam `json:"inputs"`
-	Anonymous bool       `json:"anonymous"`
+var (
+	abiCache   = make(map[common.Address]*abi.ABI)
+	abiCacheMu sync.RWMutex
+)
+
+func (fx *Fx) fetchABIs(contracts map[common.Address]struct{}) map[common.Address]*abi.ABI {
+	out := make(map[common.Address]*abi.ABI, len(contracts))
+
+	var missing []common.Address
+	abiCacheMu.RLock()
+	for addr := range contracts {
+		if a, ok := abiCache[addr]; ok {
+			out[addr] = a
+		} else {
+			missing = append(missing, addr)
+		}
+	}
+	abiCacheMu.RUnlock()
+
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	for _, addr := range missing {
+		wg.Add(1)
+		go func(addr common.Address) {
+			defer wg.Done()
+			a := fx.sourcifyABI(addr)
+			if a == nil {
+				return
+			}
+			mu.Lock()
+			out[addr] = a
+			mu.Unlock()
+
+			abiCacheMu.Lock()
+			abiCache[addr] = a
+			abiCacheMu.Unlock()
+		}(addr)
+	}
+	wg.Wait()
+
+	return out
 }
 
-type ABIParam struct {
-	Name    string `json:"name"`
-	Type    string `json:"type"`
-	Indexed bool   `json:"indexed"`
-}
-
-type EventABI struct {
-	Name    string
-	Sig     string
-	Indexed []ABIParam
-	Data    []ABIParam
-}
-
-type sourcifyResponse struct {
-	Match   *string         `json:"match"`
-	Address string          `json:"address"`
-	ABI     json.RawMessage `json:"abi"`
-}
-
-// ContractABI fetches the ABI from the local Sourcify v2 API.
-func (fx *Fx) ContractABI(addr common.Address) ([]ABIEntry, error) {
-	url := fmt.Sprintf("http://sourcify:5555/server/v2/contract/1/%s?fields=abi", addr.Hex())
-	resp, err := fx.Http.Get(url)
+func (fx *Fx) sourcifyABI(addr common.Address) *abi.ABI {
+	url := fmt.Sprintf("http://sourcify:5555/v2/contract/1/%s?fields=abi", addr.Hex())
+	resp, err := http.Get(url)
 	if err != nil {
-		return nil, fmt.Errorf("sourcify request [%s]: %w", addr.Hex(), err)
+		return nil
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("contract not verified [%s]", addr.Hex())
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("sourcify status %d [%s]", resp.StatusCode, addr.Hex())
+	if resp.StatusCode != 200 {
+		return nil
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	var result struct {
+		ABI json.RawMessage `json:"abi"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil || len(result.ABI) == 0 {
+		return nil
+	}
+
+	parsed, err := abi.JSON(strings.NewReader(string(result.ABI)))
 	if err != nil {
-		return nil, fmt.Errorf("read response [%s]: %w", addr.Hex(), err)
+		return nil
 	}
-
-	var result sourcifyResponse
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, fmt.Errorf("unmarshal response [%s]: %w", addr.Hex(), err)
-	}
-
-	if result.Match == nil || len(result.ABI) == 0 {
-		return nil, fmt.Errorf("no abi [%s]", addr.Hex())
-	}
-
-	var abi []ABIEntry
-	if err := json.Unmarshal(result.ABI, &abi); err != nil {
-		return nil, fmt.Errorf("parse abi [%s]: %w", addr.Hex(), err)
-	}
-
-	return abi, nil
+	return &parsed
 }
 
-func EventSignature(e ABIEntry) string {
-	types := make([]string, len(e.Inputs))
-	for i, p := range e.Inputs {
-		types[i] = p.Type
+func (fx *Fx) decodeInput(abis map[common.Address]*abi.ABI, to common.Address, data []byte) (string, map[string]any) {
+	a, ok := abis[to]
+	if !ok || len(data) < 4 {
+		return "", nil
 	}
-	return fmt.Sprintf("%s(%s)", e.Name, strings.Join(types, ","))
-}
 
-func ParseEvents(abi []ABIEntry) map[common.Hash]*EventABI {
-	events := make(map[common.Hash]*EventABI)
-	for _, entry := range abi {
-		if entry.Type != "event" {
-			continue
-		}
+	method, err := a.MethodById(data[:4])
+	if err != nil {
+		return "", nil
+	}
 
-		sig := EventSignature(entry)
-		topic0 := crypto.Keccak256Hash([]byte(sig))
-
-		var indexed, data []ABIParam
-		for _, p := range entry.Inputs {
-			if p.Indexed {
-				indexed = append(indexed, p)
-			} else {
-				data = append(data, p)
+	args := make(map[string]any)
+	if len(data) > 4 {
+		vals, err := method.Inputs.Unpack(data[4:])
+		if err == nil {
+			for i, input := range method.Inputs {
+				args[input.Name] = vals[i]
 			}
 		}
-
-		events[topic0] = &EventABI{
-			Name:    entry.Name,
-			Sig:     sig,
-			Indexed: indexed,
-			Data:    data,
-		}
 	}
-	return events
+	return method.Name, args
 }
 
-func decodeSlot(paramType string, slot common.Hash) string {
-	switch {
-	case paramType == "address":
-		return common.BytesToAddress(slot.Bytes()).Hex()
-	case paramType == "bool":
-		if slot[31] == 1 {
-			return "true"
-		}
-		return "false"
-	case strings.HasPrefix(paramType, "uint"):
-		return new(big.Int).SetBytes(slot.Bytes()).String()
-	case strings.HasPrefix(paramType, "int"):
-		v := new(big.Int).SetBytes(slot.Bytes())
-		if slot[0]&0x80 != 0 {
-			v.Sub(v, new(big.Int).Lsh(big.NewInt(1), 256))
-		}
-		return v.String()
-	case strings.HasPrefix(paramType, "bytes"):
-		return "0x" + hex.EncodeToString(slot.Bytes())
-	default:
-		return slot.Hex()
+func (fx *Fx) decodeLog(abis map[common.Address]*abi.ABI, log *types.Log) (string, map[string]any) {
+	a, ok := abis[log.Address]
+	if !ok || len(log.Topics) == 0 {
+		return "", nil
 	}
-}
 
-// DecodeIndexed maps indexed parameter names to their decoded values from log topics.
-// topics[0] is the event signature (topic0), topics[1:] are the indexed values.
-func DecodeIndexed(event *EventABI, topics []common.Hash) map[string]string {
-	result := make(map[string]string, len(event.Indexed))
-	for i, param := range event.Indexed {
-		if i+1 >= len(topics) {
-			break
-		}
-		result[param.Name] = decodeSlot(param.Type, topics[i+1])
+	event, err := a.EventByID(log.Topics[0])
+	if err != nil {
+		return "", nil
 	}
-	return result
+
+	args := make(map[string]any)
+
+	indexed := make([]abi.Argument, 0)
+	nonIndexed := make([]abi.Argument, 0)
+	for _, input := range event.Inputs {
+		if input.Indexed {
+			indexed = append(indexed, input)
+		} else {
+			nonIndexed = append(nonIndexed, input)
+		}
+	}
+
+	for i, input := range indexed {
+		if i+1 < len(log.Topics) {
+			val, err := abi.Arguments{input}.Unpack(log.Topics[i+1].Bytes())
+			if err == nil && len(val) > 0 {
+				args[input.Name] = val[0]
+			}
+		}
+	}
+
+	if len(log.Data) > 0 {
+		vals, err := abi.Arguments(nonIndexed).Unpack(log.Data)
+		if err == nil {
+			for i, input := range nonIndexed {
+				args[input.Name] = vals[i]
+			}
+		}
+	}
+
+	return event.Name, args
 }

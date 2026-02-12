@@ -1,7 +1,6 @@
 package fx
 
 import (
-	"encoding/hex"
 	"fmt"
 	"math/big"
 
@@ -25,7 +24,8 @@ type Transaction struct {
 	From              common.Address  `json:"from"`
 	To                *common.Address `json:"to,omitempty"`
 	Value             *big.Int        `json:"value,omitempty"`
-	Input             string          `json:"input,omitempty"`
+	Function          string          `json:"function,omitempty"`
+	Args              map[string]any  `json:"args,omitempty"`
 	Status            uint64          `json:"status"`
 	Gas               uint64          `json:"gas"`
 	EffectiveGasPrice *big.Int        `json:"gasPrice"`
@@ -35,8 +35,8 @@ type Transaction struct {
 
 type Event struct {
 	Address common.Address `json:"contract"`
-	Topics  []string       `json:"topics"`
-	Data    string         `json:"data,omitempty"`
+	Name    string         `json:"name,omitempty"`
+	Args    map[string]any `json:"args,omitempty"`
 }
 
 func (fx *Fx) Block(number *big.Int) (*Block, error) {
@@ -50,6 +50,20 @@ func (fx *Fx) Block(number *big.Int) (*Block, error) {
 		return nil, err
 	}
 
+	// Collect unique contract addresses
+	contracts := make(map[common.Address]struct{})
+	for i, tx := range block.Transactions() {
+		if tx.To() != nil {
+			contracts[*tx.To()] = struct{}{}
+		}
+		for _, l := range receipts[i].Logs {
+			contracts[l.Address] = struct{}{}
+		}
+	}
+
+	// Fetch ABIs for all unique contracts
+	abis := fx.fetchABIs(contracts)
+
 	signer := types.MakeSigner(fx.Chain, block.Number(), block.Time())
 	txs := make([]*Transaction, len(block.Transactions()))
 
@@ -62,18 +76,35 @@ func (fx *Fx) Block(number *big.Int) (*Block, error) {
 			contract = &r.ContractAddress
 		}
 
+		var fn string
+		var args map[string]any
+		if tx.To() != nil && len(tx.Data()) >= 4 {
+			fn, args = fx.decodeInput(abis, *tx.To(), tx.Data())
+		}
+
+		logs := make([]*Event, len(r.Logs))
+		for j, l := range r.Logs {
+			name, decoded := fx.decodeLog(abis, l)
+			logs[j] = &Event{
+				Address: l.Address,
+				Name:    name,
+				Args:    decoded,
+			}
+		}
+
 		txs[i] = &Transaction{
 			TxHash:            tx.Hash(),
 			TxIndex:           uint(i),
 			From:              from,
 			To:                tx.To(),
 			Value:             tx.Value(),
-			Input:             hexEncode(tx.Data()),
+			Function:          fn,
+			Args:              args,
 			Status:            r.Status,
 			Gas:               r.GasUsed,
 			EffectiveGasPrice: r.EffectiveGasPrice,
 			ContractAddress:   contract,
-			Logs:              events(r.Logs),
+			Logs:              logs,
 		}
 	}
 
@@ -98,24 +129,4 @@ func (fx *Fx) blockReceipts(number *big.Int) ([]*types.Receipt, error) {
 		return nil, fmt.Errorf("block receipts: %w", err)
 	}
 	return receipts, nil
-}
-
-func events(raw []*types.Log) []*Event {
-	out := make([]*Event, len(raw))
-	for i, l := range raw {
-		topics := make([]string, len(l.Topics))
-		for j, t := range l.Topics {
-			topics[j] = t.Hex()
-		}
-		out[i] = &Event{
-			Address: l.Address,
-			Topics:  topics,
-			Data:    hexEncode(l.Data),
-		}
-	}
-	return out
-}
-
-func hexEncode(b []byte) string {
-	return "0x" + hex.EncodeToString(b)
 }
