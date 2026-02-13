@@ -2,10 +2,10 @@ package fx
 
 import (
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -31,20 +31,25 @@ type Transaction struct {
 	Gas               uint64          `json:"gas"`
 	EffectiveGasPrice *big.Int        `json:"gasPrice"`
 	ContractAddress   *common.Address `json:"contractAddress,omitempty"`
-	Logs              []*Event        `json:"logs,omitempty"`
-	Decoded           []*Decoded      `json:"decoded,omitempty"`
+	Logs              []*types.Log    `json:"logs,omitempty"`
+	Decoded           *Decoded        `json:"decoded,omitempty"`
 }
 
-type Event struct {
-	Address common.Address `json:"contract"`
-	Topics  []string       `json:"topics"`
-	Data    string         `json:"data,omitempty"`
+type Contract struct {
+	abi.ABI
 }
 
 type Decoded struct {
-	Contract  common.Address `json:"contract"`
-	Signature string         `json:"signature"`
-	Values    string         `json:"values"`
+	Call   *Call  `json:"call,omitempty"`
+	Events []Call `json:"events,omitempty"`
+	Error  *Call  `json:"error,omitempty"`
+}
+
+type Call struct {
+	Contract common.Address `json:"contract"`
+	Name     string         `json:"name"`
+	Sig      string         `json:"sig"`
+	Values   map[string]any `json:"values"`
 }
 
 func (fx *Fx) Block(number *big.Int) (*Block, error) {
@@ -53,77 +58,38 @@ func (fx *Fx) Block(number *big.Int) (*Block, error) {
 		return nil, fmt.Errorf("block: %w", err)
 	}
 
-	receipts, err := fx.blockReceipts(block.Number())
-	if err != nil {
-		return nil, err
+	var receipts []*types.Receipt
+	if err := fx.Rpc.CallContext(fx.Context, &receipts, "eth_getBlockReceipts", fmt.Sprintf("0x%x", block.Number())); err != nil {
+		return nil, fmt.Errorf("block receipts: %w", err)
 	}
 
-	// Collect all contracts that appear in logs or as tx targets
-	contracts := make(map[common.Address]struct{})
-	for _, r := range receipts {
-		for _, l := range r.Logs {
-			contracts[l.Address] = struct{}{}
-		}
-	}
 	signer := types.MakeSigner(fx.Chain, block.Number(), block.Time())
-	for _, tx := range block.Transactions() {
-		if tx.To() != nil {
-			contracts[*tx.To()] = struct{}{}
-		}
-	}
-
-	// Fetch ABIs from sourcify for all involved contracts
-	abis := fx.fetchABIs(contracts)
-
 	txs := make([]*Transaction, len(block.Transactions()))
+
 	for i, tx := range block.Transactions() {
-		r := receipts[i]
 		from, _ := types.Sender(signer, tx)
 
-		var contract *common.Address
-		if r.ContractAddress != (common.Address{}) {
-			contract = &r.ContractAddress
+		t := &Transaction{
+			TxHash:  tx.Hash(),
+			TxIndex: uint(i),
+			From:    from,
+			To:      tx.To(),
+			Value:   tx.Value(),
+			Input:   hex.EncodeToString(tx.Data()),
 		}
 
-		// Decode logs using ABIs
-		var decoded []*Decoded
-		for _, l := range r.Logs {
-			name, vals := fx.decodeLog(abis, l)
-			if name != "" {
-				decoded = append(decoded, &Decoded{
-					Contract:  l.Address,
-					Signature: name,
-					Values:    formatValues(vals),
-				})
+		if i < len(receipts) {
+			r := receipts[i]
+			t.Status = r.Status
+			t.Gas = r.GasUsed
+			t.EffectiveGasPrice = r.EffectiveGasPrice
+			if r.ContractAddress != (common.Address{}) {
+				addr := r.ContractAddress
+				t.ContractAddress = &addr
 			}
+			t.Logs = r.Logs
 		}
-
-		// Decode transaction input using ABIs
-		if tx.To() != nil && len(tx.Data()) >= 4 {
-			name, vals := fx.decodeInput(abis, *tx.To(), tx.Data())
-			if name != "" {
-				decoded = append(decoded, &Decoded{
-					Contract:  *tx.To(),
-					Signature: name,
-					Values:    formatValues(vals),
-				})
-			}
-		}
-
-		txs[i] = &Transaction{
-			TxHash:            tx.Hash(),
-			TxIndex:           uint(i),
-			From:              from,
-			To:                tx.To(),
-			Value:             tx.Value(),
-			Input:             hexEncode(tx.Data()),
-			Status:            r.Status,
-			Gas:               r.GasUsed,
-			EffectiveGasPrice: r.EffectiveGasPrice,
-			ContractAddress:   contract,
-			Logs:              events(r.Logs),
-			Decoded:           decoded,
-		}
+		txs[i] = t
 	}
 
 	return &Block{
@@ -137,45 +103,112 @@ func (fx *Fx) Block(number *big.Int) (*Block, error) {
 	}, nil
 }
 
-func (fx *Fx) blockReceipts(number *big.Int) ([]*types.Receipt, error) {
-	var receipts []*types.Receipt
-	arg := "latest"
-	if number != nil {
-		arg = fmt.Sprintf("0x%x", number)
-	}
-	if err := fx.Rpc.CallContext(fx.Context, &receipts, "eth_getBlockReceipts", arg); err != nil {
-		return nil, fmt.Errorf("block receipts: %w", err)
-	}
-	return receipts, nil
-}
+func (fx *Fx) Output(b *Block) *Block {
+	for _, tx := range b.Transactions {
+		d := &Decoded{}
 
-func events(raw []*types.Log) []*Event {
-	out := make([]*Event, len(raw))
-	for i, l := range raw {
-		topics := make([]string, len(l.Topics))
-		for j, t := range l.Topics {
-			topics[j] = t.Hex()
+		if tx.To != nil && len(tx.Input) >= 8 {
+			input, _ := hex.DecodeString(tx.Input)
+			d.Call = fx.Method(*tx.To, input)
 		}
-		out[i] = &Event{
-			Address: l.Address,
-			Topics:  topics,
-			Data:    hexEncode(l.Data),
+
+		for _, l := range tx.Logs {
+			if len(l.Topics) == 0 {
+				continue
+			}
+			if c := fx.Event(l.Address, l); c != nil {
+				d.Events = append(d.Events, *c)
+			}
+		}
+
+		if d.Call != nil || len(d.Events) > 0 {
+			tx.Decoded = d
 		}
 	}
-	return out
+	return b
 }
 
-func formatValues(vals map[string]any) string {
-	if len(vals) == 0 {
-		return ""
+func (fx *Fx) Method(addr common.Address, input []byte) *Call {
+	contract, ok := fx.Contracts[addr]
+	if !ok || len(input) < 4 {
+		return nil
 	}
-	b, err := json.Marshal(vals)
+	m, err := contract.MethodById(input[:4])
 	if err != nil {
-		return ""
+		return nil
 	}
-	return string(b)
+	values := make(map[string]any)
+	if err := m.Inputs.UnpackIntoMap(values, input[4:]); err != nil {
+		return nil
+	}
+	return &Call{
+		Contract: addr,
+		Name:     m.Name,
+		Sig:      m.Sig,
+		Values:   values,
+	}
 }
 
-func hexEncode(b []byte) string {
-	return "0x" + hex.EncodeToString(b)
+func (fx *Fx) Event(addr common.Address, l *types.Log) *Call {
+	contract, ok := fx.Contracts[addr]
+	if !ok || len(l.Topics) == 0 {
+		return nil
+	}
+	e, err := contract.EventByID(l.Topics[0])
+	if err != nil {
+		return nil
+	}
+	values := make(map[string]any)
+
+	indexed := make(abi.Arguments, 0)
+	nonIndexed := make(abi.Arguments, 0)
+	for _, arg := range e.Inputs {
+		if arg.Indexed {
+			indexed = append(indexed, arg)
+		} else {
+			nonIndexed = append(nonIndexed, arg)
+		}
+	}
+
+	if err := abi.ParseTopicsIntoMap(values, indexed, l.Topics[1:]); err != nil {
+		return nil
+	}
+
+	if len(l.Data) > 0 {
+		if err := nonIndexed.UnpackIntoMap(values, l.Data); err != nil {
+			return nil
+		}
+	}
+
+	return &Call{
+		Contract: addr,
+		Name:     e.Name,
+		Sig:      e.Sig,
+		Values:   values,
+	}
+}
+
+func (fx *Fx) Error(addr common.Address, data []byte) *Call {
+	contract, ok := fx.Contracts[addr]
+	if !ok || len(data) < 4 {
+		return nil
+	}
+	var sig [4]byte
+	copy(sig[:], data[:4])
+	e, err := contract.ErrorByID(sig)
+	if err != nil {
+		return nil
+	}
+	values := make(map[string]any)
+	if len(data) > 4 {
+		if err := e.Inputs.UnpackIntoMap(values, data[4:]); err != nil {
+			return nil
+		}
+	}
+	return &Call{
+		Contract: addr,
+		Name:     e.Name,
+		Sig:      e.Sig,
+		Values:   values,
+	}
 }
