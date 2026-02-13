@@ -56,7 +56,7 @@ func (fx *Fx) fetchABIs(contracts map[common.Address]struct{}) map[common.Addres
 }
 
 func (fx *Fx) sourcifyABI(addr common.Address) *abi.ABI {
-	url := fmt.Sprintf("http://sourcify:5555/v2/contract/1/%s?fields=abi", addr.Hex())
+	url := fmt.Sprintf("https://sourcify.dev/server/v2/contract/1/%s?fields=abi", addr.Hex())
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil
