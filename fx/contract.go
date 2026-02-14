@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/big"
 	"net/http"
 	"strings"
 
@@ -12,26 +13,38 @@ import (
 )
 
 type Contract struct {
-	ABI       *abi.ABI
-	Templates map[[4]byte]*Template
+	ABI      *abi.ABI
+	Outcomes map[[4]byte][]Outcome
 }
 
-type Template struct {
-	Method   [4]byte
-	Outcomes []Outcome
+type Transaction struct {
+	TxHash          common.Hash     `json:"hash"`
+	TxIndex         uint            `json:"index"`
+	Type            uint8           `json:"type,omitempty"`
+	From            common.Address  `json:"from"`
+	To              *common.Address `json:"to,omitempty"`
+	Value           *big.Int        `json:"value,omitempty"`
+	Status          uint64          `json:"status"`
+	Gas             uint64          `json:"gas"`
+	GasPrice        *big.Int        `json:"gasPrice"`
+	ContractAddress *common.Address `json:"contractAddress,omitempty"`
+	Method          *Event          `json:"method,omitempty"`
+	Events          []Event         `json:"events,omitempty"`
+}
+
+type Event struct {
+	Contract common.Address `json:"contract"`
+	Name     string         `json:"name,omitempty"`
+	Sig      string         `json:"sig,omitempty"`
+	Selector [4]byte        `json:"-"`
+	Action   Action         `json:"action,omitempty"`
+	Params   map[string]any `json:"params,omitempty"`
 }
 
 type Outcome struct {
-	Status uint64         // 1 = success, 0 = fail
-	Events []OutcomeEvent // events emitted on success
-	Error  *OutcomeEvent  // revert on failure
-	Count  uint64
-}
-
-type OutcomeEvent struct {
-	Contract common.Address
-	Selector [4]byte
-	ParamMap map[string]string // event param → method input (nil for errors)
+	Events  []Event
+	Success uint64
+	Fail    uint64
 }
 
 // GetContract returns the Contract for an address, fetching the ABI if needed.
@@ -60,7 +73,7 @@ func (fx *Fx) Load(addr common.Address, raw string) error {
 		return fmt.Errorf("abi %s: %w", addr.Hex(), err)
 	}
 	fx.Lock()
-	fx.Contracts[addr] = &Contract{ABI: &a, Templates: make(map[[4]byte]*Template)}
+	fx.Contracts[addr] = &Contract{ABI: &a, Outcomes: make(map[[4]byte][]Outcome)}
 	fx.Unlock()
 	return nil
 }
@@ -102,7 +115,7 @@ func (fx *Fx) Fetch(addr common.Address, limited bool) error {
 	}
 
 	fx.Lock()
-	fx.Contracts[addr] = &Contract{ABI: &a, Templates: make(map[[4]byte]*Template)}
+	fx.Contracts[addr] = &Contract{ABI: &a, Outcomes: make(map[[4]byte][]Outcome)}
 	fx.Unlock()
 	return nil
 }
