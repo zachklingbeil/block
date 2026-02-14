@@ -28,6 +28,7 @@ type Block struct {
 type Transaction struct {
 	TxHash            common.Hash     `json:"hash"`
 	TxIndex           uint            `json:"index"`
+	Type              uint8           `json:"type,omitempty"`
 	From              common.Address  `json:"from"`
 	To                *common.Address `json:"to,omitempty"`
 	Value             *big.Int        `json:"value,omitempty"`
@@ -113,6 +114,7 @@ func (fx *Fx) Transform(raw *Raw) *Block {
 
 		t := &Transaction{
 			TxHash:  tx.Hash(),
+			Type:    tx.Type(),
 			TxIndex: uint(i),
 			From:    from,
 			To:      tx.To(),
