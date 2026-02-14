@@ -23,6 +23,20 @@ type Block struct {
 	Transactions []*Transaction `json:"transactions"`
 }
 
+type Transaction struct {
+	TxHash          common.Hash     `json:"hash"`
+	TxIndex         uint            `json:"index"`
+	From            common.Address  `json:"from"`
+	To              *common.Address `json:"to,omitempty"`
+	Value           *big.Int        `json:"value,omitempty"`
+	Status          uint64          `json:"status"`
+	Gas             uint64          `json:"gas"`
+	GasPrice        *big.Int        `json:"gasPrice"`
+	ContractAddress *common.Address `json:"contractAddress,omitempty"`
+	Method          *Event          `json:"method,omitempty"`
+	Events          []Event         `json:"events,omitempty"`
+}
+
 func (fx *Fx) Block(number *big.Int) (*Block, error) {
 	raw, err := fx.Source(number)
 	if err != nil {
@@ -131,12 +145,16 @@ func (fx *Fx) receipt(receipts []*types.Receipt, i int) *types.Receipt {
 
 // transaction builds a Transaction from its parts.
 func (fx *Fx) transaction(from common.Address, tx *types.Transaction, r *types.Receipt, data []byte, index int) *Transaction {
+	var value *big.Int
+	if tx.Value() != nil && tx.Value().Sign() != 0 {
+		value = tx.Value()
+	}
 	t := &Transaction{
 		TxHash:  tx.Hash(),
 		TxIndex: uint(index),
 		From:    from,
 		To:      tx.To(),
-		Value:   tx.Value(),
+		Value:   value,
 	}
 	if r == nil {
 		return t

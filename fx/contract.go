@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/big"
 	"net/http"
 	"strings"
 
@@ -15,20 +14,6 @@ import (
 type Contract struct {
 	ABI      *abi.ABI
 	Outcomes map[[4]byte][]Outcome
-}
-
-type Transaction struct {
-	TxHash          common.Hash     `json:"hash"`
-	TxIndex         uint            `json:"index"`
-	From            common.Address  `json:"from"`
-	To              *common.Address `json:"to,omitempty"`
-	Value           *big.Int        `json:"value,omitempty"`
-	Status          uint64          `json:"status"`
-	Gas             uint64          `json:"gas"`
-	GasPrice        *big.Int        `json:"gasPrice"`
-	ContractAddress *common.Address `json:"contractAddress,omitempty"`
-	Method          *Event          `json:"method,omitempty"`
-	Events          []Event         `json:"events,omitempty"`
 }
 
 type Event struct {
