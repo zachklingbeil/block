@@ -24,8 +24,7 @@ type Block struct {
 }
 
 type Transaction struct {
-	TxHash          common.Hash     `json:"hash"`
-	TxIndex         uint            `json:"index"`
+	Index           uint            `json:"index"`
 	From            common.Address  `json:"from"`
 	To              *common.Address `json:"to,omitempty"`
 	Value           *big.Int        `json:"value,omitempty"`
@@ -35,6 +34,7 @@ type Transaction struct {
 	ContractAddress *common.Address `json:"contractAddress,omitempty"`
 	Method          *Event          `json:"method,omitempty"`
 	Events          []Event         `json:"events,omitempty"`
+	// Hash            common.Hash     `json:"hash"`
 }
 
 func (fx *Fx) Block(number *big.Int) (*Block, error) {
@@ -150,11 +150,11 @@ func (fx *Fx) transaction(from common.Address, tx *types.Transaction, r *types.R
 		value = tx.Value()
 	}
 	t := &Transaction{
-		TxHash:  tx.Hash(),
-		TxIndex: uint(index),
-		From:    from,
-		To:      tx.To(),
-		Value:   value,
+		Index: uint(index),
+		From:  from,
+		To:    tx.To(),
+		Value: value,
+		// Hash:  tx.Hash(),
 	}
 	if r == nil {
 		return t
