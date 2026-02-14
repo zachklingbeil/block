@@ -1,7 +1,6 @@
 package fx
 
 import (
-	"encoding/hex"
 	"fmt"
 	"math/big"
 
@@ -32,7 +31,6 @@ type Transaction struct {
 	From              common.Address  `json:"from"`
 	To                *common.Address `json:"to,omitempty"`
 	Value             *big.Int        `json:"value,omitempty"`
-	Input             string          `json:"input,omitempty"`
 	Status            uint64          `json:"status"`
 	Gas               uint64          `json:"gas"`
 	EffectiveGasPrice *big.Int        `json:"gasPrice"`
@@ -46,7 +44,7 @@ type Decoded struct {
 	Contract common.Address `json:"contract"`
 	Name     string         `json:"name"`
 	Sig      string         `json:"sig"`
-	ID       common.Hash    `json:"-"`
+	Selector [4]byte        `json:"-"`
 	Values   map[string]any `json:"values"`
 }
 
@@ -119,7 +117,6 @@ func (fx *Fx) Transform(raw *Raw) *Block {
 			From:    from,
 			To:      tx.To(),
 			Value:   tx.Value(),
-			Input:   hex.EncodeToString(tx.Data()),
 		}
 
 		if i < len(raw.Receipts) {
@@ -146,8 +143,7 @@ func (fx *Fx) Transform(raw *Raw) *Block {
 			}
 
 			if t.Status == 0 && t.To != nil {
-				input, _ := hex.DecodeString(t.Input)
-				t.Error = fx.revert(*t.To, input)
+				t.Error = fx.revert(*t.To, tx.Data())
 			}
 		}
 
@@ -175,39 +171,33 @@ func (fx *Fx) Record(t *Transaction) {
 		return
 	}
 
-	var sel [4]byte
-	copy(sel[:], t.Method.ID[:4])
+	sel := t.Method.Selector
 
 	o := Outcome{Status: t.Status, Count: 1}
 
 	if t.Status == 1 {
 		for _, e := range t.Events {
-			var esig [4]byte
-			copy(esig[:], e.ID[:4])
-
 			paramMap := make(map[string]string)
-			for eventParam, eventVal := range e.Values {
-				for methodParam, methodVal := range t.Method.Values {
-					if valuesEqual(eventVal, methodVal) {
-						paramMap[eventParam] = methodParam
+			for ep, ev := range e.Values {
+				for mp, mv := range t.Method.Values {
+					if valuesEqual(ev, mv) {
+						paramMap[ep] = mp
 					}
 				}
 			}
 
 			o.Events = append(o.Events, OutcomeEvent{
 				Contract: e.Contract,
-				Selector: esig,
+				Selector: e.Selector,
 				ParamMap: paramMap,
 			})
 		}
 	}
 
 	if t.Status == 0 && t.Error != nil {
-		var errSel [4]byte
-		copy(errSel[:], t.Error.ID[:4])
 		o.Error = &OutcomeEvent{
 			Contract: t.Error.Contract,
-			Selector: errSel,
+			Selector: t.Error.Selector,
 		}
 	}
 
@@ -260,8 +250,11 @@ func matchOutcome(a, b *Outcome) bool {
 }
 
 func (fx *Fx) method(addr common.Address, input []byte) *Decoded {
-	c, ok := fx.GetContract(addr)
-	if !ok || c.ABI == nil || len(input) < 4 {
+	if len(input) < 4 {
+		return nil
+	}
+	c, ok := fx.Contracts[addr]
+	if !ok || c.ABI == nil {
 		return nil
 	}
 	m, err := c.ABI.MethodById(input[:4])
@@ -272,18 +265,22 @@ func (fx *Fx) method(addr common.Address, input []byte) *Decoded {
 	if err := m.Inputs.UnpackIntoMap(values, input[4:]); err != nil {
 		return nil
 	}
+	var sel [4]byte
+	copy(sel[:], input[:4])
 	return &Decoded{
 		Contract: addr,
 		Name:     m.Name,
 		Sig:      m.Sig,
-		ID:       common.BytesToHash(input[:4]),
+		Selector: sel,
 		Values:   values,
 	}
 }
-
 func (fx *Fx) event(addr common.Address, topics []common.Hash, data []byte) *Decoded {
-	c, ok := fx.GetContract(addr)
-	if !ok || c.ABI == nil || len(topics) == 0 {
+	if len(topics) == 0 {
+		return nil
+	}
+	c, ok := fx.Contracts[addr]
+	if !ok || c.ABI == nil {
 		return nil
 	}
 	e, err := c.ABI.EventByID(topics[0])
@@ -312,23 +309,28 @@ func (fx *Fx) event(addr common.Address, topics []common.Hash, data []byte) *Dec
 		}
 	}
 
+	var sel [4]byte
+	copy(sel[:], topics[0][:4])
 	return &Decoded{
 		Contract: addr,
 		Name:     e.Name,
 		Sig:      e.Sig,
-		ID:       topics[0],
+		Selector: sel,
 		Values:   values,
 	}
 }
 
 func (fx *Fx) revert(addr common.Address, data []byte) *Decoded {
-	c, ok := fx.GetContract(addr)
-	if !ok || c.ABI == nil || len(data) < 4 {
+	if len(data) < 4 {
 		return nil
 	}
-	var sig [4]byte
-	copy(sig[:], data[:4])
-	e, err := c.ABI.ErrorByID(sig)
+	c, ok := fx.Contracts[addr]
+	if !ok || c.ABI == nil {
+		return nil
+	}
+	var sel [4]byte
+	copy(sel[:], data[:4])
+	e, err := c.ABI.ErrorByID(sel)
 	if err != nil {
 		return nil
 	}
@@ -342,7 +344,7 @@ func (fx *Fx) revert(addr common.Address, data []byte) *Decoded {
 		Contract: addr,
 		Name:     e.Name,
 		Sig:      e.Sig,
-		ID:       common.BytesToHash(sig[:]),
+		Selector: sel,
 		Values:   values,
 	}
 }
