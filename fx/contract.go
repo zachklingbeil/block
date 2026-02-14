@@ -20,7 +20,6 @@ type Contract struct {
 type Transaction struct {
 	TxHash          common.Hash     `json:"hash"`
 	TxIndex         uint            `json:"index"`
-	Type            uint8           `json:"type,omitempty"`
 	From            common.Address  `json:"from"`
 	To              *common.Address `json:"to,omitempty"`
 	Value           *big.Int        `json:"value,omitempty"`

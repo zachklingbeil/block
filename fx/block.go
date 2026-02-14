@@ -59,7 +59,7 @@ func (fx *Fx) Transform(raw *Raw) *Block {
 	txs := make([]*Transaction, len(raw.Block.Transactions()))
 	for i, tx := range raw.Block.Transactions() {
 		from, _ := types.Sender(signer, tx)
-		txs[i] = fx.transaction(from, tx, fx.receipt(raw.Receipts, i), tx.Data())
+		txs[i] = fx.transaction(from, tx, fx.receipt(raw.Receipts, i), tx.Data(), i)
 	}
 	return &Block{
 		Number:       raw.Block.Number(),
@@ -130,11 +130,10 @@ func (fx *Fx) receipt(receipts []*types.Receipt, i int) *types.Receipt {
 }
 
 // transaction builds a Transaction from its parts.
-func (fx *Fx) transaction(from common.Address, tx *types.Transaction, r *types.Receipt, data []byte) *Transaction {
+func (fx *Fx) transaction(from common.Address, tx *types.Transaction, r *types.Receipt, data []byte, index int) *Transaction {
 	t := &Transaction{
 		TxHash:  tx.Hash(),
-		Type:    tx.Type(),
-		TxIndex: uint(tx.Type()),
+		TxIndex: uint(index),
 		From:    from,
 		To:      tx.To(),
 		Value:   tx.Value(),
